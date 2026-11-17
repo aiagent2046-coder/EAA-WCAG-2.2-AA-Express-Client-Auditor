@@ -13,10 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies & bundle @monetize.software SDK 3.0
+        run: |
+          npm install
+          npm run build
+
       - name: Check JS syntax
         run: |
-          node --check vendor/ExtPay.js
-          node --check src/background.js
+          node --check dist-sdk/sw.js
+          node --check dist-sdk/offscreen.js
+          node --check dist-sdk/paywall-bridge.js
           node --check src/content/scanner.js
           node --check src/popup/popup.js
           node --check src/report/report.js

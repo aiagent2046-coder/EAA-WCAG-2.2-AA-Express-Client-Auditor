@@ -13,7 +13,7 @@ DIST = ROOT / "dist"
 INCLUDE_PATHS = [
     "manifest.json",
     "assets",
-    "vendor",
+    "dist-sdk",
     "src",
     "_locales",
 ]
@@ -28,6 +28,9 @@ def zip_directory(src_dir: Path, zip_path: Path) -> None:
 
 
 def build_target(target: str) -> Path:
+    if not (ROOT / "dist-sdk" / "sw.js").exists():
+        raise SystemExit("Missing dist-sdk/sw.js — run `npm run build` before packaging.")
+
     base_manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
     version = base_manifest["version"]
 
@@ -41,6 +44,10 @@ def build_target(target: str) -> Path:
             else:
                 shutil.copy2(src, dst)
 
+        # Remove entry source files that were already bundled into dist-sdk/
+        for entry_file in stage.rglob("*.entry.js"):
+            entry_file.unlink()
+
         if target == "firefox":
             ff_overlay = json.loads((ROOT / "manifest.firefox.json").read_text(encoding="utf-8"))
             merged = {**base_manifest, **ff_overlay}
@@ -48,6 +55,18 @@ def build_target(target: str) -> Path:
                 json.dumps(merged, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
             )
+            # Use direct @monetize.software/sdk bridge in Firefox (no chrome.offscreen required)
+            shutil.copy2(stage / "dist-sdk" / "paywall-bridge-web.js", stage / "dist-sdk" / "paywall-bridge.js")
+            shutil.rmtree(stage / "src" / "offscreen", ignore_errors=True)
+            for unused in ("sw.js", "offscreen.js", "paywall-bridge-web.js"):
+                p = stage / "dist-sdk" / unused
+                if p.exists():
+                    p.unlink()
+        else:
+            for unused in ("sw-firefox.js", "paywall-bridge-web.js"):
+                p = stage / "dist-sdk" / unused
+                if p.exists():
+                    p.unlink()
 
         out_zip = DIST / f"wcag22-express-auditor-{target}-v{version}.zip"
         zip_directory(stage, out_zip)

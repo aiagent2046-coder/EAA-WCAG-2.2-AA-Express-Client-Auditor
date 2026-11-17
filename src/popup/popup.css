@@ -184,3 +184,24 @@ html, body {
   padding: 0;
   text-decoration: underline;
 }
+
+.plan-pill {
+  border: 1px solid var(--border);
+  background: #0b1120;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.plan-pill.is-pro {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: var(--accent);
+  color: #6ee7b7;
+}
+.footer-links {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 2px;
+}

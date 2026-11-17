@@ -450,14 +450,74 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
   });
 });
 
-document.getElementById('btn-print').addEventListener('click', () => window.print());
+document.getElementById('btn-print').addEventListener('click', () => { if (!reportProUnlocked) return triggerPaywallModal(); window.print(); });
 document.getElementById('btn-dl-md').addEventListener('click', () => {
+  if (!reportProUnlocked) return triggerPaywallModal();
   if (!auditData) return;
   downloadBlob(`wcag22-audit-${currentLang}.md`, toMarkdown(auditData, brandData), 'text/markdown;charset=utf-8');
 });
 document.getElementById('btn-dl-csv').addEventListener('click', () => {
+  if (!reportProUnlocked) return triggerPaywallModal();
   if (!auditData) return;
   downloadBlob(`wcag22-tickets-${currentLang}.csv`, toCsv(auditData), 'text/csv;charset=utf-8');
 });
 
-initReport();
+
+let reportProUnlocked = false;
+
+function applyLockUI(unlocked) {
+  reportProUnlocked = Boolean(unlocked);
+  document.body.classList.toggle('is-paywall-locked', !reportProUnlocked);
+
+  const btnUnlock = document.getElementById('btn-unlock-pro');
+  const banner = document.getElementById('locked-banner');
+  const btnPrint = document.getElementById('btn-print');
+  const btnMd = document.getElementById('btn-dl-md');
+  const btnCsv = document.getElementById('btn-dl-csv');
+
+  if (btnUnlock) btnUnlock.hidden = reportProUnlocked;
+  if (banner) banner.hidden = reportProUnlocked;
+  if (btnPrint) btnPrint.style.display = reportProUnlocked ? '' : 'none';
+  if (btnMd) btnMd.style.display = reportProUnlocked ? '' : 'none';
+  if (btnCsv) btnCsv.style.display = reportProUnlocked ? '' : 'none';
+
+  const manifest = chrome.runtime.getManifest();
+  const devBtn = document.getElementById('btn-dev-report-toggle');
+  if (!manifest.update_url && devBtn) {
+    devBtn.hidden = false;
+    devBtn.textContent = reportProUnlocked ? 'Dev: Lock' : 'Dev: Unlock';
+  }
+}
+
+function triggerPaywallModal() {
+  if (window.MonetizeBridge) {
+    window.MonetizeBridge.openPaywall();
+  }
+}
+
+async function initPaywallGate() {
+  if (!window.MonetizeBridge) {
+    applyLockUI(false);
+    return;
+  }
+  window.MonetizeBridge.onAccessChange(granted => {
+    applyLockUI(granted);
+  });
+
+  const access = await window.MonetizeBridge.checkAccess();
+  applyLockUI(access.granted);
+
+  const params = new URLSearchParams(window.location.search);
+  if (!access.granted || params.get('paywall') === '1') {
+    triggerPaywallModal();
+  }
+}
+
+document.getElementById('btn-unlock-pro')?.addEventListener('click', triggerPaywallModal);
+document.getElementById('btn-banner-paywall')?.addEventListener('click', triggerPaywallModal);
+document.getElementById('btn-dev-report-toggle')?.addEventListener('click', async () => {
+  const res = await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: !reportProUnlocked });
+  applyLockUI(Boolean(res && res.paid));
+});
+
+initReport().then(() => initPaywallGate());

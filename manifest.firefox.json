@@ -1,11 +1,15 @@
 {
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
   "host_permissions": [
-    "https://extensionpay.com/*"
+    "https://appbox.space/*"
   ],
   "background": {
     "scripts": [
-      "vendor/ExtPay.js",
-      "src/background.js"
+      "dist-sdk/sw-firefox.js"
     ]
   },
   "browser_specific_settings": {

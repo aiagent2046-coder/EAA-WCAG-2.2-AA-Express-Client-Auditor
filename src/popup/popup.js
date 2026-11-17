@@ -8,28 +8,45 @@ const btnScan = document.getElementById('btn-scan');
 const statusMsg = document.getElementById('status-msg');
 const resultsPanel = document.getElementById('results-panel');
 const issuesList = document.getElementById('issues-list');
-const paywallCard = document.getElementById('paywall-card');
 const chkHud = document.getElementById('chk-hud');
 const chkWarnHud = document.getElementById('chk-warn-hud');
+const planPill = document.getElementById('btn-plan-pill');
 
 function showStatus(text) {
   statusMsg.textContent = text;
   statusMsg.hidden = !text;
 }
 
-async function refreshProStatus() {
-  try {
-    const res = await chrome.runtime.sendMessage({ type: 'GET_PRO_STATUS' });
-    isPro = Boolean(res && res.paid);
-  } catch (_) {
-    isPro = false;
-  }
+function updateProBadges() {
+  planPill.textContent = isPro ? 'PRO' : 'FREE';
+  planPill.classList.toggle('is-pro', isPro);
+
   const manifest = chrome.runtime.getManifest();
   const devBtn = document.getElementById('btn-dev-unlock');
   if (!manifest.update_url && devBtn) {
     devBtn.hidden = false;
     devBtn.textContent = isPro ? 'Dev Mode: Switch to Free' : 'Dev Mode: Unlock Pro';
   }
+}
+
+async function refreshProStatus() {
+  try {
+    if (window.MonetizeBridge) {
+      const res = await window.MonetizeBridge.checkAccess();
+      isPro = Boolean(res && res.granted);
+    }
+  } catch (_) {
+    isPro = false;
+  }
+  updateProBadges();
+}
+
+if (window.MonetizeBridge) {
+  window.MonetizeBridge.onAccessChange(granted => {
+    isPro = Boolean(granted);
+    updateProBadges();
+    renderIssues();
+  });
 }
 
 async function loadBrandingInputs() {
@@ -104,7 +121,6 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
   const enriched = structuredClone(audit);
   if (!currentTabId) return enriched;
 
-  // Capture screenshot evidence strictly for Level AA Fails (warnings go into compact digest table)
   const targets = enriched.issues
     .map((issue, idx) => ({ issue, idx }))
     .filter(x => x.issue.severity === 'fail')
@@ -154,7 +170,6 @@ function cropDataUrl(dataUrl, rect) {
 
 btnScan.addEventListener('click', async () => {
   showStatus('Scanning DOM geometry & focus layers...');
-  paywallCard.hidden = true;
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id || !tab.url || /^(chrome|edge|about|moz-extension):/i.test(tab.url)) {
@@ -183,7 +198,7 @@ btnScan.addEventListener('click', async () => {
     document.getElementById('cnt-manual').textContent = String(lastAudit.counts.manual);
     document.getElementById('cnt-nodes').textContent = String(lastAudit.counts.checkedNodes);
 
-    showStatus(`Scanned in ${lastAudit.durationMs} ms · ${lastAudit.viewport} · HUD: ${chkWarnHud.checked ? 'Fails + Warnings' : 'Fails Only'}`);
+    showStatus(`Scanned in ${lastAudit.durationMs} ms · ${lastAudit.viewport}`);
     resultsPanel.hidden = false;
     renderIssues();
   } catch (err) {
@@ -209,9 +224,6 @@ chkHud.addEventListener('change', () => {
 chkWarnHud.addEventListener('change', () => {
   if (currentTabId) {
     chrome.tabs.sendMessage(currentTabId, { type: 'SET_HUD_WARNINGS', showWarnings: chkWarnHud.checked });
-    if (lastAudit) {
-      showStatus(`Scanned in ${lastAudit.durationMs} ms · ${lastAudit.viewport} · HUD: ${chkWarnHud.checked ? 'Fails + Warnings' : 'Fails Only'}`);
-    }
   }
 });
 
@@ -239,37 +251,30 @@ document.getElementById('btn-save-brand').addEventListener('click', async () => 
   showStatus('Agency branding saved locally.');
 });
 
-async function openReportOrPaywall(mode) {
-  await refreshProStatus();
-  if (!isPro) {
-    paywallCard.hidden = false;
-    paywallCard.scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
+// Open full-tab report preview; if user is Free, report.html opens PaywallUI #926 in full desktop Shadow DOM (survives OTP/OAuth tab switching!)
+async function openReportTab(mode) {
   if (!lastAudit) return;
-  showStatus('Capturing isolated evidence thumbnails...');
+  showStatus('Preparing client report...');
   const enriched = await captureTopIssueCrops(lastAudit);
   await chrome.storage.local.set({ latestAuditReport: enriched, reportAutoAction: mode });
-  chrome.tabs.create({ url: chrome.runtime.getURL('src/report/report.html') });
+  chrome.tabs.create({ url: chrome.runtime.getURL(`src/report/report.html?mode=${encodeURIComponent(mode)}`) });
 }
 
-document.getElementById('btn-export-pdf').addEventListener('click', () => openReportOrPaywall('pdf'));
-document.getElementById('btn-export-md').addEventListener('click', () => openReportOrPaywall('tickets'));
+document.getElementById('btn-export-pdf').addEventListener('click', () => openReportTab('pdf'));
+document.getElementById('btn-export-md').addEventListener('click', () => openReportTab('tickets'));
 
-document.getElementById('btn-buy-monthly').addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', planNickname: 'agency_monthly' });
-});
-document.getElementById('btn-buy-ltd').addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'OPEN_CHECKOUT', planNickname: 'solo_lifetime' });
-});
-document.getElementById('btn-restore').addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'OPEN_RESTORE_LOGIN' });
-});
+// Opening Paywall / Account in a full tab ensures Email OTP & OAuth popups never close the extension UI
+function openAccountOrPaywallTab() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/report/report.html?paywall=1') });
+}
+
+document.getElementById('btn-open-paywall').addEventListener('click', openAccountOrPaywallTab);
+planPill.addEventListener('click', openAccountOrPaywallTab);
+
 document.getElementById('btn-dev-unlock').addEventListener('click', async () => {
   const res = await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: !isPro });
   isPro = Boolean(res && res.paid);
-  paywallCard.hidden = isPro;
-  await refreshProStatus();
+  updateProBadges();
   renderIssues();
   showStatus(isPro ? 'Dev Mode: Pro unlocked locally.' : 'Dev Mode: Switched back to Free tier.');
 });

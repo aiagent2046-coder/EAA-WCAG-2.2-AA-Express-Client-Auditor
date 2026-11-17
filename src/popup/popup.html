@@ -10,10 +10,11 @@
 <body>
   <header class="top-bar">
     <div>
-      <div class="brand">WCAG 2.2 AA Auditor <span class="ver">v0.1.1</span></div>
+      <div class="brand">WCAG 2.2 AA Auditor <span class="ver">v0.2.0</span></div>
       <div class="sub-badge">EN 301 549 V4.1.1 · Local-Only</div>
     </div>
     <div class="hud-controls">
+      <button id="btn-plan-pill" type="button" class="plan-pill">FREE</button>
       <label class="hud-switch" title="Show/Hide visual overlay on page">
         <input type="checkbox" id="chk-hud" checked>
         <span>HUD</span>
@@ -80,22 +81,13 @@
       </div>
     </section>
 
-    <section id="paywall-card" class="paywall-card" hidden>
-      <div class="paywall-title">Unlock White-Label Client Reports</div>
-      <p class="paywall-copy">
-        Export branded A4 PDF compliance briefs (RU / EN / DE) with isolated screenshot evidence, CSS fixes, and Jira CSV / Markdown tickets.
-      </p>
-      <div class="paywall-actions">
-        <button id="btn-buy-monthly" type="button" class="btn-primary">Agency Pro — $24/mo</button>
-        <button id="btn-buy-ltd" type="button" class="btn-secondary">Solo QA Pass — $49 once</button>
-      </div>
-      <div class="paywall-links">
-        <button id="btn-restore" type="button" class="link-btn">Restore License</button>
-        <button id="btn-dev-unlock" type="button" class="link-btn" hidden>Dev Toggle Pro</button>
-      </div>
-    </section>
+    <div class="footer-links">
+      <button id="btn-open-paywall" type="button" class="link-btn">Upgrade / Account Sign-In</button>
+      <button id="btn-dev-unlock" type="button" class="link-btn" hidden>Dev Toggle Pro</button>
+    </div>
   </main>
 
+  <script src="../../dist-sdk/paywall-bridge.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

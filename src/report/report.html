@@ -19,6 +19,8 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="de">DE</button>
       </div>
+      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Unlock Pro / Sign In</button>
+      <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev Toggle Pro</button>
       <button id="btn-dl-md" type="button" class="btn-outline">.MD</button>
       <button id="btn-dl-csv" type="button" class="btn-outline">Jira .CSV</button>
       <button id="btn-print" type="button" class="btn-solid" id="ui-btn-print">Save Client PDF</button>
@@ -112,6 +114,14 @@
     <tfoot><tr><td><div class="print-page-space"></div></td></tr></tfoot>
   </table>
 
+  <div id="locked-banner" class="locked-banner no-print" hidden>
+    <div class="locked-card">
+      <strong id="ui-lock-title">White-Label Export Locked</strong>
+      <p id="ui-lock-sub">Sign in or upgrade via Paywall #926 to unlock clean A4 PDF printing, Markdown, and Jira CSV exports.</p>
+      <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Open Paywall / Sign In</button>
+    </div>
+  </div>
+  <script src="../../dist-sdk/paywall-bridge.js"></script>
   <script src="report.js"></script>
 </body>
 </html>
