@@ -1,8 +1,8 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with Direct Stripe Checkout via Monetize.software Headless API",
+  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with Zero-FP Geometry Engine, Tab-Stop Visualizer, and Direct Stripe Checkout",
   "scripts": {
     "build": "node scripts/build.mjs",
     "package": "npm run build && python3 scripts/package_store.py",

@@ -10,8 +10,8 @@
 <body>
   <header class="top-bar">
     <div>
-      <div class="brand">WCAG 2.2 AA Auditor <span class="ver">v0.3.0</span></div>
-      <div class="sub-badge">EN 301 549 V4.1.1 · Local-Only</div>
+      <div class="brand">WCAG 2.2 AA Auditor <span class="ver">v0.4.0</span></div>
+      <div class="sub-badge">EN 301 549 V4.1.1 · Zero-FP Local Engine</div>
     </div>
     <div class="hud-controls">
       <button id="btn-plan-pill" type="button" class="plan-pill">FREE</button>
@@ -19,15 +19,19 @@
         <input type="checkbox" id="chk-hud" checked>
         <span>HUD</span>
       </label>
-      <label class="hud-switch" title="Also show orange Warnings on page HUD">
+      <label class="hud-switch" title="Show orange Advisory Warnings on page HUD">
         <input type="checkbox" id="chk-warn-hud">
         <span>+Warn</span>
+      </label>
+      <label class="hud-switch" title="Visualize numbered keyboard Tab-Stop Focus Order path (SC 2.4.3)">
+        <input type="checkbox" id="chk-tabmap-hud">
+        <span>Tab#</span>
       </label>
     </div>
   </header>
 
   <main class="container">
-    <button id="btn-scan" class="btn-primary" type="button">Run WCAG 2.2 AA Audit</button>
+    <button id="btn-scan" class="btn-primary" type="button">Run WCAG 2.2 AA &amp; EAA Audit</button>
 
     <div id="status-msg" class="status-msg" hidden></div>
 
@@ -45,18 +49,21 @@
           <span class="kpi-num" id="cnt-manual">0</span>
           <span class="kpi-lbl">Manual QA</span>
         </div>
-        <div class="kpi">
-          <span class="kpi-num" id="cnt-nodes">0</span>
-          <span class="kpi-lbl">Checked</span>
+        <div class="kpi kpi-score">
+          <span class="kpi-num" id="cnt-score">100%</span>
+          <span class="kpi-lbl">EAA Score</span>
         </div>
       </div>
+
+      <div id="help-consistency-bar" class="help-bar" hidden></div>
 
       <div class="filter-bar" role="tablist">
         <button type="button" class="chip is-active" data-filter="all">All</button>
         <button type="button" class="chip" data-filter="fail">Fails Only</button>
         <button type="button" class="chip" data-filter="2.5.8">2.5.8 Target</button>
-        <button type="button" class="chip" data-filter="2.4.11">2.4.11 Focus</button>
-        <button type="button" class="chip" data-filter="3.3.8">3.3.8 Auth</button>
+        <button type="button" class="chip" data-filter="2.4">2.4 Focus</button>
+        <button type="button" class="chip" data-filter="3.3">3.3 Auth/Forms</button>
+        <button type="button" class="chip" data-filter="3.2.6">3.2.6 Help</button>
       </div>
 
       <div id="issues-list" class="issues-list"></div>

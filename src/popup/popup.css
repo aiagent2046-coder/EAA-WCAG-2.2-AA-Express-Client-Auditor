@@ -14,8 +14,8 @@
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
-  width: 392px;
-  max-height: 580px;
+  width: 400px;
+  max-height: 590px;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
@@ -31,25 +31,25 @@ html, body {
   justify-content: space-between;
   align-items: center;
   height: 52px;
-  padding: 0 14px;
+  padding: 0 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 700; font-size: 14px; }
+.brand { font-weight: 700; font-size: 13.5px; }
 .ver { font-weight: 500; font-size: 11px; color: var(--muted); }
-.sub-badge { font-size: 11px; color: var(--muted); }
-.hud-controls { display: flex; align-items: center; gap: 10px; }
+.sub-badge { font-size: 10.5px; color: var(--muted); }
+.hud-controls { display: flex; align-items: center; gap: 7px; }
 .hud-switch {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
+  gap: 3px;
+  font-size: 11px;
   color: var(--muted);
   cursor: pointer;
 }
 .container {
   padding: 12px 14px;
-  max-height: calc(580px - 52px);
+  max-height: calc(590px - 52px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -75,6 +75,20 @@ html, body {
   color: var(--muted);
   font-size: 12px;
 }
+.help-bar {
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  border: 1px solid var(--border);
+  background: rgba(16, 185, 129, 0.10);
+  color: #a7f3d0;
+  margin-bottom: 6px;
+}
+.help-bar.is-mismatch {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fecaca;
+}
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -93,6 +107,7 @@ html, body {
 .kpi-fail .kpi-num { color: var(--fail); }
 .kpi-warn .kpi-num { color: var(--warn); }
 .kpi-manual .kpi-num { color: var(--manual); }
+.kpi-score .kpi-num { color: #34d399; }
 .filter-bar {
   display: flex;
   gap: 5px;
@@ -112,7 +127,7 @@ html, body {
 }
 .chip.is-active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .issues-list {
-  max-height: 195px;
+  max-height: 190px;
   overflow-y: auto;
   padding-right: 3px;
   display: flex;
@@ -165,16 +180,6 @@ html, body {
 }
 .file-lbl { font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
 .export-bar { display: flex; gap: 6px; }
-.paywall-card {
-  background: linear-gradient(160deg, #1e293b, #0f172a);
-  border: 1px solid var(--primary);
-  border-radius: 10px;
-  padding: 11px;
-}
-.paywall-title { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
-.paywall-copy { margin: 0 0 9px; font-size: 11.5px; color: var(--muted); }
-.paywall-actions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.paywall-links { display: flex; justify-content: space-between; }
 .link-btn {
   background: none;
   border: none;
@@ -184,7 +189,6 @@ html, body {
   padding: 0;
   text-decoration: underline;
 }
-
 .plan-pill {
   border: 1px solid var(--border);
   background: #0b1120;

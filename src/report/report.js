@@ -8,7 +8,7 @@ const I18N = {
     toolbarSub: 'Чистый A4 PDF без браузерных колонтитулов и технических URL',
     btnPrint: 'Сохранить PDF для клиента',
     eyebrow: 'Европейский акт о доступности (EN 301 549 V4.1.1) · WCAG 2.2 Уровень AA',
-    title: 'Отчет об аудите доступности (WCAG 2.2 Delta)',
+    title: 'Отчет об аудите доступности (WCAG 2.2 & EAA)',
     defaultAgency: 'Подготовлено командой аудита доступности (QA)',
     preparedBy: 'Исполнитель:',
     lblClient: 'Клиент / Проект',
@@ -16,20 +16,20 @@ const I18N = {
     lblDate: 'Дата и время',
     lblVp: 'Окно просмотра',
     kpiFail: 'Нарушения уровня AA',
-    kpiWarn: 'Предупреждения (отступы)',
-    kpiManual: 'Ручная проверка QA',
-    kpiNodes: 'Проверено узлов DOM',
+    kpiWarn: 'Предупреждения и риски',
+    kpiScore: 'Индекс готовности EAA',
+    kpiNodes: 'Проверено контролов DOM',
     verdictFail: n => `Требуются правки (ошибок AA: ${n})`,
     verdictPass: 'Автопроверки WCAG 2.2 AA пройдены',
-    scope: '<strong>Методология и охват:</strong> детерминированная проверка геометрии и поведения DOM по новым критериям W3C WCAG 2.2 уровня AA в рамках стандарта EN 301 549 V4.1.1 (SC 2.5.8 минимальный размер таргета 24×24 CSS px, SC 2.4.11 отсутствие перекрытия фокуса липкими слоями, SC 3.3.8 доступная аутентификация без запрета вставки, SC 2.5.7 альтернативы перетаскиванию). Перед финальной юридической приемкой EAA дополните автоматический срез прогоном со скринридером.',
+    scope: '<strong>Методология и охват (v0.4.0 Zero-FP Engine):</strong> детерминированная проверка геометрии, видимости фокуса и кросс-страничной навигации по критериям W3C WCAG 2.2 AA в рамках стандарта EN 301 549 V4.1.1 (SC 2.5.8 минимальный размер 24×24 CSS px с учетом исключений Equivalent и слоев sticky/fixed, SC 2.4.7 / 2.4.11 / 2.4.13 видимость, контраст и отсутствие перекрытия фокуса, SC 3.2.6 согласованная помощь между страницами, SC 3.3.7 / 3.3.8 доступная аутентификация без запрета вставки и избыточного ввода, SC 2.5.7 альтернативы перетаскиванию, а также проверка на рискованные виджеты-оверлеи). Для полной приемки EAA дополните отчет проверкой со скринридером.',
     secFails: '1. Критические нарушения уровня AA (обязательно к исправлению)',
     zeroFails: 'Критических нарушений уровня WCAG 2.2 AA на текущем экране не обнаружено.',
-    secWarns: '2. Сводная таблица элементов на грани допуска (проходят за счет отступов)',
+    secWarns: '2. Сводная таблица предупреждений, контраста фокуса и отступов',
     thWCrit: 'Критерий',
     thWEl: 'Элемент и селектор',
     thWObs: 'Фактический замер',
-    thWFix: 'Рекомендуемый CSS-запас',
-    secManual: '3. Экспресс-проверка аудитором за 10 секунд (SC 2.5.7 / 3.2.6 / 3.3.7)',
+    thWFix: 'Рекомендуемое решение CSS / HTML',
+    secManual: '3. Контрольный чек-лист аудитора (SC 2.5.7 / 3.2.6 / 3.3.7)',
     thMCrit: 'Критерий',
     thMDesc: 'Контрольный вопрос',
     thMSign: 'Отметка аудитора',
@@ -38,8 +38,9 @@ const I18N = {
     na: 'Н/П',
     tagFail: 'НАРУШЕНИЕ AA',
     lblSelector: 'Селектор:',
-    lblFix: 'Готовый CSS-фикс:',
+    lblFix: 'Рекомендация разработчику:',
     m326: 'Глобальный макет — ссылка или виджет помощи/контактов расположены в едином порядке на всех страницах.',
+    m326AutoPass: n => `Автоматически подтверждено расширением на ${n} стр. этого домена.`,
     m337: 'Многошаговые формы — ранее введенные пользователем данные подставляются автоматически без повторного ввода.',
     issueTitle(iss) {
       const p = iss.params || {};
@@ -52,12 +53,28 @@ const I18N = {
           return 'Элемент в фокусе на 100% перекрыт фиксированной шапкой или баннером (F110)';
         case 'FOCUS_OBSCURED_PARTIAL':
           return `Частичное перекрытие элемента в фокусе (${p.coveredPts || '?'} из 9 точек закрыты)`;
+        case 'FOCUS_RING_SUPPRESSED':
+          return 'Подавлен видимый индикатор фокуса клавиатуры (outline: none без замены)';
+        case 'FOCUS_APPEARANCE_LOW':
+          return `Низкий контраст рамки фокуса (${p.ratio || '?'}:1 при рекомендации не менее 3:1)`;
+        case 'TABINDEX_POSITIVE':
+          return `Положительный tabindex="${p.tabindex}" ломает естественный порядок табуляции`;
+        case 'CONSISTENT_HELP_MISMATCH':
+          return `Нарушен единый порядок блока помощи (${p.kind}) между страницами сайта`;
         case 'AUTH_PASTE_BLOCKED':
           return 'Поле пароля/кода блокирует вставку из буфера обмена (ломает менеджеры паролей)';
         case 'AUTH_AUTOCOMPLETE_OFF':
           return 'Отключено автозаполнение менеджером паролей (autocomplete="off")';
+        case 'AUTH_OTP_SPLIT_NO_PASTE':
+          return `Раздельные поля кода (${p.boxes || 6} ячеек) без autocomplete="one-time-code"`;
+        case 'AUTH_COGNITIVE_CAPTCHA':
+          return 'Обнаружена CAPTCHA — убедитесь в наличии беспарольной альтернативы или распознавания объектов';
+        case 'REDUNDANT_ENTRY_RISK':
+          return 'Дублирующиеся поля доставки и оплаты без чекбокса «Совпадает с адресом доставки»';
+        case 'EAA_OVERLAY_DETECTED':
+          return `Обнаружен сторонний виджет-оверлей (${p.vendor}) — не признается регуляторами ЕС достаточным для EAA`;
         case 'DRAG_MANUAL_CHECK':
-          return `Проверить наличие кнопочной альтернативы (клик/тап) для drag-элемента (${p.tag || 'widget'})`;
+          return `Элемент перетаскивания / слайдер (${p.tag || 'widget'}) без видимых кнопок одиночного клика рядом`;
         default:
           return iss.title;
       }
@@ -73,10 +90,24 @@ const I18N = {
           return `Элемент «${iss.elementLabel}» полностью скрыт под слоем ${p.blocker} (высота ${p.blockerH}px)`;
         case 'FOCUS_OBSCURED_PARTIAL':
           return `Частично перекрыт слоем ${p.blocker} (${p.coveredPts}/9 точек)`;
+        case 'FOCUS_RING_SUPPRESSED':
+          return 'При фокусировке с клавиатуры отсутствуют контур outline, тень box-shadow и изменение границы';
+        case 'FOCUS_APPEARANCE_LOW':
+          return `Контраст контура фокуса ${p.ratio}:1 (толщина ${p.outlineW}px)`;
+        case 'TABINDEX_POSITIVE':
+          return `Атрибут tabindex="${p.tabindex}" перехватывает фокус раньше основного контента`;
+        case 'CONSISTENT_HELP_MISMATCH':
+          return `На стр. ${p.basePath} блок в зоне ${p.baseZone}, а на ${p.curPath} переместился в ${p.curZone}`;
         case 'AUTH_PASTE_BLOCKED':
           return 'Событие вставки (paste) заблокировано через preventDefault() или атрибут onpaste';
         case 'AUTH_AUTOCOMPLETE_OFF':
           return 'Атрибут autocomplete="off" запрещает менеджеру паролей подставлять учетные данные';
+        case 'AUTH_OTP_SPLIT_NO_PASTE':
+          return `${p.boxes} одиночных полей maxlength="1" без автоподстановки полного кода из буфера`;
+        case 'REDUNDANT_ENTRY_RISK':
+          return 'Форма требует повторного ручного ввода адреса плательщика';
+        case 'EAA_OVERLAY_DETECTED':
+          return `Скрипт ${p.vendor} накладывает поверхностный виджет вместо исправления исходного DOM/ARIA-кода`;
         default:
           return iss.actual;
       }
@@ -87,7 +118,7 @@ const I18N = {
     toolbarSub: 'Clean A4 PDF without browser headers or extension URLs',
     btnPrint: 'Save Client PDF',
     eyebrow: 'European Accessibility Act (EN 301 549 V4.1.1) · WCAG 2.2 Level AA',
-    title: 'Accessibility Delta Audit Report',
+    title: 'Accessibility & EAA Compliance Audit Report',
     defaultAgency: 'Prepared by Accessibility QA Team',
     preparedBy: 'Prepared by',
     lblClient: 'Client / Project',
@@ -95,19 +126,19 @@ const I18N = {
     lblDate: 'Audit Timestamp',
     lblVp: 'Viewport',
     kpiFail: 'Level AA Violations',
-    kpiWarn: 'Spacing & Advisory Warnings',
-    kpiManual: 'Guided Manual QA Items',
+    kpiWarn: 'Warnings & EAA Risks',
+    kpiScore: 'EAA Readiness Index',
     kpiNodes: 'Evaluated DOM Controls',
     verdictFail: n => `Action Required (${n} AA Fails)`,
-    verdictPass: 'Passed Automated WCAG 2.2 Delta',
-    scope: '<strong>Scope & Methodology:</strong> Deterministic browser geometry and focus-layer inspection against W3C WCAG 2.2 Level AA delta criteria under EN 301 549 V4.1.1 (SC 2.5.8 Target Size Minimum 24×24 CSS px, SC 2.4.11 Focus Not Obscured Minimum, SC 3.3.8 Accessible Authentication, and SC 2.5.7 Dragging Movements). Pair with assistive screen-reader traversal prior to formal EAA legal sign-off.',
+    verdictPass: 'Passed Automated WCAG 2.2 AA',
+    scope: '<strong>Scope & Methodology (v0.4.0 Zero-FP Engine):</strong> Deterministic browser geometry, focus-indicator contrast, and cross-page consistency inspection against W3C WCAG 2.2 Level AA criteria under EN 301 549 V4.1.1 (SC 2.5.8 Target Size Minimum 24×24 CSS px with Equivalent & fixed/sticky stacking-layer exemptions, SC 2.4.7 / 2.4.11 / 2.4.13 Focus Visibility, Contrast & Non-Obscuration, SC 3.2.6 Cross-Page Consistent Help, SC 3.3.7 / 3.3.8 Accessible Authentication & Redundant Entry, SC 2.5.7 Dragging Alternatives, and EU Accessibility Overlay detection). Pair with assistive screen-reader testing prior to formal EAA sign-off.',
     secFails: '1. Level AA Violations (Remediation Required)',
     zeroFails: 'Zero automated WCAG 2.2 Level AA violations detected on this viewport.',
-    secWarns: '2. Compact Advisory & Spacing Digest (Passes AA via Spacing Exception)',
+    secWarns: '2. Compact Advisory, Focus Contrast & Spacing Digest',
     thWCrit: 'Criterion',
     thWEl: 'Control & Selector',
-    thWObs: 'Measured Geometry',
-    thWFix: 'Recommended Hardening CSS',
+    thWObs: 'Measured Telemetry',
+    thWFix: 'Recommended Remediation',
     secManual: '3. Guided 10-Second Manual QA Sign-Off (SC 2.5.7 / 3.2.6 / 3.3.7)',
     thMCrit: 'Criterion',
     thMDesc: 'Verification Check',
@@ -119,6 +150,7 @@ const I18N = {
     lblSelector: 'Selector:',
     lblFix: 'Developer Fix:',
     m326: 'Global layout — verify help/contact link or widget appears in consistent relative order across pages.',
+    m326AutoPass: n => `Automatically verified across ${n} audited pages on this domain.`,
     m337: 'Multi-step forms — verify previously entered user data is auto-populated or selectable without re-typing.',
     issueTitle: iss => iss.title,
     issueObs: iss => `${iss.elementLabel ? `"${iss.elementLabel}" — ` : ''}${iss.actual}`
@@ -128,7 +160,7 @@ const I18N = {
     toolbarSub: 'Sauberer A4-PDF-Export ohne Browser-Fußzeilen',
     btnPrint: 'Kunden-PDF speichern',
     eyebrow: 'Barrierefreiheitsstärkungsgesetz (BFSG · EN 301 549 V4.1.1) · WCAG 2.2 Stufe AA',
-    title: 'Prüfbericht zur digitalen Barrierefreiheit (WCAG 2.2)',
+    title: 'Prüfbericht zur digitalen Barrierefreiheit (WCAG 2.2 & EAA)',
     defaultAgency: 'Erstellt vom Accessibility-QA-Team',
     preparedBy: 'Prüfstelle:',
     lblClient: 'Kunde / Projekt',
@@ -136,19 +168,19 @@ const I18N = {
     lblDate: 'Prüfzeitpunkt',
     lblVp: 'Viewport',
     kpiFail: 'Stufe-AA-Verstöße',
-    kpiWarn: 'Abstands-Hinweise',
-    kpiManual: 'Manuelle Kurzprüfung',
+    kpiWarn: 'Warnungen & Risiken',
+    kpiScore: 'EAA-Bereitschaftsindex',
     kpiNodes: 'Geprüfte DOM-Elemente',
     verdictFail: n => `Handlungsbedarf (${n} AA-Verstöße)`,
     verdictPass: 'Automatische WCAG-2.2-Prüfung bestanden',
-    scope: '<strong>Methodik & Prüfumfang:</strong> Deterministische DOM-Geometrie- und Fokus-Prüfung gemäß W3C WCAG 2.2 Stufe AA im Rahmen der EN 301 549 V4.1.1 / BFSG (SC 2.5.8 Mindestzielgröße 24×24 CSS px, SC 2.4.11 Fokus nicht verdeckt, SC 3.3.8 Zugängliche Authentifizierung, SC 2.5.7 Ziehvorgänge).',
+    scope: '<strong>Methodik & Prüfumfang (v0.4.0 Zero-FP Engine):</strong> Deterministische DOM-Geometrie-, Fokus-Kontrast- und Konsistenzprüfung gemäß W3C WCAG 2.2 Stufe AA im Rahmen der EN 301 549 V4.1.1 / BFSG (SC 2.5.8 Mindestzielgröße 24×24 CSS px inkl. Äquivalenz- und Ebenen-Ausnahmen, SC 2.4.7 / 2.4.11 / 2.4.13 Fokus-Sichtbarkeit, SC 3.2.6 Konsistente Hilfe, SC 3.3.7 / 3.3.8 Authentifizierung & Redundante Eingabe, SC 2.5.7 Ziehvorgänge sowie Overlay-Risikoerkennung).',
     secFails: '1. Kritische Verstöße der Stufe AA (Korrektur erforderlich)',
     zeroFails: 'Keine automatisierten Verstöße der Stufe WCAG 2.2 AA im aktuellen Viewport festgestellt.',
-    secWarns: '2. Kompakte Übersicht der Abstands-Ausnahmen (bestanden über 24px-Abstand)',
+    secWarns: '2. Kompakte Übersicht der Warnungen, Fokuskontraste & Abstände',
     thWCrit: 'Kriterium',
     thWEl: 'Element & Selektor',
     thWObs: 'Messwert',
-    thWFix: 'Empfohlenes CSS',
+    thWFix: 'Empfohlene Korrektur',
     secManual: '3. Manuelle 10-Sekunden-Prüfung (SC 2.5.7 / 3.2.6 / 3.3.7)',
     thMCrit: 'Kriterium',
     thMDesc: 'Prüfpunkt',
@@ -158,8 +190,9 @@ const I18N = {
     na: 'N/Z',
     tagFail: 'AA-VERSTOSS',
     lblSelector: 'Selektor:',
-    lblFix: 'CSS-Korrektur:',
+    lblFix: 'Entwickler-Korrektur:',
     m326: 'Seitenlayout — Hilfe-/Kontaktoptionen erscheinen auf allen Unterseiten an derselben relativen Position.',
+    m326AutoPass: n => `Automatisch über ${n} geprüfte Unterseiten dieser Domain bestätigt.`,
     m337: 'Mehrstufige Formulare — bereits eingegebene Daten werden ohne erneutes Eintippen übernommen.',
     issueTitle(iss) {
       const p = iss.params || {};
@@ -170,8 +203,14 @@ const I18N = {
           return 'Klickfläche unter 24×24 px (besteht nur über Abstandsregel)';
         case 'FOCUS_OBSCURED_FULL':
           return 'Fokussiertes Element zu 100 % durch fixierten Header/Banner verdeckt (F110)';
+        case 'FOCUS_RING_SUPPRESSED':
+          return 'Tastatur-Fokusindikator unterdrückt (outline: none ohne Ersatz)';
+        case 'CONSISTENT_HELP_MISMATCH':
+          return `Hilfe-Element (${p.kind}) wechselt die Layout-Position zwischen Unterseiten`;
         case 'AUTH_PASTE_BLOCKED':
           return 'Passwortfeld blockiert Einfügen aus der Zwischenablage';
+        case 'EAA_OVERLAY_DETECTED':
+          return `Drittanbieter-Overlay (${p.vendor}) erkannt — kein gültiger BFSG/EAA-Nachweis`;
         default:
           return iss.title;
       }
@@ -187,6 +226,36 @@ const I18N = {
     }
   }
 };
+
+function normalizeSelectorDigits(sel) {
+  return String(sel || '')
+    .replace(/:nth-of-type\(\d+\)/g, '')
+    .replace(/\d{2,}/g, '#')
+    .replace(/-\d+\b/g, '-#');
+}
+
+function getComponentSignature(item) {
+  if (item.componentGroupKey) {
+    return `${item.criterion}|${item.code || ''}|${item.componentGroupKey}|${item.fixCode || ''}`;
+  }
+  const raw = String(item.selector || '').trim();
+  const parts = raw.split('>').map(s => s.trim()).filter(Boolean);
+  const leaf = normalizeSelectorDigits(parts[parts.length - 1] || raw);
+  const parent = normalizeSelectorDigits(parts[parts.length - 2] || '');
+  const hasLeafClass = leaf.includes('.');
+  const sigSelector = hasLeafClass ? leaf : `${parent} > ${leaf}`;
+  return `${item.criterion}|${item.code || ''}|${sigSelector}|${item.fixCode || ''}`;
+}
+
+function groupByComponent(list) {
+  const map = new Map();
+  for (const item of list) {
+    const key = getComponentSignature(item);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  }
+  return Array.from(map.values());
+}
 
 function downloadBlob(filename, content, mime) {
   const blob = new Blob([content], { type: mime });
@@ -207,6 +276,7 @@ function toMarkdown(audit, brand) {
     `- **${t.preparedBy}** ${brand.agencyName || t.defaultAgency}${brand.auditorContact ? ` (${brand.auditorContact})` : ''}`,
     `- **${t.lblDate}:** ${audit.scannedAt}`,
     `- **${t.lblVp}:** ${audit.viewport}`,
+    `- **EAA Readiness Index:** ${audit.readinessScore ?? 100}%`,
     `- **Summary:** ${audit.counts.fail} AA Fails · ${audit.counts.warning} Warnings · ${audit.counts.manual} Manual QA`,
     ''
   ];
@@ -242,6 +312,23 @@ function toCsv(audit) {
   return rows.map(r => r.map(csvEscape).join(',')).join('\n');
 }
 
+function formatRepeatedLabels(items) {
+  const sampleLabels = items
+    .map(x => x.elementLabel)
+    .filter(Boolean)
+    .slice(0, 4)
+    .map(s => `"${s}"`)
+    .join(', ');
+  const moreCount = Math.max(0, items.length - 4);
+  const countBadge = currentLang === 'ru'
+    ? `Однотипный компонент (×${items.length} шт.): `
+    : (currentLang === 'de' ? `Gleichartiges Bauteil (×${items.length}): ` : `Repeated component (×${items.length} controls): `);
+  const moreSuffix = moreCount > 0
+    ? (currentLang === 'ru' ? ` и еще ${moreCount}` : (currentLang === 'de' ? ` +${moreCount} weitere` : ` +${moreCount} more`))
+    : '';
+  return `${countBadge}${sampleLabels}${moreSuffix}`;
+}
+
 function renderReport() {
   if (!auditData) return;
   const t = I18N[currentLang];
@@ -262,7 +349,7 @@ function renderReport() {
   document.getElementById('ui-lbl-vp').textContent = t.lblVp;
   document.getElementById('ui-kpi-fail').textContent = t.kpiFail;
   document.getElementById('ui-kpi-warn').textContent = t.kpiWarn;
-  document.getElementById('ui-kpi-manual').textContent = t.kpiManual;
+  document.getElementById('ui-kpi-score').textContent = t.kpiScore;
   document.getElementById('ui-kpi-nodes').textContent = t.kpiNodes;
   document.getElementById('ui-scope-note').innerHTML = t.scope;
   document.getElementById('ui-sec-fails').textContent = t.secFails;
@@ -293,7 +380,7 @@ function renderReport() {
 
   document.getElementById('sum-fail').textContent = String(auditData.counts.fail);
   document.getElementById('sum-warn').textContent = String(auditData.counts.warning);
-  document.getElementById('sum-manual').textContent = String(auditData.counts.manual);
+  document.getElementById('sum-score').textContent = `${auditData.readinessScore ?? 100}%`;
   document.getElementById('sum-nodes').textContent = String(auditData.counts.checkedNodes);
 
   const verdict = document.getElementById('rep-verdict');
@@ -305,7 +392,7 @@ function renderReport() {
     verdict.className = 'verdict-pill verdict-pass';
   }
 
-  // 1. Render ONLY critical AA Fails as full evidence cards
+  // 1. Render Critical AA Fails (grouped by component signature so repeated cards stay crisp)
   const failsContainer = document.getElementById('fails-container');
   failsContainer.replaceChildren();
   const fails = auditData.issues.filter(i => i.severity === 'fail');
@@ -316,14 +403,17 @@ function renderReport() {
     banner.textContent = t.zeroFails;
     failsContainer.appendChild(banner);
   } else {
-    fails.forEach((iss, i) => {
+    const failGroups = groupByComponent(fails);
+    failGroups.forEach((items, i) => {
+      const iss = items.find(x => x.cropDataUrl) || items[0];
       const card = document.createElement('div');
       card.className = 'finding';
 
       const top = document.createElement('div');
       top.className = 'finding-top';
       const strong = document.createElement('strong');
-      strong.textContent = `${i + 1}. ${t.issueTitle(iss)}`;
+      const multSuffix = items.length > 1 ? ` (×${items.length})` : '';
+      strong.textContent = `${i + 1}. ${t.issueTitle(iss)}${multSuffix}`;
       const tag = document.createElement('span');
       tag.className = 'tag tag-fail';
       tag.textContent = `SC ${iss.criterion} · ${t.tagFail}`;
@@ -334,11 +424,14 @@ function renderReport() {
 
       const details = document.createElement('div');
       const obs = document.createElement('div');
-      obs.textContent = t.issueObs(iss);
+      obs.textContent = items.length > 1
+        ? `${formatRepeatedLabels(items)} — ${t.issueObs(iss)}`
+        : t.issueObs(iss);
       const sel = document.createElement('div');
       sel.className = 'mono notranslate';
       sel.setAttribute('translate', 'no');
-      sel.textContent = `${t.lblSelector} ${iss.selector}`;
+      const sampleSels = items.slice(0, 3).map(x => x.selector).join(', ');
+      sel.textContent = `${t.lblSelector} ${sampleSels}${items.length > 3 ? ` (+${items.length - 3})` : ''}`;
       const fix = document.createElement('div');
       fix.className = 'fix-box notranslate';
       fix.setAttribute('translate', 'no');
@@ -359,41 +452,23 @@ function renderReport() {
     });
   }
 
-  // 2. Render Warnings in a compact component-grouped table (keeps mega-footer sites like stripe.com at 2-3 pages instead of 21 pages!)
+  // 2. Render Warnings in a compact component-grouped table (normalizes numeric IDs like #gl-link-241650 -> #gl-link-#)
   const warns = auditData.issues.filter(i => i.severity === 'warning');
   const warnSection = document.getElementById('warnings-section');
   const warnTbody = document.getElementById('warnings-tbody');
   warnTbody.replaceChildren();
 
-  function getComponentSignature(w) {
-    const raw = String(w.selector || '').trim();
-    const parts = raw.split('>').map(s => s.trim()).filter(Boolean);
-    const leaf = (parts[parts.length - 1] || raw).replace(/:nth-of-type\(\d+\)/g, '');
-    const parent = (parts[parts.length - 2] || '').replace(/:nth-of-type\(\d+\)/g, '');
-    // If leaf has an explicit semantic class (e.g. a.hds-link.footer-links-block__item), group across repeated columns!
-    const hasLeafClass = leaf.includes('.');
-    const sigSelector = hasLeafClass ? leaf : `${parent} > ${leaf}`;
-    return `${w.criterion}|${w.code || ''}|${sigSelector}|${w.fixCode || ''}`;
-  }
-
   if (warns.length === 0) {
     warnSection.hidden = true;
   } else {
     warnSection.hidden = false;
-    const groupsMap = new Map();
-    warns.forEach(w => {
-      const key = getComponentSignature(w);
-      if (!groupsMap.has(key)) {
-        groupsMap.set(key, []);
-      }
-      groupsMap.get(key).push(w);
-    });
+    const warnGroups = groupByComponent(warns);
 
-    for (const items of groupsMap.values()) {
+    for (const items of warnGroups) {
       const first = items[0];
       const tr = document.createElement('tr');
       const tdCrit = document.createElement('td');
-      tdCrit.textContent = `SC ${first.criterion}`;
+      tdCrit.textContent = first.criterion.startsWith('EN') ? first.criterion : `SC ${first.criterion}`;
 
       const tdSel = document.createElement('td');
       const lbl = document.createElement('div');
@@ -408,24 +483,9 @@ function renderReport() {
         code.textContent = first.selector;
         tdObs.textContent = t.issueObs(first);
       } else {
-        const sampleLabels = items
-          .map(x => x.elementLabel)
-          .filter(Boolean)
-          .slice(0, 4)
-          .map(s => `"${s}"`)
-          .join(', ');
-        const moreCount = Math.max(0, items.length - 4);
-        const countBadge = currentLang === 'ru'
-          ? `Однотипный компонент (×${items.length} шт.): `
-          : (currentLang === 'de' ? `Gleichartiges Bauteil (×${items.length}): ` : `Repeated component (×${items.length} controls): `);
-        const moreSuffix = moreCount > 0
-          ? (currentLang === 'ru' ? ` и еще ${moreCount}` : (currentLang === 'de' ? ` +${moreCount} weitere` : ` +${moreCount} more`))
-          : '';
-        lbl.textContent = `${countBadge}${sampleLabels}${moreSuffix}`;
-
-        const parts = String(first.selector || '').split('>').map(s => s.trim());
-        const cleanLeaf = (parts[parts.length - 1] || first.selector).replace(/:nth-of-type\(\d+\)/g, '');
-        code.textContent = `${cleanLeaf}  /* e.g. ${first.selector} */`;
+        lbl.textContent = formatRepeatedLabels(items);
+        const pattern = first.componentGroupKey || normalizeSelectorDigits(first.selector);
+        code.textContent = `${pattern}  /* e.g. ${first.selector} */`;
         tdObs.textContent = t.issueObs(first);
       }
 
@@ -441,16 +501,29 @@ function renderReport() {
     }
   }
 
-  // 3. Guided Manual QA table
+  // 3. Guided Manual QA table (with automatic SC 3.2.6 cross-page status when >= 2 pages scanned!)
   const manualTbody = document.getElementById('manual-tbody');
   manualTbody.replaceChildren();
+
+  const chSummary = auditData.consistentHelpSummary;
+  const autoPass326 = chSummary && chSummary.pagesCompared >= 2 && chSummary.status === 'pass';
+
   const manualItems = [
     ...auditData.issues.filter(i => i.severity === 'manual').map(m => ({
       criterion: m.criterion,
-      text: `${t.issueTitle(m)} (${m.selector})`
+      text: `${t.issueTitle(m)} (${m.selector})`,
+      autoPassNote: ''
     })),
-    { criterion: '3.2.6', text: t.m326 },
-    { criterion: '3.3.7', text: t.m337 }
+    {
+      criterion: '3.2.6',
+      text: t.m326,
+      autoPassNote: autoPass326 ? t.m326AutoPass(chSummary.pagesCompared) : ''
+    },
+    {
+      criterion: '3.3.7',
+      text: t.m337,
+      autoPassNote: ''
+    }
   ];
 
   manualItems.forEach(m => {
@@ -458,10 +531,19 @@ function renderReport() {
     const tdC = document.createElement('td');
     tdC.textContent = `SC ${m.criterion}`;
     const tdS = document.createElement('td');
-    tdS.textContent = m.text;
+    const mainText = document.createElement('div');
+    mainText.textContent = m.text;
+    tdS.appendChild(mainText);
+    if (m.autoPassNote) {
+      const note = document.createElement('div');
+      note.className = 'auto-pass-note';
+      note.textContent = m.autoPassNote;
+      tdS.appendChild(note);
+    }
     const tdCheck = document.createElement('td');
     tdCheck.className = 'sign-cell';
-    tdCheck.innerHTML = `<label><input type="checkbox"> ${t.pass}</label><label><input type="checkbox"> ${t.fail}</label><label><input type="checkbox"> ${t.na}</label>`;
+    const checkedAttr = m.autoPassNote ? ' checked' : '';
+    tdCheck.innerHTML = `<label><input type="checkbox"${checkedAttr}> ${t.pass}</label><label><input type="checkbox"> ${t.fail}</label><label><input type="checkbox"> ${t.na}</label>`;
     tr.append(tdC, tdS, tdCheck);
     manualTbody.appendChild(tr);
   });
