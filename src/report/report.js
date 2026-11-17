@@ -425,41 +425,222 @@ function renderReport() {
 const PAYWALL_I18N = {
   ru: {
     btnUnlockToolbar: 'Разблокировать Pro / Войти',
+    btnAccountToolbar: 'Аккаунт Pro',
     btnOpenBanner: 'Открыть Paywall / Войти',
     lockTitle: 'White-Label экспорт заблокирован (Paywall #926)',
-    lockSub: 'Войдите или активируйте тариф через Paywall #926, чтобы разблокировать печать чистого A4 PDF, выгрузку Markdown и Jira CSV.',
+    lockSub: 'Войдите по Email-коду или активируйте тариф через Paywall #926, чтобы открыть печать чистого A4 PDF, Markdown и Jira CSV.',
     noAuditYet: 'Сначала запустите аудит на любой веб-странице через иконку расширения (или войдите в Pro-аккаунт кнопкой выше).',
-    diagLoading: 'Подключение к Paywall #926 (https://appbox.space)...',
-    diagReady: n => `Paywall #926 подключен${n ? ` (активных тарифов: ${n})` : ''}. Окно оплаты открыто поверх страницы.`,
-    diagNoPrices: 'Сервер appbox.space ответил успешно, но у Paywall #926 пока 0 привязанных тарифов (prices: 0). В кабинете monetize.software/ru/publisher/paywalls/926 откройте вкладку «Цены» (Offers), добавьте тариф, нажмите Save в менеджере тестовых процессоров и кнопку «Сохранить и опубликовать», затем нажмите кнопку выше повторно.',
-    diagError: detail => `Ответ Paywall #926 (appbox.space): ${detail}. Проверьте в monetize.software/ru/publisher/paywalls/926 сохранение тестового процессора (Save), вкладку «Цены» и кнопку «Сохранить и опубликовать» (плюс обновление ↻ на chrome://extensions).`
+    modalTitle: 'Express Client Auditor Pro',
+    modalSub: 'Разблокируйте клиентский A4 PDF без водяных знаков, брендирование агентства и выгрузку задач в Markdown / Jira CSV.',
+    lblPlan: 'Тарифный план (Paywall #926)',
+    lblAuth: 'Шаг 1 · Вход или регистрация по одноразовому Email-коду',
+    phEmail: 'you@agency.com',
+    btnSendOtp: 'Получить код',
+    btnResendOtp: 'Отправить повторно',
+    phOtp: 'Код из письма (например, 123456)',
+    btnVerifyOtp: 'Подтвердить',
+    otpSentInfo: email => `Одноразовый код отправлен на ${email}. Проверьте входящие (и папку «Спам») и введите код ниже.`,
+    signedInAs: email => `Аккаунт: ${email}`,
+    btnSignOut: 'Выйти',
+    btnCheckout: 'Перейти к оплате тарифа',
+    btnPortal: 'Управление подпиской (Stripe Portal)',
+    awaitTitle: 'Окно оплаты Stripe открыто в соседней вкладке',
+    awaitHint: 'В тестовом режиме используйте карту песочницы Stripe: <code>4242 4242 4242 4242</code> (любой будущий срок MM/YY и любой CVC). Доступ откроется автоматически через 2–3 секунды после оплаты.',
+    btnCheckNow: 'Я оплатил — проверить доступ',
+    btnReopenUrl: 'Открыть оплату снова',
+    loadingPlans: 'Загрузка тарифов с appbox.space...',
+    noPlans: 'У Paywall #926 пока нет привязанных тарифов во вкладке «Цены».',
+    unlockedSuccess: 'Оплата подтверждена! Pro-экспорт разблокирован.',
+    notPaidYet: 'Подписка пока не обнаружена — завершите оплату во вкладке Stripe и нажмите кнопку еще раз.',
+    trialDays: n => `Пробный период: ${n} дн.`
   },
   en: {
     btnUnlockToolbar: 'Unlock Pro / Sign In',
+    btnAccountToolbar: 'Pro Account',
     btnOpenBanner: 'Open Paywall / Sign In',
     lockTitle: 'White-Label Export Locked (Paywall #926)',
-    lockSub: 'Sign in or upgrade via Paywall #926 to unlock clean A4 PDF printing, Markdown, and Jira CSV exports.',
+    lockSub: 'Sign in via Email OTP or upgrade via Paywall #926 to unlock clean A4 PDF printing, Markdown, and Jira CSV exports.',
     noAuditYet: 'Run an audit on any webpage from the extension popup first (or sign in / upgrade above).',
-    diagLoading: 'Connecting to Paywall #926 (https://appbox.space)...',
-    diagReady: n => `Paywall #926 connected${n ? ` (${n} active price${n === 1 ? '' : 's'})` : ''}. Checkout modal opened.`,
-    diagNoPrices: 'Connected to appbox.space, but Paywall #926 currently has 0 attached prices/offers. In monetize.software/ru/publisher/paywalls/926 open the "Цены" (Offers) tab, attach an offer, click Save on the Test processor, and click "Сохранить и опубликовать", then click the button again.',
-    diagError: detail => `Paywall #926 (appbox.space) error: ${detail}. Verify Test processor Save, attached Offers ("Цены"), and "Сохранить и опубликовать" in dashboard.`
+    modalTitle: 'Express Client Auditor Pro',
+    modalSub: 'Unlock clean White-Label A4 PDF client reports, custom agency branding, and Markdown / Jira CSV ticket exports.',
+    lblPlan: 'Select Plan (Paywall #926)',
+    lblAuth: 'Step 1 · Passwordless Email OTP Sign-In',
+    phEmail: 'you@agency.com',
+    btnSendOtp: 'Send OTP Code',
+    btnResendOtp: 'Resend Code',
+    phOtp: 'Enter code from email',
+    btnVerifyOtp: 'Verify Code',
+    otpSentInfo: email => `Verification code sent to ${email}. Paste the code below to continue.`,
+    signedInAs: email => `Signed in: ${email}`,
+    btnSignOut: 'Sign Out',
+    btnCheckout: 'Continue to Stripe Checkout',
+    btnPortal: 'Manage Subscription (Customer Portal)',
+    awaitTitle: 'Stripe Checkout opened in a new tab',
+    awaitHint: 'In Test mode, use Stripe sandbox card <code>4242 4242 4242 4242</code> (any future expiry & CVC). Pro unlocks automatically within seconds after payment.',
+    btnCheckNow: 'I completed payment — Check now',
+    btnReopenUrl: 'Reopen Checkout Tab',
+    loadingPlans: 'Loading plans from appbox.space...',
+    noPlans: 'Paywall #926 has 0 attached prices in the Offers tab.',
+    unlockedSuccess: 'Payment verified! White-Label Pro exports unlocked.',
+    notPaidYet: 'Active subscription not detected yet — complete Stripe Checkout and check again.',
+    trialDays: n => `${n}-day free trial included`
   },
   de: {
     btnUnlockToolbar: 'Pro freischalten / Anmelden',
+    btnAccountToolbar: 'Pro-Konto',
     btnOpenBanner: 'Paywall öffnen / Anmelden',
     lockTitle: 'White-Label-Export gesperrt (Paywall #926)',
-    lockSub: 'Melden Sie sich über Paywall #926 an, um den sauberen A4-PDF-Export sowie Markdown- und Jira-CSV-Exporte freizuschalten.',
+    lockSub: 'Melden Sie sich per E-Mail-Code über Paywall #926 an, um den sauberen A4-PDF-, Markdown- und Jira-CSV-Export freizuschalten.',
     noAuditYet: 'Starten Sie zuerst eine Prüfung über das Erweiterungs-Popup (oder melden Sie sich oben an).',
-    diagLoading: 'Verbindung zu Paywall #926 (https://appbox.space) wird hergestellt...',
-    diagReady: n => `Paywall #926 verbunden${n ? ` (${n} Tarife aktiv)` : ''}. Zahlungsfenster geöffnet.`,
-    diagNoPrices: 'appbox.space erreichbar, aber Paywall #926 hat aktuell 0 verknüpfte Tarife (prices: 0). Bitte im Dashboard unter „Цены“ (Offers) einen Tarif verknüpfen und veröffentlichen.',
-    diagError: detail => `Paywall #926 Fehler: ${detail}. Bitte Einstellungen im Monetize.software-Dashboard prüfen.`
+    modalTitle: 'Express Client Auditor Pro',
+    modalSub: 'Schalten Sie saubere White-Label-A4-PDF-Berichte, Agentur-Branding sowie Markdown- und Jira-CSV-Exporte frei.',
+    lblPlan: 'Tarif wählen (Paywall #926)',
+    lblAuth: 'Schritt 1 · Anmeldung per Einmal-Code (E-Mail)',
+    phEmail: 'name@agentur.de',
+    btnSendOtp: 'Code senden',
+    btnResendOtp: 'Erneut senden',
+    phOtp: 'Code aus der E-Mail eingeben',
+    btnVerifyOtp: 'Bestätigen',
+    otpSentInfo: email => `Einmal-Code an ${email} gesendet. Bitte unten eingeben.`,
+    signedInAs: email => `Angemeldet: ${email}`,
+    btnSignOut: 'Abmelden',
+    btnCheckout: 'Weiter zur Zahlung (Stripe)',
+    btnPortal: 'Abonnement verwalten (Portal)',
+    awaitTitle: 'Stripe Checkout in neuem Tab geöffnet',
+    awaitHint: 'Im Testmodus Karte <code>4242 4242 4242 4242</code> (beliebiges Ablaufdatum & CVC) verwenden. Freischaltung erfolgt automatisch.',
+    btnCheckNow: 'Zahlung abgeschlossen — Status prüfen',
+    btnReopenUrl: 'Zahlungslink erneut öffnen',
+    loadingPlans: 'Tarife werden geladen...',
+    noPlans: 'Paywall #926 enthält aktuell 0 verknüpfte Tarife.',
+    unlockedSuccess: 'Zahlung bestätigt! Pro-Export freigeschaltet.',
+    notPaidYet: 'Noch keine aktive Zahlung gefunden — bitte Stripe Checkout abschließen.',
+    trialDays: n => `${n} Tage kostenlos testen`
   }
 };
 
 let reportProUnlocked = false;
-let lastDiagState = null;
+let loadedPrices = [];
+let selectedPriceId = null;
+let lastCheckoutUrl = null;
+let pollTimer = null;
+
+function stopCheckoutPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function showModalAlert(level, text) {
+  const el = document.getElementById('pw-alert');
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.textContent = '';
+    el.className = 'pw-alert';
+    return;
+  }
+  el.hidden = false;
+  el.className = `pw-alert is-${level}`;
+  el.textContent = text;
+}
+
+function formatPlanDisplay(p) {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const title = p.label || p.name || p.title || 'Express Client Auditor Pro';
+  const currency = String(p.local?.currency || p.currency || 'USD').toUpperCase();
+  const rawAmount = p.local?.amount ?? p.amount ?? p.price ?? null;
+  let amountStr = '';
+  if (typeof p.formatted === 'string' && p.formatted) {
+    amountStr = p.formatted;
+  } else if (rawAmount !== null && rawAmount !== undefined && !Number.isNaN(Number(rawAmount))) {
+    try {
+      amountStr = new Intl.NumberFormat(currentLang, { style: 'currency', currency }).format(Number(rawAmount));
+    } catch (_) {
+      amountStr = `${rawAmount} ${currency}`;
+    }
+  }
+  const interval = p.interval
+    ? (p.interval_count && p.interval_count > 1 ? ` / ${p.interval_count} ${p.interval}` : ` / ${p.interval}`)
+    : '';
+  const trial = p.trial_days || p.trialDays || 0;
+  return {
+    title,
+    priceText: `${amountStr}${interval}`.trim(),
+    trialText: trial > 0 ? pt.trialDays(trial) : ''
+  };
+}
+
+function renderPlanCards() {
+  const listEl = document.getElementById('pw-plans-list');
+  if (!listEl) return;
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  listEl.replaceChildren();
+
+  if (!loadedPrices.length) {
+    const empty = document.createElement('div');
+    empty.className = 'pw-subtitle';
+    empty.textContent = pt.noPlans;
+    listEl.appendChild(empty);
+    return;
+  }
+
+  if (!selectedPriceId || !loadedPrices.some(p => p.id === selectedPriceId)) {
+    selectedPriceId = loadedPrices[0].id;
+  }
+
+  loadedPrices.forEach(p => {
+    const info = formatPlanDisplay(p);
+    const card = document.createElement('div');
+    card.className = `pw-plan-card${p.id === selectedPriceId ? ' is-selected' : ''}`;
+
+    const left = document.createElement('div');
+    const nameEl = document.createElement('div');
+    nameEl.className = 'pw-plan-name';
+    nameEl.textContent = info.title;
+    left.appendChild(nameEl);
+
+    if (info.trialText) {
+      const trEl = document.createElement('div');
+      trEl.className = 'pw-plan-trial';
+      trEl.textContent = info.trialText;
+      left.appendChild(trEl);
+    }
+
+    const priceEl = document.createElement('div');
+    priceEl.className = 'pw-plan-price';
+    priceEl.textContent = info.priceText;
+
+    card.append(left, priceEl);
+    card.addEventListener('click', () => {
+      selectedPriceId = p.id;
+      renderPlanCards();
+    });
+    listEl.appendChild(card);
+  });
+}
+
+function syncModalAuthState() {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const user = window.MonetizeBridge?.getCurrentUser?.();
+  const authBox = document.getElementById('pw-auth-box');
+  const sessBox = document.getElementById('pw-session-box');
+  const emailSpan = document.getElementById('pw-user-email');
+  const checkoutBtn = document.getElementById('pw-btn-checkout');
+  const portalBtn = document.getElementById('pw-btn-portal');
+
+  if (user && (user.email || user.id)) {
+    authBox.hidden = true;
+    sessBox.hidden = false;
+    emailSpan.textContent = pt.signedInAs(user.email || user.id);
+    checkoutBtn.hidden = reportProUnlocked;
+    portalBtn.hidden = !reportProUnlocked;
+  } else {
+    authBox.hidden = false;
+    sessBox.hidden = true;
+    document.getElementById('pw-awaiting-box').hidden = true;
+  }
+}
 
 function renderChromeStrings() {
   const t = I18N[currentLang] || I18N.en;
@@ -474,42 +655,163 @@ function renderChromeStrings() {
   document.getElementById('ui-toolbar-sub').textContent = t.toolbarSub;
   document.getElementById('btn-print').textContent = t.btnPrint;
   document.getElementById('btn-unlock-pro').textContent = pt.btnUnlockToolbar;
+  document.getElementById('btn-account-pro').textContent = pt.btnAccountToolbar;
   document.getElementById('btn-banner-paywall').textContent = pt.btnOpenBanner;
   document.getElementById('ui-lock-title').textContent = pt.lockTitle;
   document.getElementById('ui-lock-sub').textContent = pt.lockSub;
 
+  document.getElementById('pw-title').textContent = pt.modalTitle;
+  document.getElementById('pw-subtitle').textContent = pt.modalSub;
+  document.getElementById('pw-lbl-plan').textContent = pt.lblPlan;
+  document.getElementById('pw-lbl-auth').textContent = pt.lblAuth;
+  document.getElementById('pw-email').placeholder = pt.phEmail;
+  document.getElementById('pw-btn-send-otp').textContent = pt.btnSendOtp;
+  document.getElementById('pw-otp').placeholder = pt.phOtp;
+  document.getElementById('pw-btn-verify-otp').textContent = pt.btnVerifyOtp;
+  document.getElementById('pw-btn-signout').textContent = pt.btnSignOut;
+  document.getElementById('pw-btn-checkout').textContent = pt.btnCheckout;
+  document.getElementById('pw-btn-portal').textContent = pt.btnPortal;
+  document.getElementById('pw-await-title').textContent = pt.awaitTitle;
+  document.getElementById('pw-await-hint').innerHTML = pt.awaitHint;
+  document.getElementById('pw-btn-check-now').textContent = pt.btnCheckNow;
+  document.getElementById('pw-btn-reopen-url').textContent = pt.btnReopenUrl;
+
   if (!auditData) {
     document.getElementById('fails-container').textContent = pt.noAuditYet;
   }
-  if (lastDiagState) {
-    renderDiagnosticState(lastDiagState);
+  if (loadedPrices.length) {
+    renderPlanCards();
+  }
+  syncModalAuthState();
+}
+
+async function openPaywallDialog() {
+  const modal = document.getElementById('paywall-modal');
+  if (!modal) return;
+  modal.hidden = false;
+  showModalAlert(null, '');
+  syncModalAuthState();
+
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const listEl = document.getElementById('pw-plans-list');
+  if (!loadedPrices.length && listEl) {
+    listEl.textContent = pt.loadingPlans;
+  }
+
+  try {
+    loadedPrices = await window.MonetizeBridge.loadPrices(false);
+    renderPlanCards();
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
   }
 }
 
-function renderDiagnosticState(diag) {
-  lastDiagState = diag;
-  const el = document.getElementById('paywall-diag');
-  if (!el) return;
-  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+function closePaywallDialog() {
+  stopCheckoutPolling();
+  const modal = document.getElementById('paywall-modal');
+  if (modal) modal.hidden = true;
+}
 
-  if (!diag || diag.level === 'idle') {
-    el.hidden = true;
-    el.textContent = '';
-    el.className = 'paywall-diag';
-    return;
-  }
-
-  el.hidden = false;
-  el.className = `paywall-diag is-${diag.level}`;
-
-  if (diag.level === 'loading') {
-    el.textContent = pt.diagLoading;
-  } else if (diag.level === 'ok') {
-    el.textContent = pt.diagReady(diag.pricesCount);
-  } else if (diag.level === 'warn' && diag.code === 'NO_PRICES') {
-    el.textContent = pt.diagNoPrices;
+function openExternalTab(url) {
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+    chrome.tabs.create({ url });
   } else {
-    el.textContent = pt.diagError(diag.detail || diag.code || 'Unknown');
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
+async function pollOnceForUnlock() {
+  if (!pollTimer) return;
+  try {
+    const res = await window.MonetizeBridge.checkAccess({ skipCacheFallback: true });
+    if (res && res.granted) {
+      stopCheckoutPolling();
+      const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+      applyLockUI(true);
+      showModalAlert('ok', pt.unlockedSuccess);
+      setTimeout(() => closePaywallDialog(), 900);
+    }
+  } catch (_) {}
+}
+
+function startCheckoutPolling() {
+  stopCheckoutPolling();
+  pollTimer = setInterval(pollOnceForUnlock, 3000);
+}
+
+window.addEventListener('focus', () => { if (pollTimer) pollOnceForUnlock(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && pollTimer) pollOnceForUnlock();
+});
+
+async function handleSendOtp() {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const emailIn = document.getElementById('pw-email');
+  const btn = document.getElementById('pw-btn-send-otp');
+  btn.disabled = true;
+  showModalAlert(null, '');
+  try {
+    const { email } = await window.MonetizeBridge.sendEmailOtp(emailIn.value);
+    emailIn.value = email;
+    document.getElementById('pw-otp-row').hidden = false;
+    document.getElementById('pw-otp').focus();
+    btn.textContent = pt.btnResendOtp;
+    showModalAlert('info', pt.otpSentInfo(email));
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleVerifyOtp() {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const email = document.getElementById('pw-email').value;
+  const code = document.getElementById('pw-otp').value;
+  const btn = document.getElementById('pw-btn-verify-otp');
+  btn.disabled = true;
+  showModalAlert(null, '');
+  try {
+    const { access } = await window.MonetizeBridge.verifyEmailOtp(email, code);
+    syncModalAuthState();
+    if (access && access.granted) {
+      applyLockUI(true);
+      showModalAlert('ok', pt.unlockedSuccess);
+      setTimeout(() => closePaywallDialog(), 800);
+    } else {
+      showModalAlert('ok', pt.signedInAs(email));
+    }
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleStartCheckout() {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const btn = document.getElementById('pw-btn-checkout');
+  btn.disabled = true;
+  showModalAlert(null, '');
+  try {
+    if (!selectedPriceId && loadedPrices.length) {
+      selectedPriceId = loadedPrices[0].id;
+    }
+    const res = await window.MonetizeBridge.startStripeCheckout(selectedPriceId);
+    if (res.alreadyPurchased) {
+      applyLockUI(true);
+      showModalAlert('ok', pt.unlockedSuccess);
+      setTimeout(() => closePaywallDialog(), 800);
+      return;
+    }
+    lastCheckoutUrl = res.checkoutUrl;
+    document.getElementById('pw-awaiting-box').hidden = false;
+    openExternalTab(res.checkoutUrl);
+    startCheckoutPolling();
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -548,12 +850,14 @@ function applyLockUI(unlocked) {
   document.body.classList.toggle('is-paywall-locked', !reportProUnlocked);
 
   const btnUnlock = document.getElementById('btn-unlock-pro');
+  const btnAccount = document.getElementById('btn-account-pro');
   const banner = document.getElementById('locked-banner');
   const btnPrint = document.getElementById('btn-print');
   const btnMd = document.getElementById('btn-dl-md');
   const btnCsv = document.getElementById('btn-dl-csv');
 
   if (btnUnlock) btnUnlock.hidden = reportProUnlocked;
+  if (btnAccount) btnAccount.hidden = !reportProUnlocked;
   if (banner) banner.hidden = reportProUnlocked;
   if (btnPrint) btnPrint.style.display = reportProUnlocked ? '' : 'none';
   if (btnMd) btnMd.style.display = reportProUnlocked ? '' : 'none';
@@ -565,18 +869,11 @@ function applyLockUI(unlocked) {
     devBtn.hidden = false;
     devBtn.textContent = reportProUnlocked ? 'Dev: Lock' : 'Dev: Unlock';
   }
+  syncModalAuthState();
 }
 
 function triggerPaywallModal() {
-  if (!window.MonetizeBridge) {
-    renderDiagnosticState({
-      level: 'error',
-      code: 'BRIDGE_NOT_LOADED',
-      detail: 'dist-sdk/paywall-bridge.js not loaded — run npm run package and reload extension'
-    });
-    return;
-  }
-  window.MonetizeBridge.openPaywall();
+  openPaywallDialog();
 }
 
 document.getElementById('btn-print').addEventListener('click', () => {
@@ -597,7 +894,51 @@ document.getElementById('btn-dl-csv').addEventListener('click', () => {
 });
 
 document.getElementById('btn-unlock-pro')?.addEventListener('click', triggerPaywallModal);
+document.getElementById('btn-account-pro')?.addEventListener('click', triggerPaywallModal);
 document.getElementById('btn-banner-paywall')?.addEventListener('click', triggerPaywallModal);
+
+document.getElementById('pw-close')?.addEventListener('click', closePaywallDialog);
+document.getElementById('paywall-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'paywall-modal') closePaywallDialog();
+});
+document.getElementById('pw-btn-send-otp')?.addEventListener('click', handleSendOtp);
+document.getElementById('pw-email')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSendOtp();
+});
+document.getElementById('pw-btn-verify-otp')?.addEventListener('click', handleVerifyOtp);
+document.getElementById('pw-otp')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleVerifyOtp();
+});
+document.getElementById('pw-btn-checkout')?.addEventListener('click', handleStartCheckout);
+document.getElementById('pw-btn-signout')?.addEventListener('click', async () => {
+  await window.MonetizeBridge.signOut();
+  applyLockUI(false);
+  syncModalAuthState();
+});
+document.getElementById('pw-btn-portal')?.addEventListener('click', async () => {
+  try {
+    const url = await window.MonetizeBridge.openCustomerPortal();
+    openExternalTab(url);
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
+  }
+});
+document.getElementById('pw-btn-check-now')?.addEventListener('click', async () => {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const res = await window.MonetizeBridge.checkAccess({ skipCacheFallback: true });
+  if (res && res.granted) {
+    stopCheckoutPolling();
+    applyLockUI(true);
+    showModalAlert('ok', pt.unlockedSuccess);
+    setTimeout(() => closePaywallDialog(), 800);
+  } else {
+    showModalAlert('info', pt.notPaidYet);
+  }
+});
+document.getElementById('pw-btn-reopen-url')?.addEventListener('click', () => {
+  if (lastCheckoutUrl) openExternalTab(lastCheckoutUrl);
+});
+
 document.getElementById('btn-dev-report-toggle')?.addEventListener('click', async () => {
   const res = await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: !reportProUnlocked });
   applyLockUI(Boolean(res && res.paid));
@@ -609,15 +950,11 @@ async function initPaywallGate() {
     return;
   }
 
-  window.MonetizeBridge.onDiagnostic(diag => {
-    renderDiagnosticState(diag);
-  });
-
+  window.MonetizeBridge.onOpenModal(() => openPaywallDialog());
   window.MonetizeBridge.onAccessChange(granted => {
     applyLockUI(granted);
   });
 
-  // Immediately show lock controls while checking access so buttons are responsive right away
   applyLockUI(false);
 
   const params = new URLSearchParams(window.location.search);
@@ -627,7 +964,7 @@ async function initPaywallGate() {
   applyLockUI(access.granted);
 
   if (explicitPaywallOpen || !access.granted) {
-    triggerPaywallModal();
+    openPaywallDialog();
   }
 }
 

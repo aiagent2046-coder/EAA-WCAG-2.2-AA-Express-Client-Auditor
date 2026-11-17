@@ -1,4 +1,4 @@
-import * as MonetizeSDK from '@monetize.software/sdk';
+import { AuthClient, BillingClient } from '@monetize.software/sdk/core';
 import { attachGlobalPaywallBridge } from './create-bridge.js';
 
-attachGlobalPaywallBridge(MonetizeSDK);
+attachGlobalPaywallBridge({ AuthClient, BillingClient });

@@ -1,41 +1,29 @@
 import { PAYWALL_CONFIG } from './config.js';
 
-export function attachGlobalPaywallBridge(sdkModule) {
-  const PaywallUIClass = sdkModule?.PaywallUI || sdkModule?.default?.PaywallUI;
-  const BillingClientClass = sdkModule?.BillingClient || sdkModule?.default?.BillingClient;
+export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
+  const auth = new AuthClient({
+    paywallId: PAYWALL_CONFIG.paywallId,
+    apiOrigin: PAYWALL_CONFIG.apiOrigin
+  });
 
-  let instance = null;
-  let needsFreshInstance = false;
-  let lastDiag = null;
+  const billing = new BillingClient({
+    paywallId: PAYWALL_CONFIG.paywallId,
+    apiOrigin: PAYWALL_CONFIG.apiOrigin,
+    auth
+  });
 
   const accessListeners = new Set();
-  const diagListeners = new Set();
+  const openModalListeners = new Set();
 
   function formatError(err) {
-    if (!err) return 'Unknown SDK error';
+    if (!err) return 'Unknown error';
     if (typeof err === 'string') return err;
     const parts = [];
     if (err.status || err.statusCode) parts.push(`HTTP ${err.status || err.statusCode}`);
     if (err.code) parts.push(`[${err.code}]`);
     if (err.message) parts.push(err.message);
     else if (err.error) parts.push(typeof err.error === 'string' ? err.error : JSON.stringify(err.error));
-    if (parts.length === 0) {
-      try { return JSON.stringify(err); } catch (_) { return String(err); }
-    }
-    return parts.join(' ');
-  }
-
-  function emitDiag(diag) {
-    lastDiag = { ...diag, timestamp: Date.now() };
-    diagListeners.forEach(fn => {
-      try { fn(lastDiag); } catch (_) {}
-    });
-  }
-
-  function notifyAccess(granted, detail = {}) {
-    accessListeners.forEach(fn => {
-      try { fn(granted, detail); } catch (_) {}
-    });
+    return parts.length ? parts.join(' ') : String(err);
   }
 
   function withTimeout(promise, ms, fallbackValue) {
@@ -45,101 +33,67 @@ export function attachGlobalPaywallBridge(sdkModule) {
     ]);
   }
 
-  function resetInstance() {
-    if (instance) {
-      try {
-        if (typeof instance.destroy === 'function') instance.destroy();
-      } catch (_) {}
-      instance = null;
-    }
-    needsFreshInstance = false;
+  function notifyAccess(granted, detail = {}) {
+    accessListeners.forEach(fn => {
+      try { fn(Boolean(granted), detail); } catch (_) {}
+    });
   }
 
-  function getPaywall() {
-    if (needsFreshInstance) {
-      resetInstance();
-    }
-    if (!instance && PaywallUIClass) {
-      instance = new PaywallUIClass(PAYWALL_CONFIG);
-      bindEvents(instance);
-    }
-    return instance;
-  }
-
-  function extractStateGranted(pw) {
+  async function ensureAuthReady() {
     try {
-      if (pw && typeof pw.getState === 'function') {
-        const st = pw.getState();
-        if (!st) return null;
-        if (typeof st.access?.granted === 'boolean') return st.access.granted;
-        if (st.user?.hasActiveSubscription || st.user?.paid || st.user?.isSubscribed) return true;
-        if (Array.isArray(st.user?.subscriptions) && st.user.subscriptions.some(s => s.status === 'active' || s.status === 'trialing')) {
-          return true;
-        }
-        if (Array.isArray(st.purchases) && st.purchases.length > 0) return true;
+      if (typeof auth.ready === 'function') {
+        await withTimeout(auth.ready(), 3000, null);
+      }
+    } catch (_) {}
+  }
+
+  function getCurrentUser() {
+    try {
+      if (typeof auth.getCachedUser === 'function') {
+        const u = auth.getCachedUser();
+        if (u && (u.email || u.id)) return u;
+      }
+      if (typeof auth.getCachedSession === 'function') {
+        const s = auth.getCachedSession();
+        if (s && s.user) return s.user;
       }
     } catch (_) {}
     return null;
   }
 
-  async function queryRemoteAccess(pw) {
-    if (!pw) return null;
+  // Direct uncached check against GET /api/v1/paywall/{id}/user so Stripe test payments unlock in <2s without 5-min bootstrap cache delay
+  async function fetchLiveUserPaidStatus() {
     try {
-      if (typeof pw.getAccess === 'function') {
-        const acc = await withTimeout(pw.getAccess({}), 3500, null);
-        if (acc && typeof acc.granted === 'boolean') return acc;
+      await ensureAuthReady();
+      if (typeof auth.getAccessToken !== 'function') return null;
+      const token = await withTimeout(auth.getAccessToken(), 4000, null);
+      if (!token) return null;
+
+      const url = `${PAYWALL_CONFIG.apiOrigin.replace(/\/+$/, '')}/api/v1/paywall/${encodeURIComponent(PAYWALL_CONFIG.paywallId)}/user`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Paywall-Id': String(PAYWALL_CONFIG.paywallId)
+        },
+        cache: 'no-store',
+        credentials: 'omit'
+      });
+
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (typeof data?.paid === 'boolean') {
+        const hasActiveSub = Array.isArray(data.purchases) && data.purchases.some(
+          p => p && (p.status === 'active' || p.status === 'trialing' || p.status === 'paid')
+        );
+        return {
+          granted: Boolean(data.paid || hasActiveSub),
+          user: data.user || getCurrentUser(),
+          purchases: data.purchases || []
+        };
       }
     } catch (_) {}
-
-    try {
-      if (pw.billing && typeof pw.billing.getAccess === 'function') {
-        const acc = await withTimeout(pw.billing.getAccess({}), 3500, null);
-        if (acc && typeof acc.granted === 'boolean') return acc;
-      }
-    } catch (_) {}
-
-    const fromState = extractStateGranted(pw);
-    if (typeof fromState === 'boolean') {
-      return { granted: fromState };
-    }
     return null;
-  }
-
-  function bindEvents(pw) {
-    if (!pw || typeof pw.on !== 'function') return;
-
-    pw.on('purchase_completed', async payload => {
-      await chrome.storage.local.set({
-        monetize_pro_unlocked: true,
-        monetize_last_purchase: payload || { completedAt: Date.now() }
-      });
-      emitDiag({ level: 'ok', code: 'PURCHASE_COMPLETED' });
-      notifyAccess(true, { event: 'purchase_completed', payload });
-    });
-
-    pw.on('userChange', async user => {
-      const res = await checkAccess({ skipCacheFallback: true });
-      notifyAccess(res.granted, { event: 'userChange', user });
-    });
-
-    pw.on('authChange', async session => {
-      const res = await checkAccess({ skipCacheFallback: true });
-      notifyAccess(res.granted, { event: 'authChange', session });
-    });
-
-    pw.on('close', () => {
-      emitDiag({ level: 'idle', code: 'CLOSED' });
-    });
-
-    pw.on('error', err => {
-      console.error('[MonetizeBridge PaywallUI error]', err);
-      needsFreshInstance = true;
-      emitDiag({
-        level: 'error',
-        code: 'SDK_ERROR',
-        detail: formatError(err)
-      });
-    });
   }
 
   async function checkAccess(opts = {}) {
@@ -147,121 +101,156 @@ export function attachGlobalPaywallBridge(sdkModule) {
     const stored = await chrome.storage.local.get(['dev_pro_override', 'monetize_pro_unlocked']);
 
     if (!manifest.update_url && stored.dev_pro_override) {
-      return { granted: true, source: 'dev_override' };
+      return { granted: true, source: 'dev_override', user: getCurrentUser() };
     }
 
-    const pw = getPaywall();
-    const remote = await queryRemoteAccess(pw);
-    if (remote && typeof remote.granted === 'boolean') {
-      await chrome.storage.local.set({ monetize_pro_unlocked: remote.granted });
-      return { granted: remote.granted, source: 'sdk' };
+    await ensureAuthReady();
+
+    // 1. Live /user check when Bearer session exists (zero cache lag after checkout!)
+    const liveUser = await fetchLiveUserPaidStatus();
+    if (liveUser && typeof liveUser.granted === 'boolean') {
+      await chrome.storage.local.set({ monetize_pro_unlocked: liveUser.granted });
+      if (liveUser.granted) {
+        notifyAccess(true, { source: 'live_user_api' });
+      }
+      return { granted: liveUser.granted, source: 'live_user_api', user: liveUser.user };
     }
 
-    if (!opts.skipCacheFallback && stored.monetize_pro_unlocked) {
-      return { granted: true, source: 'cache' };
+    // 2. Fallback to BillingClient.getAccess({}) (covers active trials & SDK state)
+    try {
+      if (typeof billing.getAccess === 'function') {
+        const acc = await withTimeout(billing.getAccess({}), 3500, null);
+        if (acc && typeof acc.granted === 'boolean') {
+          await chrome.storage.local.set({ monetize_pro_unlocked: acc.granted });
+          return { granted: acc.granted, source: 'sdk_access', user: getCurrentUser() };
+        }
+      }
+    } catch (_) {}
+
+    if (!opts.skipCacheFallback && stored.monetize_pro_unlocked && getCurrentUser()) {
+      return { granted: true, source: 'cache', user: getCurrentUser() };
     }
 
-    return { granted: false, source: 'default' };
+    return { granted: false, source: 'default', user: getCurrentUser() };
   }
 
-  async function diagnosePaywall() {
-    if (!BillingClientClass) return null;
+  async function loadPrices(force = false) {
+    const prices = await billing.getPrices({ force });
+    if (Array.isArray(prices) && prices.length > 0) return prices;
+    const boot = await billing.bootstrap();
+    if (Array.isArray(boot?.prices) && boot.prices.length > 0) return boot.prices;
+    if (Array.isArray(boot?.offers)) {
+      return boot.offers.flatMap(o => (Array.isArray(o?.prices) ? o.prices : []));
+    }
+    return [];
+  }
+
+  async function sendEmailOtp(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Введите корректный Email адрес.');
+    }
+    await auth.sendOtp({ email: cleanEmail, createUser: true });
+    return { ok: true, email: cleanEmail };
+  }
+
+  async function verifyEmailOtp(email, code) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const cleanToken = String(code || '').trim().replace(/\s+/g, '');
+    if (!cleanToken) {
+      throw new Error('Введите одноразовый код из письма.');
+    }
+    let session;
     try {
-      const probe = new BillingClientClass({
-        paywallId: PAYWALL_CONFIG.paywallId,
-        apiOrigin: PAYWALL_CONFIG.apiOrigin
+      session = await auth.verifyOtp({ email: cleanEmail, token: cleanToken, type: 'email' });
+    } catch (firstErr) {
+      // Fallback if first-time signup OTP requires type: 'signup'
+      try {
+        session = await auth.verifyOtp({ email: cleanEmail, token: cleanToken, type: 'signup' });
+      } catch (_) {
+        throw firstErr;
+      }
+    }
+    const access = await checkAccess({ skipCacheFallback: true });
+    notifyAccess(access.granted, { event: 'otp_verified', user: session?.user });
+    return { session, access };
+  }
+
+  async function startStripeCheckout(priceId) {
+    if (!priceId) {
+      throw new Error('Тариф не выбран.');
+    }
+    await ensureAuthReady();
+    const user = getCurrentUser();
+    if (!user) {
+      const err = new Error('AUTH_REQUIRED');
+      err.code = 'AUTH_REQUIRED';
+      throw err;
+    }
+
+    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    try {
+      // Pass explicit https:// successUrl because chrome-extension:// URLs are rejected with HTTP 400 by /start-checkout
+      const res = await billing.createCheckout({
+        priceId,
+        successUrl: PAYWALL_CONFIG.successRedirectUrl,
+        idempotencyKey
       });
-      const boot = await withTimeout(probe.bootstrap(), 6000, '__TIMEOUT__');
-      if (boot === '__TIMEOUT__') {
-        needsFreshInstance = true;
-        const d = {
-          level: 'error',
-          code: 'TIMEOUT',
-          detail: 'Timeout 6s waiting for https://appbox.space'
-        };
-        emitDiag(d);
-        return d;
+      const checkoutUrl = res?.url || res?.checkoutUrl;
+      if (!checkoutUrl) {
+        throw new Error('Сервер не вернул ссылку на оплату (checkoutUrl).');
       }
-
-      const directPrices = Array.isArray(boot?.prices) ? boot.prices : null;
-      const offerPrices = Array.isArray(boot?.offers)
-        ? boot.offers.flatMap(o => (Array.isArray(o?.prices) ? o.prices : [o]))
-        : null;
-      const count = (directPrices ? directPrices.length : 0) || (offerPrices ? offerPrices.length : 0);
-
-      if ((directPrices !== null || offerPrices !== null) && count === 0) {
-        needsFreshInstance = true;
-        const d = {
-          level: 'warn',
-          code: 'NO_PRICES',
-          pricesCount: 0
-        };
-        emitDiag(d);
-        return d;
-      }
-
-      const d = {
-        level: 'ok',
-        code: 'READY',
-        pricesCount: count
-      };
-      // Only overwrite loading state (do not overwrite an explicit SDK_ERROR if one already fired)
-      if (!lastDiag || lastDiag.level === 'loading' || lastDiag.level === 'idle') {
-        emitDiag(d);
-      }
-      return d;
+      return { checkoutUrl, sessionId: res?.sessionId, acquiring: res?.acquiring };
     } catch (err) {
-      console.error('[MonetizeBridge bootstrap diagnostic error]', err);
-      needsFreshInstance = true;
-      const d = {
-        level: 'error',
-        code: 'BOOTSTRAP_ERROR',
-        detail: formatError(err)
-      };
-      emitDiag(d);
-      return d;
+      // HTTP 409 / already_purchased means user ALREADY owns an active subscription on Paywall #926!
+      if (err?.status === 409 || err?.code === 'already_purchased' || err?.hasActivePurchase) {
+        await chrome.storage.local.set({ monetize_pro_unlocked: true });
+        notifyAccess(true, { event: 'already_purchased' });
+        return { alreadyPurchased: true };
+      }
+      throw err;
     }
   }
 
-  function openPaywall(openOpts) {
-    if (!PaywallUIClass) {
-      emitDiag({
-        level: 'error',
-        code: 'MISSING_CLASS',
-        detail: 'PaywallUI export missing in @monetize.software/sdk'
-      });
-      return;
+  async function openCustomerPortal() {
+    await ensureAuthReady();
+    const token = typeof auth.getAccessToken === 'function' ? await auth.getAccessToken() : null;
+    if (!token) throw new Error('Сначала войдите по Email.');
+
+    const url = `${PAYWALL_CONFIG.apiOrigin.replace(/\/+$/, '')}/api/v1/paywall/${encodeURIComponent(PAYWALL_CONFIG.paywallId)}/get-customer-portal`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-Paywall-Id': String(PAYWALL_CONFIG.paywallId)
+      },
+      body: '{}',
+      credentials: 'omit'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.url) {
+      throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
     }
+    return data.url;
+  }
 
-    emitDiag({ level: 'loading', code: 'OPENING' });
-
+  async function signOut() {
     try {
-      const pw = getPaywall();
-      // Invoke pw.open() synchronously first to preserve Chrome transient user gesture activation!
-      const maybePromise = pw.open(openOpts);
-      if (maybePromise && typeof maybePromise.catch === 'function') {
-        maybePromise.catch(err => {
-          console.error('[MonetizeBridge pw.open rejected]', err);
-          needsFreshInstance = true;
-          emitDiag({
-            level: 'error',
-            code: 'OPEN_REJECTED',
-            detail: formatError(err)
-          });
-        });
-      }
-    } catch (err) {
-      console.error('[MonetizeBridge pw.open threw]', err);
-      needsFreshInstance = true;
-      emitDiag({
-        level: 'error',
-        code: 'OPEN_THREW',
-        detail: formatError(err)
-      });
-    }
+      if (typeof auth.signOut === 'function') await auth.signOut();
+      else if (typeof auth.logout === 'function') await auth.logout();
+    } catch (_) {}
+    await chrome.storage.local.set({ monetize_pro_unlocked: false });
+    notifyAccess(false, { event: 'signout' });
+  }
 
-    // Run parallel bootstrap check so empty Offers ('Цены') or unsaved Paywall #926 settings surface clearly
-    diagnosePaywall();
+  function openPaywall(opts = {}) {
+    openModalListeners.forEach(fn => {
+      try { fn(opts); } catch (_) {}
+    });
   }
 
   function onAccessChange(cb) {
@@ -269,12 +258,9 @@ export function attachGlobalPaywallBridge(sdkModule) {
     return () => accessListeners.delete(cb);
   }
 
-  function onDiagnostic(cb) {
-    diagListeners.add(cb);
-    if (lastDiag) {
-      try { cb(lastDiag); } catch (_) {}
-    }
-    return () => diagListeners.delete(cb);
+  function onOpenModal(cb) {
+    openModalListeners.add(cb);
+    return () => openModalListeners.delete(cb);
   }
 
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
@@ -287,11 +273,19 @@ export function attachGlobalPaywallBridge(sdkModule) {
 
   window.MonetizeBridge = {
     config: PAYWALL_CONFIG,
-    getPaywall,
-    openPaywall,
-    diagnosePaywall,
+    auth,
+    billing,
+    formatError,
+    getCurrentUser,
     checkAccess,
+    loadPrices,
+    sendEmailOtp,
+    verifyEmailOtp,
+    startStripeCheckout,
+    openCustomerPortal,
+    signOut,
+    openPaywall,
     onAccessChange,
-    onDiagnostic
+    onOpenModal
   };
 }
