@@ -10,8 +10,8 @@
 <body>
   <div class="toolbar no-print">
     <div class="toolbar-left">
-      <strong id="ui-toolbar-title">White-Label Client Report</strong>
-      <span id="ui-toolbar-sub">Clean A4 PDF without browser headers or extension URLs</span>
+      <strong id="ui-toolbar-title">Клиентский White-Label отчет</strong>
+      <span id="ui-toolbar-sub">Чистый A4 PDF без браузерных колонтитулов и технических URL</span>
     </div>
     <div class="toolbar-actions">
       <div class="lang-group" role="group" aria-label="Report Language">
@@ -19,16 +19,29 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="de">DE</button>
       </div>
-      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Unlock Pro / Sign In</button>
-      <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev Toggle Pro</button>
+      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Разблокировать Pro / Войти</button>
+      <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev: Unlock</button>
       <button id="btn-dl-md" type="button" class="btn-outline">.MD</button>
       <button id="btn-dl-csv" type="button" class="btn-outline">Jira .CSV</button>
-      <button id="btn-print" type="button" class="btn-solid" id="ui-btn-print">Save Client PDF</button>
+      <button id="btn-print" type="button" class="btn-solid">Сохранить PDF для клиента</button>
     </div>
   </div>
 
-  <!-- Repeating print margin table guarantees 13mm top/bottom padding on EVERY A4 page while @page { margin: 0 } suppresses chrome-extension:// URL footers -->
-  <table class="print-frame">
+  <div id="locked-banner" class="locked-banner no-print" hidden>
+    <div class="locked-card">
+      <div class="locked-row">
+        <div class="locked-copy">
+          <strong id="ui-lock-title">White-Label экспорт заблокирован (Paywall #926)</strong>
+          <p id="ui-lock-sub">Войдите или активируйте тариф через Paywall #926, чтобы разблокировать печать чистого A4 PDF, выгрузку Markdown и Jira CSV.</p>
+        </div>
+        <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Открыть Paywall / Войти</button>
+      </div>
+      <div id="paywall-diag" class="paywall-diag" hidden></div>
+    </div>
+  </div>
+
+  <!-- Repeating print margin table guarantees 12mm top/bottom padding on EVERY A4 page while @page { margin: 0 } suppresses chrome-extension:// URL footers -->
+  <table class="print-frame" id="report-print-frame">
     <thead><tr><td><div class="print-page-space"></div></td></tr></thead>
     <tbody>
       <tr>
@@ -114,13 +127,6 @@
     <tfoot><tr><td><div class="print-page-space"></div></td></tr></tfoot>
   </table>
 
-  <div id="locked-banner" class="locked-banner no-print" hidden>
-    <div class="locked-card">
-      <strong id="ui-lock-title">White-Label Export Locked</strong>
-      <p id="ui-lock-sub">Sign in or upgrade via Paywall #926 to unlock clean A4 PDF printing, Markdown, and Jira CSV exports.</p>
-      <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Open Paywall / Sign In</button>
-    </div>
-  </div>
   <script src="../../dist-sdk/paywall-bridge.js"></script>
   <script src="report.js"></script>
 </body>

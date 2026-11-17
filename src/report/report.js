@@ -422,6 +422,97 @@ function renderReport() {
   });
 }
 
+const PAYWALL_I18N = {
+  ru: {
+    btnUnlockToolbar: 'Разблокировать Pro / Войти',
+    btnOpenBanner: 'Открыть Paywall / Войти',
+    lockTitle: 'White-Label экспорт заблокирован (Paywall #926)',
+    lockSub: 'Войдите или активируйте тариф через Paywall #926, чтобы разблокировать печать чистого A4 PDF, выгрузку Markdown и Jira CSV.',
+    noAuditYet: 'Сначала запустите аудит на любой веб-странице через иконку расширения (или войдите в Pro-аккаунт кнопкой выше).',
+    diagLoading: 'Подключение к Paywall #926 (https://appbox.space)...',
+    diagReady: n => `Paywall #926 подключен${n ? ` (активных тарифов: ${n})` : ''}. Окно оплаты открыто поверх страницы.`,
+    diagNoPrices: 'Сервер appbox.space ответил успешно, но у Paywall #926 пока 0 привязанных тарифов (prices: 0). В кабинете monetize.software/ru/publisher/paywalls/926 откройте вкладку «Цены» (Offers), добавьте тариф, нажмите Save в менеджере тестовых процессоров и кнопку «Сохранить и опубликовать», затем нажмите кнопку выше повторно.',
+    diagError: detail => `Ответ Paywall #926 (appbox.space): ${detail}. Проверьте в monetize.software/ru/publisher/paywalls/926 сохранение тестового процессора (Save), вкладку «Цены» и кнопку «Сохранить и опубликовать» (плюс обновление ↻ на chrome://extensions).`
+  },
+  en: {
+    btnUnlockToolbar: 'Unlock Pro / Sign In',
+    btnOpenBanner: 'Open Paywall / Sign In',
+    lockTitle: 'White-Label Export Locked (Paywall #926)',
+    lockSub: 'Sign in or upgrade via Paywall #926 to unlock clean A4 PDF printing, Markdown, and Jira CSV exports.',
+    noAuditYet: 'Run an audit on any webpage from the extension popup first (or sign in / upgrade above).',
+    diagLoading: 'Connecting to Paywall #926 (https://appbox.space)...',
+    diagReady: n => `Paywall #926 connected${n ? ` (${n} active price${n === 1 ? '' : 's'})` : ''}. Checkout modal opened.`,
+    diagNoPrices: 'Connected to appbox.space, but Paywall #926 currently has 0 attached prices/offers. In monetize.software/ru/publisher/paywalls/926 open the "Цены" (Offers) tab, attach an offer, click Save on the Test processor, and click "Сохранить и опубликовать", then click the button again.',
+    diagError: detail => `Paywall #926 (appbox.space) error: ${detail}. Verify Test processor Save, attached Offers ("Цены"), and "Сохранить и опубликовать" in dashboard.`
+  },
+  de: {
+    btnUnlockToolbar: 'Pro freischalten / Anmelden',
+    btnOpenBanner: 'Paywall öffnen / Anmelden',
+    lockTitle: 'White-Label-Export gesperrt (Paywall #926)',
+    lockSub: 'Melden Sie sich über Paywall #926 an, um den sauberen A4-PDF-Export sowie Markdown- und Jira-CSV-Exporte freizuschalten.',
+    noAuditYet: 'Starten Sie zuerst eine Prüfung über das Erweiterungs-Popup (oder melden Sie sich oben an).',
+    diagLoading: 'Verbindung zu Paywall #926 (https://appbox.space) wird hergestellt...',
+    diagReady: n => `Paywall #926 verbunden${n ? ` (${n} Tarife aktiv)` : ''}. Zahlungsfenster geöffnet.`,
+    diagNoPrices: 'appbox.space erreichbar, aber Paywall #926 hat aktuell 0 verknüpfte Tarife (prices: 0). Bitte im Dashboard unter „Цены“ (Offers) einen Tarif verknüpfen und veröffentlichen.',
+    diagError: detail => `Paywall #926 Fehler: ${detail}. Bitte Einstellungen im Monetize.software-Dashboard prüfen.`
+  }
+};
+
+let reportProUnlocked = false;
+let lastDiagState = null;
+
+function renderChromeStrings() {
+  const t = I18N[currentLang] || I18N.en;
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  document.documentElement.lang = currentLang;
+
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.lang === currentLang);
+  });
+
+  document.getElementById('ui-toolbar-title').textContent = t.toolbarTitle;
+  document.getElementById('ui-toolbar-sub').textContent = t.toolbarSub;
+  document.getElementById('btn-print').textContent = t.btnPrint;
+  document.getElementById('btn-unlock-pro').textContent = pt.btnUnlockToolbar;
+  document.getElementById('btn-banner-paywall').textContent = pt.btnOpenBanner;
+  document.getElementById('ui-lock-title').textContent = pt.lockTitle;
+  document.getElementById('ui-lock-sub').textContent = pt.lockSub;
+
+  if (!auditData) {
+    document.getElementById('fails-container').textContent = pt.noAuditYet;
+  }
+  if (lastDiagState) {
+    renderDiagnosticState(lastDiagState);
+  }
+}
+
+function renderDiagnosticState(diag) {
+  lastDiagState = diag;
+  const el = document.getElementById('paywall-diag');
+  if (!el) return;
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+
+  if (!diag || diag.level === 'idle') {
+    el.hidden = true;
+    el.textContent = '';
+    el.className = 'paywall-diag';
+    return;
+  }
+
+  el.hidden = false;
+  el.className = `paywall-diag is-${diag.level}`;
+
+  if (diag.level === 'loading') {
+    el.textContent = pt.diagLoading;
+  } else if (diag.level === 'ok') {
+    el.textContent = pt.diagReady(diag.pricesCount);
+  } else if (diag.level === 'warn' && diag.code === 'NO_PRICES') {
+    el.textContent = pt.diagNoPrices;
+  } else {
+    el.textContent = pt.diagError(diag.detail || diag.code || 'Unknown');
+  }
+}
+
 async function initReport() {
   const uiLang = (navigator.language || 'en').slice(0, 2).toLowerCase();
   currentLang = ['ru', 'en', 'de'].includes(uiLang) ? uiLang : 'en';
@@ -433,11 +524,10 @@ async function initReport() {
   auditData = store.latestAuditReport;
   brandData = store.agencyBrand || {};
 
-  if (!auditData) {
-    document.getElementById('fails-container').textContent = 'Run an audit from the extension popup first.';
-    return;
+  renderChromeStrings();
+  if (auditData) {
+    renderReport();
   }
-  renderReport();
 }
 
 document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -446,24 +536,12 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       chrome.storage.local.set({ reportLang: currentLang });
     }
-    renderReport();
+    renderChromeStrings();
+    if (auditData) {
+      renderReport();
+    }
   });
 });
-
-document.getElementById('btn-print').addEventListener('click', () => { if (!reportProUnlocked) return triggerPaywallModal(); window.print(); });
-document.getElementById('btn-dl-md').addEventListener('click', () => {
-  if (!reportProUnlocked) return triggerPaywallModal();
-  if (!auditData) return;
-  downloadBlob(`wcag22-audit-${currentLang}.md`, toMarkdown(auditData, brandData), 'text/markdown;charset=utf-8');
-});
-document.getElementById('btn-dl-csv').addEventListener('click', () => {
-  if (!reportProUnlocked) return triggerPaywallModal();
-  if (!auditData) return;
-  downloadBlob(`wcag22-tickets-${currentLang}.csv`, toCsv(auditData), 'text/csv;charset=utf-8');
-});
-
-
-let reportProUnlocked = false;
 
 function applyLockUI(unlocked) {
   reportProUnlocked = Boolean(unlocked);
@@ -490,28 +568,33 @@ function applyLockUI(unlocked) {
 }
 
 function triggerPaywallModal() {
-  if (window.MonetizeBridge) {
-    window.MonetizeBridge.openPaywall();
-  }
-}
-
-async function initPaywallGate() {
   if (!window.MonetizeBridge) {
-    applyLockUI(false);
+    renderDiagnosticState({
+      level: 'error',
+      code: 'BRIDGE_NOT_LOADED',
+      detail: 'dist-sdk/paywall-bridge.js not loaded — run npm run package and reload extension'
+    });
     return;
   }
-  window.MonetizeBridge.onAccessChange(granted => {
-    applyLockUI(granted);
-  });
-
-  const access = await window.MonetizeBridge.checkAccess();
-  applyLockUI(access.granted);
-
-  const params = new URLSearchParams(window.location.search);
-  if (!access.granted || params.get('paywall') === '1') {
-    triggerPaywallModal();
-  }
+  window.MonetizeBridge.openPaywall();
 }
+
+document.getElementById('btn-print').addEventListener('click', () => {
+  if (!reportProUnlocked) return triggerPaywallModal();
+  window.print();
+});
+
+document.getElementById('btn-dl-md').addEventListener('click', () => {
+  if (!reportProUnlocked) return triggerPaywallModal();
+  if (!auditData) return;
+  downloadBlob(`wcag22-audit-${currentLang}.md`, toMarkdown(auditData, brandData), 'text/markdown;charset=utf-8');
+});
+
+document.getElementById('btn-dl-csv').addEventListener('click', () => {
+  if (!reportProUnlocked) return triggerPaywallModal();
+  if (!auditData) return;
+  downloadBlob(`wcag22-tickets-${currentLang}.csv`, toCsv(auditData), 'text/csv;charset=utf-8');
+});
 
 document.getElementById('btn-unlock-pro')?.addEventListener('click', triggerPaywallModal);
 document.getElementById('btn-banner-paywall')?.addEventListener('click', triggerPaywallModal);
@@ -519,5 +602,33 @@ document.getElementById('btn-dev-report-toggle')?.addEventListener('click', asyn
   const res = await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: !reportProUnlocked });
   applyLockUI(Boolean(res && res.paid));
 });
+
+async function initPaywallGate() {
+  if (!window.MonetizeBridge) {
+    applyLockUI(false);
+    return;
+  }
+
+  window.MonetizeBridge.onDiagnostic(diag => {
+    renderDiagnosticState(diag);
+  });
+
+  window.MonetizeBridge.onAccessChange(granted => {
+    applyLockUI(granted);
+  });
+
+  // Immediately show lock controls while checking access so buttons are responsive right away
+  applyLockUI(false);
+
+  const params = new URLSearchParams(window.location.search);
+  const explicitPaywallOpen = params.get('paywall') === '1';
+
+  const access = await window.MonetizeBridge.checkAccess();
+  applyLockUI(access.granted);
+
+  if (explicitPaywallOpen || !access.granted) {
+    triggerPaywallModal();
+  }
+}
 
 initReport().then(() => initPaywallGate());

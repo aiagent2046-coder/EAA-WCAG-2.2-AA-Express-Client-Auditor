@@ -28,7 +28,7 @@ await esbuild.build({
   format: 'esm',
 });
 
-// 2. Service Worker / Background script for Firefox (no offscreen router needed)
+// 2. Background script (IIFE) for Firefox
 await esbuild.build({
   ...common,
   entryPoints: [resolve(root, 'src/sw-firefox.entry.js')],
@@ -36,15 +36,7 @@ await esbuild.build({
   format: 'iife',
 });
 
-// 3. Offscreen server bundle (ESM) for Chrome / Edge
-await esbuild.build({
-  ...common,
-  entryPoints: [resolve(root, 'src/offscreen/offscreen.entry.js')],
-  outfile: resolve(outDir, 'offscreen.js'),
-  format: 'esm',
-});
-
-// 4. UI Paywall Bridge for Chrome / Edge (@monetize.software/sdk-extension)
+// 3. Direct @monetize.software/sdk PaywallUI + BillingClient bridge (Shadow DOM, zero offscreen proxy)
 await esbuild.build({
   ...common,
   entryPoints: [resolve(root, 'src/paywall/bridge.entry.js')],
@@ -52,12 +44,4 @@ await esbuild.build({
   format: 'iife',
 });
 
-// 5. UI Paywall Bridge for Firefox (@monetize.software/sdk direct)
-await esbuild.build({
-  ...common,
-  entryPoints: [resolve(root, 'src/paywall/bridge-web.entry.js')],
-  outfile: resolve(outDir, 'paywall-bridge-web.js'),
-  format: 'iife',
-});
-
-console.log('[OK] Bundled @monetize.software SDK 3.0 into dist-sdk/');
+console.log('[OK] Bundled direct @monetize.software/sdk v3 into dist-sdk/');

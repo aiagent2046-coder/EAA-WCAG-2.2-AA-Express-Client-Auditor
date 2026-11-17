@@ -1,9 +1,3 @@
-import { installRouter } from '@monetize.software/sdk-extension/sw';
-
-installRouter({
-  offscreenUrl: chrome.runtime.getURL('src/offscreen/offscreen.html')
-});
-
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return false;
 

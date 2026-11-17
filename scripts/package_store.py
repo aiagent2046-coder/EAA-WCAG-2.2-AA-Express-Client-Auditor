@@ -44,7 +44,6 @@ def build_target(target: str) -> Path:
             else:
                 shutil.copy2(src, dst)
 
-        # Remove entry source files that were already bundled into dist-sdk/
         for entry_file in stage.rglob("*.entry.js"):
             entry_file.unlink()
 
@@ -55,18 +54,13 @@ def build_target(target: str) -> Path:
                 json.dumps(merged, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
             )
-            # Use direct @monetize.software/sdk bridge in Firefox (no chrome.offscreen required)
-            shutil.copy2(stage / "dist-sdk" / "paywall-bridge-web.js", stage / "dist-sdk" / "paywall-bridge.js")
-            shutil.rmtree(stage / "src" / "offscreen", ignore_errors=True)
-            for unused in ("sw.js", "offscreen.js", "paywall-bridge-web.js"):
-                p = stage / "dist-sdk" / unused
-                if p.exists():
-                    p.unlink()
+            p = stage / "dist-sdk" / "sw.js"
+            if p.exists():
+                p.unlink()
         else:
-            for unused in ("sw-firefox.js", "paywall-bridge-web.js"):
-                p = stage / "dist-sdk" / unused
-                if p.exists():
-                    p.unlink()
+            p = stage / "dist-sdk" / "sw-firefox.js"
+            if p.exists():
+                p.unlink()
 
         out_zip = DIST / f"wcag22-express-auditor-{target}-v{version}.zip"
         zip_directory(stage, out_zip)

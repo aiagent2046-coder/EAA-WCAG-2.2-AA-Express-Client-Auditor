@@ -220,25 +220,33 @@ h2 { font-size: 15px; margin: 20px 0 10px; border-bottom: 1px solid var(--line);
   background: #3b82f6;
   color: #ffffff;
   border: none;
+  transition: background 0.15s ease;
 }
+.btn-upgrade:hover { background: #2563eb; }
+
 .locked-banner {
   max-width: 900px;
   margin: 18px auto 0;
-  padding: 0 16px;
+  padding: 0;
 }
 .locked-card {
   background: linear-gradient(135deg, #0f172a, #1e293b);
   color: #f8fafc;
   border: 1px solid #3b82f6;
   border-radius: 10px;
-  padding: 18px 22px;
+  padding: 16px 22px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+.locked-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
-.locked-card p { margin: 4px 0 0; font-size: 12.5px; color: #cbd5e1; }
+.locked-copy { flex: 1 1 420px; }
+.locked-copy strong { font-size: 14px; display: block; }
+.locked-copy p { margin: 4px 0 0; font-size: 12.5px; color: #cbd5e1; }
 .btn-upgrade-lg {
   background: #3b82f6;
   color: #ffffff;
@@ -249,7 +257,39 @@ h2 { font-size: 15px; margin: 20px 0 10px; border-bottom: 1px solid var(--line);
   font-size: 13.5px;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease;
 }
+.btn-upgrade-lg:hover { background: #2563eb; }
+
+.paywall-diag {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  border: 1px solid transparent;
+}
+.paywall-diag.is-loading {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #dbeafe;
+}
+.paywall-diag.is-ok {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #d1fae5;
+}
+.paywall-diag.is-warn {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(251, 191, 36, 0.55);
+  color: #fef3c7;
+}
+.paywall-diag.is-error {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fee2e2;
+}
+
 body.is-paywall-locked .sheet .findings-list,
 body.is-paywall-locked .sheet #warnings-section,
 body.is-paywall-locked .sheet .qa-table {

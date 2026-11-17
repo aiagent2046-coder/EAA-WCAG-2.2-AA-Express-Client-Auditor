@@ -2,14 +2,13 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "default_locale": "en",
   "minimum_chrome_version": "116",
   "permissions": [
     "activeTab",
     "scripting",
-    "storage",
-    "offscreen"
+    "storage"
   ],
   "host_permissions": [
     "https://appbox.space/*"
