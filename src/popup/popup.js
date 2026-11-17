@@ -4,16 +4,20 @@ let lastAudit = null;
 let activeFilter = 'all';
 let isPro = false;
 let isDevOverride = false;
+let billingEmail = '';
 
 const btnScan = document.getElementById('btn-scan');
 const statusMsg = document.getElementById('status-msg');
 const resultsPanel = document.getElementById('results-panel');
 const issuesList = document.getElementById('issues-list');
 const helpBar = document.getElementById('help-consistency-bar');
+const promoBanner = document.getElementById('promo-banner');
 const chkHud = document.getElementById('chk-hud');
 const chkWarnHud = document.getElementById('chk-warn-hud');
 const chkTabMapHud = document.getElementById('chk-tabmap-hud');
 const planPill = document.getElementById('btn-plan-pill');
+const btnOpenPaywall = document.getElementById('btn-open-paywall');
+const btnSignOutPro = document.getElementById('btn-signout-pro');
 
 function showStatus(text) {
   statusMsg.textContent = text;
@@ -24,11 +28,25 @@ function updateProBadges() {
   planPill.textContent = isPro ? 'PRO' : 'FREE';
   planPill.classList.toggle('is-pro', isPro);
 
+  if (promoBanner) {
+    promoBanner.hidden = isPro;
+  }
+
+  if (btnOpenPaywall) {
+    btnOpenPaywall.textContent = isPro
+      ? (billingEmail ? `Pro: ${billingEmail}` : 'Pro Account')
+      : 'Upgrade Pro ($10/mo)';
+  }
+
+  if (btnSignOutPro) {
+    btnSignOutPro.hidden = !(isPro && !isDevOverride);
+  }
+
   const manifest = chrome.runtime.getManifest();
   const devBtn = document.getElementById('btn-dev-unlock');
   if (!manifest.update_url && devBtn) {
     devBtn.hidden = false;
-    devBtn.textContent = isDevOverride ? 'Dev Override: ON (Reset to Free)' : 'Dev Mode: Test Pro';
+    devBtn.textContent = isDevOverride ? 'Dev: ON (Reset)' : 'Dev: Test Pro';
   }
 }
 
@@ -38,6 +56,7 @@ async function refreshProStatus() {
       const res = await window.MonetizeBridge.checkAccess();
       isPro = Boolean(res && res.granted);
       isDevOverride = Boolean(res && res.devOverride);
+      billingEmail = (res && res.email) || '';
     }
   } catch (_) {
     isPro = false;
@@ -49,6 +68,7 @@ if (window.MonetizeBridge) {
   window.MonetizeBridge.onAccessChange((granted, detail) => {
     isPro = Boolean(granted);
     if (detail && typeof detail.devOverride === 'boolean') isDevOverride = detail.devOverride;
+    if (detail && typeof detail.email === 'string') billingEmail = detail.email;
     updateProBadges();
     renderIssues();
   });
@@ -62,7 +82,6 @@ async function loadBrandingInputs() {
   document.getElementById('in-client').value = agencyBrand.clientName || '';
 }
 
-// Cross-page SC 3.2.6 Consistent Help tracker per hostname
 async function evaluateCrossPageConsistentHelp(audit) {
   const hp = audit.helpProfile;
   if (!hp || !hp.hostname) return audit;
@@ -95,7 +114,6 @@ async function evaluateCrossPageConsistentHelp(audit) {
   if (entries.length >= 2) {
     const [basePath, baseData] = entries[0];
     for (const [pathKey, pageData] of entries.slice(1)) {
-      // Compare common help mechanism kinds that appear on both pages (per W3C SC 3.2.6)
       const baseMap = new Map((baseData.mechanisms || []).map(m => [m.kind, m.zone]));
       for (const m of (pageData.mechanisms || [])) {
         if (baseMap.has(m.kind) && baseMap.get(m.kind) !== m.zone) {
@@ -210,7 +228,6 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
   const enriched = structuredClone(audit);
   if (!currentTabId) return enriched;
 
-  // Capture screenshot for unique component groups first so every distinct failure gets a crisp visual proof
   const seenGroupKeys = new Set();
   const targets = [];
   enriched.issues.forEach((issue, idx) => {
@@ -227,7 +244,6 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
     try {
       const pos = await chrome.tabs.sendMessage(currentTabId, { type: 'SCROLL_FOR_CROP', index: idx });
       if (!pos || !pos.ok) continue;
-      // Give sticky headers & smooth layouts 180ms to settle before capturing visible tab
       await new Promise(r => setTimeout(r, 180));
       const shot = await chrome.runtime.sendMessage({ type: 'CAPTURE_VISIBLE_TAB', windowId: currentWindowId });
       if (!shot || !shot.dataUrl) continue;
@@ -378,8 +394,20 @@ function openAccountOrPaywallTab() {
   chrome.tabs.create({ url: chrome.runtime.getURL('src/report/report.html?paywall=1') });
 }
 
-document.getElementById('btn-open-paywall').addEventListener('click', openAccountOrPaywallTab);
+btnOpenPaywall.addEventListener('click', openAccountOrPaywallTab);
 planPill.addEventListener('click', openAccountOrPaywallTab);
+document.getElementById('btn-promo-upgrade')?.addEventListener('click', openAccountOrPaywallTab);
+
+btnSignOutPro?.addEventListener('click', async () => {
+  if (window.MonetizeBridge) {
+    await window.MonetizeBridge.signOut();
+  }
+  billingEmail = '';
+  isPro = false;
+  await refreshProStatus();
+  renderIssues();
+  showStatus('Signed out of Pro license — Free tier & Paywall re-enabled.');
+});
 
 document.getElementById('btn-dev-unlock').addEventListener('click', async () => {
   const nextDev = !isDevOverride;

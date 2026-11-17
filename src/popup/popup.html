@@ -4,34 +4,48 @@
   <meta charset="utf-8">
   <meta name="google" content="notranslate">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EAA & WCAG 2.2 AA Auditor</title>
+  <title>EAA &amp; WCAG 2.2 AA Auditor</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <header class="top-bar">
-    <div>
-      <div class="brand">WCAG 2.2 AA Auditor <span class="ver">v0.4.0</span></div>
-      <div class="sub-badge">EN 301 549 V4.1.1 · Zero-FP Local Engine</div>
-    </div>
-    <div class="hud-controls">
+    <div class="top-row-main">
+      <div class="brand-wrap">
+        <img src="../../assets/icon-48.png" class="brand-logo" width="20" height="20" alt="">
+        <span class="brand">WCAG 2.2 AA Auditor</span>
+        <span class="ver">v0.4.1</span>
+      </div>
       <button id="btn-plan-pill" type="button" class="plan-pill">FREE</button>
-      <label class="hud-switch" title="Show/Hide visual overlay on page">
-        <input type="checkbox" id="chk-hud" checked>
-        <span>HUD</span>
-      </label>
-      <label class="hud-switch" title="Show orange Advisory Warnings on page HUD">
-        <input type="checkbox" id="chk-warn-hud">
-        <span>+Warn</span>
-      </label>
-      <label class="hud-switch" title="Visualize numbered keyboard Tab-Stop Focus Order path (SC 2.4.3)">
-        <input type="checkbox" id="chk-tabmap-hud">
-        <span>Tab#</span>
-      </label>
+    </div>
+    <div class="top-row-sub">
+      <span class="sub-badge">EN 301 549 V4.1.1 · Zero-FP</span>
+      <div class="hud-controls">
+        <label class="hud-switch" title="Show/Hide visual overlay on page">
+          <input type="checkbox" id="chk-hud" checked>
+          <span>HUD</span>
+        </label>
+        <label class="hud-switch" title="Show orange Advisory Warnings on page HUD">
+          <input type="checkbox" id="chk-warn-hud">
+          <span>+Warn</span>
+        </label>
+        <label class="hud-switch" title="Visualize numbered keyboard Tab-Stop Focus Order path (SC 2.4.3)">
+          <input type="checkbox" id="chk-tabmap-hud">
+          <span>Tab#</span>
+        </label>
+      </div>
     </div>
   </header>
 
   <main class="container">
     <button id="btn-scan" class="btn-primary" type="button">Run WCAG 2.2 AA &amp; EAA Audit</button>
+
+    <div id="promo-banner" class="promo-banner">
+      <div class="promo-copy">
+        <strong>Pro Agency License · $10/mo</strong>
+        <span>Unlock clean White-Label A4 PDF, custom logo &amp; Jira CSV</span>
+      </div>
+      <button id="btn-promo-upgrade" type="button" class="btn-promo">Upgrade</button>
+    </div>
 
     <div id="status-msg" class="status-msg" hidden></div>
 
@@ -89,8 +103,9 @@
     </section>
 
     <div class="footer-links">
-      <button id="btn-open-paywall" type="button" class="link-btn">Upgrade / Account Sign-In</button>
-      <button id="btn-dev-unlock" type="button" class="link-btn" hidden>Dev Toggle Pro</button>
+      <button id="btn-open-paywall" type="button" class="link-btn">Upgrade / Account</button>
+      <button id="btn-signout-pro" type="button" class="link-btn link-muted" hidden>Sign Out Pro</button>
+      <button id="btn-dev-unlock" type="button" class="link-btn link-muted" hidden>Dev Toggle Pro</button>
     </div>
   </main>
 

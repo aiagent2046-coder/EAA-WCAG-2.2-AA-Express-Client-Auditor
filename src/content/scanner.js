@@ -1030,7 +1030,7 @@
     const checkedNodes = r258.checkedCount + rFocus.checkedCount;
 
     const result = {
-      auditorVersion: '0.4.0',
+      auditorVersion: '0.4.1',
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,
       scannedAt: new Date().toISOString(),
