@@ -888,12 +888,157 @@
     }
   }
 
+  function syncBadgeLabels(root) {
+    if (!root) return;
+    const isSim = Boolean(window.__wcag22SimActive);
+    const activeIdx = typeof window.__wcag22ActiveIdx === "number" ? window.__wcag22ActiveIdx : -1;
+    root.querySelectorAll(".box").forEach(box => {
+      const idx = Number(box.dataset.idx);
+      const isSelected = idx === activeIdx;
+      box.classList.toggle("is-selected", isSelected);
+      const badge = box.querySelector(".badge");
+      if (!badge) return;
+      const liveEl = window.__wcag22IssueElements?.[idx];
+      const morphed = isSim && liveEl && liveEl.hasAttribute("data-wcag22-sim");
+      if (isSelected) {
+        badge.textContent = morphed ? badge.dataset.afterFull : badge.dataset.beforeFull;
+      } else {
+        badge.textContent = morphed ? badge.dataset.afterShort : badge.dataset.beforeShort;
+      }
+    });
+  }
+
+  function updateTetherLine() {
+    const host = document.getElementById(HUD_ID);
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById("hud-root");
+    if (!root) return;
+    const line = root.querySelector("#wcag22-tether-path");
+    const dot = root.querySelector("#wcag22-tether-dot");
+    const card = root.querySelector("#wcag22-inspector-card");
+    const idx = window.__wcag22ActiveIdx;
+    const liveEl = (typeof idx === "number" && idx >= 0) ? window.__wcag22IssueElements?.[idx] : null;
+
+    if (!line || !dot || !card || card.hidden || !liveEl || !liveEl.isConnected || !isElementRendered(liveEl)) {
+      if (line) line.setAttribute("d", "");
+      if (dot) dot.setAttribute("opacity", "0");
+      return;
+    }
+
+    const er = liveEl.getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    if (cr.width < 10 || er.bottom < 0 || er.top > window.innerHeight) {
+      line.setAttribute("d", "");
+      dot.setAttribute("opacity", "0");
+      return;
+    }
+
+    const ex = er.left + er.width / 2;
+    const ey = er.top + er.height / 2;
+    const cx = ex < cr.left ? cr.left : (ex > cr.right ? cr.right : cr.left + cr.width / 2);
+    const cy = ey < cr.top ? cr.top + 22 : (ey > cr.bottom ? cr.bottom - 14 : cr.top + cr.height / 2);
+
+    const midX = (cx + ex) / 2;
+    line.setAttribute("d", `M ${Math.round(cx)} ${Math.round(cy)} Q ${Math.round(midX)} ${Math.round(cy)}, ${Math.round(ex)} ${Math.round(ey)}`);
+    dot.setAttribute("cx", String(Math.round(ex)));
+    dot.setAttribute("cy", String(Math.round(ey)));
+    dot.setAttribute("opacity", "1");
+  }
+
+  function placeInspectorSmartCorner(card, liveEl) {
+    if (!card || card.hidden) return;
+    const cardW = card.offsetWidth || 344;
+    const cardH = card.offsetHeight || 265;
+    const pad = 18;
+
+    // Respect user-dragged coordinates if manually moved (clamped to current viewport)
+    if (window.__wcag22UserCardPos) {
+      const ux = Math.max(10, Math.min(window.innerWidth - cardW - 10, window.__wcag22UserCardPos.x));
+      const uy = Math.max(10, Math.min(window.innerHeight - cardH - 72, window.__wcag22UserCardPos.y));
+      card.style.left = `${Math.round(ux)}px`;
+      card.style.top = `${Math.round(uy)}px`;
+      card.style.right = "auto";
+      updateTetherLine();
+      return;
+    }
+
+    const r = (liveEl && liveEl.isConnected)
+      ? liveEl.getBoundingClientRect()
+      : { left: 100, right: 220, top: 200, bottom: 240, width: 120, height: 40 };
+
+    const elCenterX = r.left + r.width / 2;
+    const elCenterY = r.top + r.height / 2;
+
+    // Choose opposite horizontal side from the inspected element so we NEVER cover its column!
+    const placeLeft = elCenterX > window.innerWidth * 0.52;
+    const x = placeLeft ? pad : Math.max(pad, window.innerWidth - cardW - pad);
+
+    // Choose top corner (below sticky header ~74px), or shift down if element is right in that corner
+    let y = 74;
+    const overlapsHoriz = !(x + cardW + 16 < r.left || x - 16 > r.right);
+    if (overlapsHoriz && r.top < y + cardH + 20) {
+      y = Math.min(window.innerHeight - cardH - 78, Math.max(74, r.bottom + 24));
+      if (y + cardH > window.innerHeight - 78 && elCenterY > window.innerHeight * 0.45) {
+        y = 74;
+      }
+    }
+
+    card.style.left = `${Math.round(x)}px`;
+    card.style.top = `${Math.round(Math.max(12, y))}px`;
+    card.style.right = "auto";
+    updateTetherLine();
+  }
+
+  function attachPointerDrag(panelEl, handleEl, onMoved) {
+    if (!panelEl || !handleEl) return;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let origLeft = 0;
+    let origTop = 0;
+
+    handleEl.addEventListener("pointerdown", e => {
+      if (e.target.closest("button")) return;
+      dragging = true;
+      const rect = panelEl.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = rect.left;
+      origTop = rect.top;
+      panelEl.style.left = `${Math.round(origLeft)}px`;
+      panelEl.style.top = `${Math.round(origTop)}px`;
+      panelEl.style.right = "auto";
+      panelEl.style.bottom = "auto";
+      panelEl.style.transform = "none";
+      try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+
+    handleEl.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      const w = panelEl.offsetWidth || 320;
+      const h = panelEl.offsetHeight || 50;
+      const nx = Math.max(6, Math.min(window.innerWidth - w - 6, origLeft + (e.clientX - startX)));
+      const ny = Math.max(6, Math.min(window.innerHeight - h - 6, origTop + (e.clientY - startY)));
+      panelEl.style.left = `${Math.round(nx)}px`;
+      panelEl.style.top = `${Math.round(ny)}px`;
+      if (onMoved) onMoved(nx, ny);
+    });
+
+    const stop = e => {
+      if (!dragging) return;
+      dragging = false;
+      try { handleEl.releasePointerCapture(e.pointerId); } catch (_) {}
+    };
+    handleEl.addEventListener("pointerup", stop);
+    handleEl.addEventListener("pointercancel", stop);
+  }
+
   function syncHudBoxesToLiveDom() {
     const host = document.getElementById(HUD_ID);
-    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById("hud-root");
     if (!root || !window.__wcag22IssueElements) return;
 
-    root.querySelectorAll('.box').forEach(box => {
+    root.querySelectorAll(".box").forEach(box => {
       const idx = Number(box.dataset.idx);
       const liveEl = window.__wcag22IssueElements[idx];
       if (liveEl && liveEl.isConnected && isElementRendered(liveEl)) {
@@ -902,62 +1047,62 @@
         box.style.top = `${Math.max(0, nr.top + window.scrollY - 3)}px`;
         box.style.width = `${Math.max(18, nr.width + 6)}px`;
         box.style.height = `${Math.max(18, nr.height + 6)}px`;
-        const badge = box.querySelector('.badge');
+        const badge = box.querySelector(".badge");
         if (badge) {
-          badge.classList.toggle('badge-below', nr.top < 26);
+          badge.classList.toggle("badge-below", nr.top < 22);
         }
       }
     });
+    syncBadgeLabels(root);
+    updateTetherLine();
   }
 
   function setLiveFixSimulation(enabled) {
     clearLiveSimulationArtifacts();
     const host = document.getElementById(HUD_ID);
-    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById("hud-root");
     const audit = window.__wcag22LastAudit;
 
     if (!enabled || !audit) {
       if (root) {
-        root.classList.remove('sim-fixed');
-        root.querySelectorAll('.box .badge').forEach(b => {
-          if (b.dataset.beforeText) b.textContent = b.dataset.beforeText;
-        });
-        const btnBefore = root.querySelector('#dock-btn-before');
-        const btnAfter = root.querySelector('#dock-btn-after');
-        if (btnBefore) btnBefore.classList.add('is-active');
-        if (btnAfter) btnAfter.classList.remove('is-active');
-        const cardSimBtn = root.querySelector('#insp-toggle-sim');
+        root.classList.remove("sim-fixed");
+        const btnBefore = root.querySelector("#dock-btn-before");
+        const btnAfter = root.querySelector("#dock-btn-after");
+        if (btnBefore) btnBefore.classList.add("is-active");
+        if (btnAfter) btnAfter.classList.remove("is-active");
+        const cardSimBtn = root.querySelector("#insp-toggle-sim");
         if (cardSimBtn) {
-          cardSimBtn.textContent = '✨ Применить «ПОСЛЕ» прямо на сайте';
-          cardSimBtn.classList.remove('is-after');
+          cardSimBtn.textContent = "✨ Применить «ПОСЛЕ» прямо на сайте";
+          cardSimBtn.classList.remove("is-after");
         }
       }
-      setTimeout(syncHudBoxesToLiveDom, 40);
+      requestAnimationFrame(syncHudBoxesToLiveDom);
+      setTimeout(syncHudBoxesToLiveDom, 120);
       return { ok: true, active: false };
     }
 
     let maxScrollPad = 96;
     const includeWarnings = Boolean(window.__wcag22ShowWarnings);
-    const activeInspIdx = typeof window.__wcag22ActiveIdx === 'number' ? window.__wcag22ActiveIdx : -1;
+    const activeInspIdx = typeof window.__wcag22ActiveIdx === "number" ? window.__wcag22ActiveIdx : -1;
 
     audit.issues.forEach((iss, idx) => {
-      const shouldMorph = iss.severity === 'fail' || includeWarnings || idx === activeInspIdx;
+      const shouldMorph = iss.severity === "fail" || includeWarnings || idx === activeInspIdx;
       if (!shouldMorph) return;
 
       const liveEl = window.__wcag22IssueElements?.[idx];
       if (!liveEl || !liveEl.isConnected) return;
 
-      if (iss.code === 'FOCUS_RING_SUPPRESSED' || iss.code === 'FOCUS_APPEARANCE_LOW') {
-        liveEl.setAttribute('data-wcag22-sim', 'focus');
-      } else if (iss.code === 'TARGET_COLLISION' || iss.code === 'TARGET_SPACING_PASS') {
-        liveEl.setAttribute('data-wcag22-sim', 'target');
-      } else if (iss.code === 'FOCUS_OBSCURED_FULL' || iss.code === 'FOCUS_OBSCURED_PARTIAL') {
-        liveEl.setAttribute('data-wcag22-sim', 'scroll');
+      if (iss.code === "FOCUS_RING_SUPPRESSED" || iss.code === "FOCUS_APPEARANCE_LOW") {
+        liveEl.setAttribute("data-wcag22-sim", "focus");
+      } else if (iss.code === "TARGET_COLLISION" || iss.code === "TARGET_SPACING_PASS") {
+        liveEl.setAttribute("data-wcag22-sim", "target");
+      } else if (iss.code === "FOCUS_OBSCURED_FULL" || iss.code === "FOCUS_OBSCURED_PARTIAL") {
+        liveEl.setAttribute("data-wcag22-sim", "scroll");
         maxScrollPad = Math.max(maxScrollPad, (iss.params?.blockerH || 96) + 24);
       }
     });
 
-    const styleEl = document.createElement('style');
+    const styleEl = document.createElement("style");
     styleEl.id = SIM_STYLE_ID;
     styleEl.textContent = `
       html {
@@ -980,7 +1125,7 @@
         justify-content: center !important;
         background-color: rgba(16, 185, 129, 0.12) !important;
         border-radius: 4px !important;
-        transition: all 0.22s ease !important;
+        transition: background-color 0.18s ease !important;
       }
       [data-wcag22-sim="scroll"] {
         scroll-margin-top: ${maxScrollPad}px !important;
@@ -990,42 +1135,35 @@
     window.__wcag22SimActive = true;
 
     if (root) {
-      root.classList.add('sim-fixed');
-      root.querySelectorAll('.box .badge').forEach(b => {
-        const idx = Number(b.parentElement?.dataset?.idx);
-        const liveEl = window.__wcag22IssueElements?.[idx];
-        if (liveEl && liveEl.hasAttribute('data-wcag22-sim') && b.dataset.afterText) {
-          b.textContent = b.dataset.afterText;
-        }
-      });
-      const btnBefore = root.querySelector('#dock-btn-before');
-      const btnAfter = root.querySelector('#dock-btn-after');
-      if (btnBefore) btnBefore.classList.remove('is-active');
-      if (btnAfter) btnAfter.classList.add('is-active');
-      const cardSimBtn = root.querySelector('#insp-toggle-sim');
+      root.classList.add("sim-fixed");
+      const btnBefore = root.querySelector("#dock-btn-before");
+      const btnAfter = root.querySelector("#dock-btn-after");
+      if (btnBefore) btnBefore.classList.remove("is-active");
+      if (btnAfter) btnAfter.classList.add("is-active");
+      const cardSimBtn = root.querySelector("#insp-toggle-sim");
       if (cardSimBtn) {
-        cardSimBtn.textContent = '↩ Вернуть «ДО» (показать исходную ошибку)';
-        cardSimBtn.classList.add('is-after');
+        cardSimBtn.textContent = "↩ Вернуть «ДО» (показать исходную ошибку)";
+        cardSimBtn.classList.add("is-after");
       }
     }
 
-    // Re-scroll active obscured element so user sees it jump cleanly out from behind sticky header!
     if (activeInspIdx >= 0) {
       const activeEl = window.__wcag22IssueElements?.[activeInspIdx];
       const activeIss = audit.issues[activeInspIdx];
-      if (activeEl && activeEl.isConnected && activeIss?.criterion === '2.4.11') {
-        activeEl.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      if (activeEl && activeEl.isConnected && activeIss?.criterion === "2.4.11") {
+        activeEl.scrollIntoView({ block: "start", behavior: "smooth" });
       }
     }
 
-    setTimeout(syncHudBoxesToLiveDom, 60);
+    requestAnimationFrame(syncHudBoxesToLiveDom);
+    setTimeout(syncHudBoxesToLiveDom, 160);
     return { ok: true, active: true };
   }
 
   function openInspectorForIndex(idx, shouldScroll = true) {
     const audit = window.__wcag22LastAudit;
     const host = document.getElementById(HUD_ID);
-    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById("hud-root");
     if (!audit || !root || !audit.issues[idx]) return;
 
     window.__wcag22ActiveIdx = idx;
@@ -1036,46 +1174,46 @@
       if (liveEl && liveEl.isConnected) {
         const layer = getLayerRoot(liveEl);
         if (layer !== document.body) {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          window.scrollTo({ top: 0, behavior: "smooth" });
         } else {
-          liveEl.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+          liveEl.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
         }
       } else if (iss.bbox) {
-        window.scrollTo({ top: Math.max(0, iss.bbox.y - window.innerHeight / 3), behavior: 'smooth' });
+        window.scrollTo({ top: Math.max(0, iss.bbox.y - window.innerHeight / 3), behavior: "smooth" });
       }
     }
 
-    root.querySelectorAll('.box').forEach(b => b.classList.remove('pulse', 'force-show'));
+    root.querySelectorAll(".box").forEach(b => b.classList.remove("pulse", "force-show", "is-selected"));
     const targetBox = root.querySelector(`.box[data-idx="${idx}"]`);
     if (targetBox) {
-      targetBox.classList.add('force-show', 'pulse');
-      setTimeout(() => targetBox.classList.remove('pulse'), 1300);
+      targetBox.classList.add("force-show", "pulse", "is-selected");
+      setTimeout(() => targetBox.classList.remove("pulse"), 1300);
     }
+    syncBadgeLabels(root);
 
-    // Update stepper counter in Dock
     const visIndices = getVisibleIssueIndices();
     const posInVis = visIndices.indexOf(idx);
-    const stepLbl = root.querySelector('#dock-step-lbl');
+    const stepLbl = root.querySelector("#dock-step-lbl");
     if (stepLbl) {
       stepLbl.textContent = `${posInVis >= 0 ? posInVis + 1 : idx + 1} / ${Math.max(1, visIndices.length)}`;
     }
 
-    // Render / position the On-Page Before/After Visual Inspector Card
-    const card = root.querySelector('#wcag22-inspector-card');
+    const card = root.querySelector("#wcag22-inspector-card");
     if (!card) return;
 
     const spec = getVisualBeforeAfterSpec(iss);
     const isUnlocked = idx === 0 || Boolean(window.__wcag22ProUnlocked);
+    const isCollapsed = Boolean(window.__wcag22CardCollapsed);
 
-    let beforeArt = '';
-    let afterArt = '';
-    if (spec.kind === 'focus') {
+    let beforeArt = "";
+    let afterArt = "";
+    if (spec.kind === "focus") {
       beforeArt = `<div class="mini-input mini-no-ring">Поиск...</div>`;
       afterArt = `<div class="mini-input mini-has-ring">Поиск...</div>`;
-    } else if (spec.kind === 'target') {
+    } else if (spec.kind === "target") {
       beforeArt = `<div class="mini-ring-bad"><span class="mini-btn-tiny">Кнопка</span></div>`;
       afterArt = `<div class="mini-btn-good">Кнопка ≥ 24px</div>`;
-    } else if (spec.kind === 'sticky') {
+    } else if (spec.kind === "sticky") {
       beforeArt = `<div class="mini-sticky-wrap"><div class="mini-sticky-bar">ШАПКА</div><div class="mini-hidden-link">Ссылка скрыта</div></div>`;
       afterArt = `<div class="mini-sticky-wrap"><div class="mini-sticky-bar">ШАПКА</div><div class="mini-clear-link">Ссылка видна ✓</div></div>`;
     } else {
@@ -1083,69 +1221,80 @@
       afterArt = `<div class="mini-generic-good">Норма WCAG 2.2 ✓</div>`;
     }
 
+    card.classList.toggle("is-collapsed", isCollapsed);
     card.innerHTML = `
-      <div class="insp-head">
-        <span class="insp-pill sev-${iss.severity}">#${idx + 1} · SC ${iss.criterion} · ${iss.severity === 'fail' ? 'ОШИБКА AA' : 'РИСК'}</span>
-        <button type="button" class="insp-close" id="insp-close-btn" title="Закрыть карточку">&times;</button>
-      </div>
-      <div class="insp-title">${spec.title}</div>
-      <div class="insp-el-name">${iss.elementLabel ? `Элемент: «${iss.elementLabel}»` : iss.selector}</div>
-
-      <div class="insp-compare">
-        <div class="insp-col insp-col-before">
-          <div class="insp-col-tag tag-b">🔴 ДО (Сейчас)</div>
-          <div class="insp-stage">${beforeArt}</div>
-          <div class="insp-cap">${spec.beforeCap}</div>
+      <div class="insp-head" id="insp-drag-bar" title="Перетащите окно в любое удобное место">
+        <div class="insp-drag-left">
+          <span class="drag-grip">⠿</span>
+          <span class="insp-pill sev-${iss.severity}">#${idx + 1} · SC ${iss.criterion}</span>
         </div>
-        <div class="insp-col insp-col-after">
-          <div class="insp-col-tag tag-a">🟢 ПОСЛЕ (Фикс)</div>
-          <div class="insp-stage">${afterArt}</div>
-          <div class="insp-cap">${spec.afterCap}</div>
+        <div class="insp-ctrl-btns">
+          ${window.__wcag22UserCardPos ? `<button type="button" class="insp-icon-btn" id="insp-auto-corner" title="Вернуть авто-размещение в свободном углу">⤢</button>` : ""}
+          <button type="button" class="insp-icon-btn" id="insp-min-btn" title="Свернуть / Развернуть">${isCollapsed ? "▢" : "—"}</button>
+          <button type="button" class="insp-icon-btn" id="insp-close-btn" title="Закрыть карточку">&times;</button>
         </div>
       </div>
+      <div class="insp-body-wrap">
+        <div class="insp-title">${spec.title}</div>
+        <div class="insp-el-name">${iss.elementLabel ? `Элемент: «${iss.elementLabel}»` : iss.selector}</div>
 
-      <button type="button" id="insp-toggle-sim" class="insp-sim-btn ${window.__wcag22SimActive ? 'is-after' : ''}">
-        ${window.__wcag22SimActive ? '↩ Вернуть «ДО» (показать исходную ошибку)' : '✨ Применить «ПОСЛЕ» прямо на сайте'}
-      </button>
+        <div class="insp-compare">
+          <div class="insp-col insp-col-before">
+            <div class="insp-col-tag tag-b">🔴 ДО (Сейчас)</div>
+            <div class="insp-stage">${beforeArt}</div>
+            <div class="insp-cap">${spec.beforeCap}</div>
+          </div>
+          <div class="insp-col insp-col-after">
+            <div class="insp-col-tag tag-a">🟢 ПОСЛЕ (Фикс)</div>
+            <div class="insp-stage">${afterArt}</div>
+            <div class="insp-cap">${spec.afterCap}</div>
+          </div>
+        </div>
 
-      ${isUnlocked
-        ? `<div class="insp-code">${iss.fixCode}</div>`
-        : `<button type="button" id="insp-unlock-cta" class="insp-unlock-btn">🔒 Открыть CSS-код и полный PDF-отчет ($10/мес) →</button>`
-      }
+        <button type="button" id="insp-toggle-sim" class="insp-sim-btn ${window.__wcag22SimActive ? "is-after" : ""}">
+          ${window.__wcag22SimActive ? "↩ Вернуть «ДО» (показать исходную ошибку)" : "✨ Применить «ПОСЛЕ» прямо на сайте"}
+        </button>
+
+        ${isUnlocked
+          ? `<div class="insp-code">${iss.fixCode}</div>`
+          : `<button type="button" id="insp-unlock-cta" class="insp-unlock-btn">🔒 Открыть CSS-код и полный PDF-отчет ($10/мес) →</button>`
+        }
+      </div>
     `;
 
     card.hidden = false;
 
-    // Position card near target element (clamped cleanly inside viewport, above the bottom dock!)
-    setTimeout(() => {
-      const r = (liveEl && liveEl.isConnected)
-        ? liveEl.getBoundingClientRect()
-        : { left: 24, top: 80, bottom: 110, width: 120, height: 30 };
-
-      const cardW = 348;
-      const cardH = card.offsetHeight || 270;
-      const left = Math.max(14, Math.min(window.innerWidth - cardW - 14, r.left));
-      let top = r.bottom + (r.top < 26 ? 32 : 16);
-      if (top + cardH > window.innerHeight - 78) {
-        top = Math.max(14, r.top - cardH - 14);
-      }
-      card.style.left = `${Math.round(left)}px`;
-      card.style.top = `${Math.round(top)}px`;
-    }, 30);
-
-    card.querySelector('#insp-close-btn')?.addEventListener('click', () => {
-      card.hidden = true;
+    attachPointerDrag(card, card.querySelector("#insp-drag-bar"), (nx, ny) => {
+      window.__wcag22UserCardPos = { x: nx, y: ny };
+      updateTetherLine();
     });
-    card.querySelector('#insp-toggle-sim')?.addEventListener('click', () => {
+
+    setTimeout(() => placeInspectorSmartCorner(card, liveEl), 35);
+    if (shouldScroll) {
+      setTimeout(() => placeInspectorSmartCorner(card, liveEl), 260);
+    }
+
+    card.querySelector("#insp-auto-corner")?.addEventListener("click", () => {
+      window.__wcag22UserCardPos = null;
+      openInspectorForIndex(idx, false);
+    });
+    card.querySelector("#insp-min-btn")?.addEventListener("click", () => {
+      window.__wcag22CardCollapsed = !window.__wcag22CardCollapsed;
+      openInspectorForIndex(idx, false);
+    });
+    card.querySelector("#insp-close-btn")?.addEventListener("click", () => {
+      card.hidden = true;
+      updateTetherLine();
+    });
+    card.querySelector("#insp-toggle-sim")?.addEventListener("click", () => {
       setLiveFixSimulation(!window.__wcag22SimActive);
     });
-    card.querySelector('#insp-unlock-cta')?.addEventListener('click', () => {
-      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-        chrome.runtime.sendMessage({ type: 'OPEN_REPORT_FROM_PAGE', mode: 'pdf', audit: window.__wcag22LastAudit });
+    card.querySelector("#insp-unlock-cta")?.addEventListener("click", () => {
+      if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: "OPEN_REPORT_FROM_PAGE", mode: "pdf", audit: window.__wcag22LastAudit });
       }
     });
 
-    // If simulation is already active, ensure newly selected item also morphs!
     if (window.__wcag22SimActive) {
       setLiveFixSimulation(true);
     }
@@ -1157,7 +1306,7 @@
     const showWarn = Boolean(window.__wcag22ShowWarnings);
     const out = [];
     audit.issues.forEach((iss, i) => {
-      if (iss.severity === 'fail' || showWarn) out.push(i);
+      if (iss.severity === "fail" || showWarn) out.push(i);
     });
     return out;
   }
@@ -1166,26 +1315,26 @@
     let host = document.getElementById(HUD_ID);
     if (host) host.remove();
 
-    host = document.createElement('div');
+    host = document.createElement("div");
     host.id = HUD_ID;
-    host.setAttribute('translate', 'no');
-    host.className = 'notranslate';
-    host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
-    const shadow = host.attachShadow({ mode: 'open' });
+    host.setAttribute("translate", "no");
+    host.className = "notranslate";
+    host.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;";
+    const shadow = host.attachShadow({ mode: "open" });
 
-    const wrapper = document.createElement('div');
-    wrapper.id = 'hud-root';
-    if (!showWarnings) wrapper.classList.add('fails-only');
-    if (!showTabMap) wrapper.classList.add('hide-tabmap');
+    const wrapper = document.createElement("div");
+    wrapper.id = "hud-root";
+    if (!showWarnings) wrapper.classList.add("fails-only");
+    if (!showTabMap) wrapper.classList.add("hide-tabmap");
 
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
       .box {
         position: absolute;
         pointer-events: none;
         border-radius: 5px;
-        transition: all 0.22s ease;
+        transition: left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease, box-shadow 0.2s ease;
       }
       .fails-only .box-warning,
       .fails-only .box-manual {
@@ -1198,21 +1347,24 @@
         display: block !important;
       }
       .box-fail {
-        border: 2.5px solid #ef4444;
-        background: rgba(239, 68, 68, 0.13);
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.20), 0 4px 14px rgba(15, 23, 42, 0.24);
+        border: 2px solid #ef4444;
+        background: rgba(239, 68, 68, 0.10);
+      }
+      .box.is-selected {
+        z-index: 20;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.55) !important;
       }
       .box-obscured {
         background: repeating-linear-gradient(
           -45deg,
-          rgba(239, 68, 68, 0.26) 0px,
-          rgba(239, 68, 68, 0.26) 6px,
-          rgba(239, 68, 68, 0.08) 6px,
-          rgba(239, 68, 68, 0.08) 12px
+          rgba(239, 68, 68, 0.24) 0px,
+          rgba(239, 68, 68, 0.24) 6px,
+          rgba(239, 68, 68, 0.06) 6px,
+          rgba(239, 68, 68, 0.06) 12px
         );
       }
-      .box-warning { border: 2px dashed #f59e0b; background: rgba(245, 158, 11, 0.10); }
-      .box-manual { border: 2px dotted #3b82f6; background: rgba(59, 130, 246, 0.10); }
+      .box-warning { border: 1.5px dashed #f59e0b; background: rgba(245, 158, 11, 0.06); }
+      .box-manual { border: 1.5px dotted #3b82f6; background: rgba(59, 130, 246, 0.08); }
 
       .target-ring-24 {
         position: absolute;
@@ -1223,31 +1375,41 @@
         margin-left: -12px;
         margin-top: -12px;
         border-radius: 999px;
-        border: 1.5px dashed #ef4444;
-        background: rgba(239, 68, 68, 0.16);
+        border: 1px dashed rgba(239, 68, 68, 0.75);
+        background: rgba(239, 68, 68, 0.09);
       }
 
+      /* Compact Micro-Pins so neighboring links in dense footers (like reebok.com) NEVER get covered! */
       .badge {
         position: absolute;
-        top: -23px;
-        left: -2px;
+        top: -11px;
+        left: -6px;
         pointer-events: auto;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        font-weight: 700;
-        font-size: 10.5px;
-        line-height: 15px;
+        font-weight: 800;
+        font-size: 9.5px;
+        line-height: 13px;
         color: #ffffff;
-        padding: 2px 8px;
+        padding: 1px 5px;
         border-radius: 999px;
         white-space: nowrap;
-        box-shadow: 0 3px 8px rgba(15, 23, 42, 0.35);
-        transition: transform 0.15s ease, background 0.2s ease;
+        box-shadow: 0 2px 5px rgba(15, 23, 42, 0.35);
+        z-index: 5;
+        transition: transform 0.14s ease, background 0.18s ease;
       }
-      .badge:hover { transform: scale(1.06); }
-      .badge.badge-below { top: auto; bottom: -23px; }
+      .box.is-selected .badge,
+      .badge:hover {
+        z-index: 30;
+        font-size: 10.5px;
+        padding: 2px 8px;
+        top: -21px;
+        transform: scale(1.04);
+      }
+      .badge.badge-below { top: auto; bottom: -14px; }
+      .box.is-selected .badge.badge-below { bottom: -22px; }
+
       .box-fail .badge { background: #dc2626; }
       .box-warning .badge { background: #d97706; }
       .box-manual .badge { background: #2563eb; }
@@ -1255,51 +1417,68 @@
       /* Live Fix Simulation State ("ПОСЛЕ") */
       #hud-root.sim-fixed .box-fail,
       #hud-root.sim-fixed .box-warning {
-        border: 2.5px solid #10b981 !important;
-        background: rgba(16, 185, 129, 0.12) !important;
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22) !important;
+        border: 2px solid #10b981 !important;
+        background: rgba(16, 185, 129, 0.08) !important;
       }
       #hud-root.sim-fixed .box-fail .badge,
       #hud-root.sim-fixed .box-warning .badge {
         background: #059669 !important;
       }
       #hud-root.sim-fixed .target-ring-24 {
-        border-color: #10b981 !important;
-        background: rgba(16, 185, 129, 0.16) !important;
+        border-color: rgba(16, 185, 129, 0.65) !important;
+        background: rgba(16, 185, 129, 0.08) !important;
       }
 
       .pulse {
         transform: scale(1.04);
-        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.45) !important;
+        box-shadow: 0 0 0 7px rgba(59, 130, 246, 0.5) !important;
       }
 
-      /* Floating On-Page Interactive Before/After Studio Dock */
+      .tether-svg {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 2147483646;
+      }
+
+      /* Draggable Floating Studio Dock */
       .auditor-dock {
         position: fixed;
-        bottom: 16px;
+        bottom: 14px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2147483647;
         pointer-events: auto;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 7px 11px;
+        gap: 7px;
+        padding: 6px 10px;
         border-radius: 999px;
-        background: rgba(15, 23, 42, 0.95);
+        background: rgba(15, 23, 42, 0.94);
         backdrop-filter: blur(10px);
         border: 1.5px solid #334155;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.50);
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.48);
         color: #f8fafc;
         width: max-content;
-        max-width: calc(100vw - 24px);
+        max-width: calc(100vw - 20px);
         flex-wrap: wrap;
         justify-content: center;
       }
+      .dock-grip {
+        cursor: grab;
+        color: #64748b;
+        font-size: 13px;
+        padding: 2px 4px;
+        user-select: none;
+        touch-action: none;
+      }
+      .dock-grip:active { cursor: grabbing; }
       .dock-score {
-        font-size: 11.5px;
+        font-size: 11px;
         font-weight: 800;
-        padding: 4px 9px;
+        padding: 4px 8px;
         border-radius: 999px;
         background: #1e293b;
         color: #cbd5e1;
@@ -1316,30 +1495,24 @@
         border: none;
         background: transparent;
         color: #94a3b8;
-        font-size: 11.5px;
+        font-size: 11px;
         font-weight: 700;
-        padding: 5px 11px;
+        padding: 5px 10px;
         border-radius: 999px;
         cursor: pointer;
         white-space: nowrap;
-        transition: all 0.15s ease;
       }
-      .seg-btn.seg-before.is-active {
-        background: #dc2626;
-        color: #ffffff;
-      }
-      .seg-btn.seg-after.is-active {
-        background: #10b981;
-        color: #052e16;
-      }
+      .seg-btn.seg-before.is-active { background: #dc2626; color: #ffffff; }
+      .seg-btn.seg-after.is-active { background: #10b981; color: #052e16; }
+
       .dock-stepper {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
         background: #1e293b;
         border: 1px solid #334155;
         border-radius: 999px;
-        padding: 2px 6px;
+        padding: 2px 5px;
       }
       .step-arrow {
         border: none;
@@ -1352,7 +1525,7 @@
         border-radius: 999px;
       }
       .step-arrow:hover { background: #334155; }
-      #dock-step-lbl { font-size: 11px; font-weight: 700; color: #cbd5e1; min-width: 36px; text-align: center; }
+      #dock-step-lbl { font-size: 11px; font-weight: 700; color: #cbd5e1; min-width: 38px; text-align: center; }
 
       .dock-chip {
         border: 1px solid #475569;
@@ -1365,23 +1538,15 @@
         cursor: pointer;
         white-space: nowrap;
       }
-      .dock-chip.is-on {
-        border-color: #f59e0b;
-        background: rgba(245, 158, 11, 0.18);
-        color: #fde68a;
-      }
-      .dock-chip-tab.is-on {
-        border-color: #8b5cf6;
-        background: rgba(139, 92, 246, 0.22);
-        color: #ddd6fe;
-      }
+      .dock-chip.is-on { border-color: #f59e0b; background: rgba(245, 158, 11, 0.18); color: #fde68a; }
+      .dock-chip-tab.is-on { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.22); color: #ddd6fe; }
       .dock-report-btn {
         border: none;
         background: #3b82f6;
         color: #ffffff;
-        font-size: 11.5px;
+        font-size: 11px;
         font-weight: 700;
-        padding: 6px 12px;
+        padding: 6px 11px;
         border-radius: 999px;
         cursor: pointer;
         white-space: nowrap;
@@ -1393,32 +1558,78 @@
         color: #94a3b8;
         font-size: 16px;
         line-height: 1;
-        padding: 2px 6px;
+        padding: 2px 5px;
         cursor: pointer;
       }
-      .dock-close:hover { color: #ffffff; }
 
-      /* Floating On-Page Visual Inspector Card ("ДО vs ПОСЛЕ") */
+      /* Smart Corner Auto-Evade + Freely Draggable Inspector Card */
       .inspector-card[hidden] { display: none !important; }
       .inspector-card {
         position: fixed;
         z-index: 2147483647;
         pointer-events: auto;
-        width: 348px;
-        background: rgba(15, 23, 42, 0.97);
+        width: 344px;
+        background: rgba(15, 23, 42, 0.96);
         backdrop-filter: blur(12px);
         color: #f8fafc;
         border: 1.5px solid #475569;
         border-radius: 14px;
-        padding: 13px 14px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        padding: 10px 13px 12px;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.52);
+      }
+      .inspector-card.is-collapsed .insp-body-wrap {
+        display: none;
+      }
+      .inspector-card.is-collapsed {
+        padding-bottom: 10px;
       }
       .insp-head {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+        padding-bottom: 6px;
         margin-bottom: 6px;
+        border-bottom: 1px solid rgba(71, 85, 105, 0.5);
       }
+      .inspector-card.is-collapsed .insp-head {
+        padding-bottom: 0;
+        margin-bottom: 0;
+        border-bottom: none;
+      }
+      .insp-head:active { cursor: grabbing; }
+      .insp-drag-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .drag-grip {
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .insp-ctrl-btns {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .insp-icon-btn {
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #cbd5e1;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .insp-icon-btn:hover { background: #334155; color: #ffffff; }
       .insp-pill {
         font-size: 10.5px;
         font-weight: 800;
@@ -1427,21 +1638,12 @@
       }
       .insp-pill.sev-fail { background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
       .insp-pill.sev-warning, .insp-pill.sev-manual { background: rgba(245, 158, 11, 0.22); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.45); }
-      .insp-close {
-        border: none;
-        background: #1e293b;
-        color: #cbd5e1;
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-        font-size: 16px;
-        cursor: pointer;
-      }
-      .insp-title { font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 3px; }
+
+      .insp-title { font-size: 12.5px; font-weight: 700; color: #ffffff; margin-bottom: 3px; }
       .insp-el-name {
         font-size: 11px;
         color: #93c5fd;
-        margin-bottom: 9px;
+        margin-bottom: 8px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1450,74 +1652,22 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
-        margin-bottom: 9px;
+        margin-bottom: 8px;
       }
-      .insp-col {
-        border-radius: 9px;
-        padding: 8px;
-        text-align: center;
-      }
-      .insp-col-before {
-        background: rgba(239, 68, 68, 0.09);
-        border: 1px solid rgba(239, 68, 68, 0.35);
-      }
-      .insp-col-after {
-        background: rgba(16, 185, 129, 0.09);
-        border: 1px solid rgba(16, 185, 129, 0.35);
-      }
-      .insp-col-tag { font-size: 10px; font-weight: 800; margin-bottom: 6px; }
+      .insp-col { border-radius: 9px; padding: 7px; text-align: center; }
+      .insp-col-before { background: rgba(239, 68, 68, 0.09); border: 1px solid rgba(239, 68, 68, 0.35); }
+      .insp-col-after { background: rgba(16, 185, 129, 0.09); border: 1px solid rgba(16, 185, 129, 0.35); }
+      .insp-col-tag { font-size: 10px; font-weight: 800; margin-bottom: 5px; }
       .tag-b { color: #fca5a5; }
       .tag-a { color: #6ee7b7; }
-      .insp-stage {
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 5px;
-      }
+      .insp-stage { height: 42px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
       .insp-cap { font-size: 10px; color: #cbd5e1; line-height: 1.25; }
 
-      /* Schematic Visual Miniatures inside Inspector Card */
-      .mini-input {
-        background: #ffffff;
-        color: #334155;
-        font-size: 10px;
-        padding: 4px 10px;
-        border-radius: 4px;
-        border: 1px solid #cbd5e1;
-      }
-      .mini-has-ring {
-        outline: 2.5px solid #2563eb;
-        outline-offset: 2px;
-        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
-      }
-      .mini-ring-bad {
-        width: 30px;
-        height: 30px;
-        border-radius: 999px;
-        border: 1.5px dashed #ef4444;
-        background: rgba(239, 68, 68, 0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .mini-btn-tiny {
-        font-size: 8.5px;
-        background: #334155;
-        color: #fff;
-        padding: 1px 4px;
-        line-height: 11px;
-        border-radius: 2px;
-      }
-      .mini-btn-good {
-        font-size: 10px;
-        font-weight: 700;
-        background: rgba(16, 185, 129, 0.25);
-        border: 1.5px dashed #10b981;
-        color: #ecfdf5;
-        padding: 5px 10px;
-        border-radius: 5px;
-      }
+      .mini-input { background: #ffffff; color: #334155; font-size: 10px; padding: 4px 10px; border-radius: 4px; border: 1px solid #cbd5e1; }
+      .mini-has-ring { outline: 2.5px solid #2563eb; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3); }
+      .mini-ring-bad { width: 28px; height: 28px; border-radius: 999px; border: 1.5px dashed #ef4444; background: rgba(239, 68, 68, 0.2); display: flex; align-items: center; justify-content: center; }
+      .mini-btn-tiny { font-size: 8.5px; background: #334155; color: #fff; padding: 1px 4px; line-height: 11px; border-radius: 2px; }
+      .mini-btn-good { font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.25); border: 1.5px dashed #10b981; color: #ecfdf5; padding: 5px 10px; border-radius: 5px; }
       .mini-sticky-wrap { width: 100%; font-size: 9px; }
       .mini-sticky-bar { background: #475569; color: #fff; padding: 2px 4px; border-radius: 3px; font-weight: 700; }
       .mini-hidden-link { background: rgba(239,68,68,0.3); color: #fecaca; margin-top: -4px; padding: 2px 4px; border-radius: 3px; }
@@ -1537,10 +1687,7 @@
         cursor: pointer;
         margin-bottom: 7px;
       }
-      .insp-sim-btn.is-after {
-        background: #059669;
-        color: #ffffff;
-      }
+      .insp-sim-btn.is-after { background: #059669; color: #ffffff; }
       .insp-code {
         background: #0b1120;
         border: 1px solid #334155;
@@ -1583,8 +1730,8 @@
 
     issues.forEach((issue, idx) => {
       if (!issue.bbox) return;
-      const box = document.createElement('div');
-      const extraCls = issue.code === 'FOCUS_OBSCURED_FULL' ? ' box-obscured' : '';
+      const box = document.createElement("div");
+      const extraCls = issue.code === "FOCUS_OBSCURED_FULL" ? " box-obscured" : "";
       box.className = `box box-${issue.severity}${extraCls}`;
       box.dataset.idx = String(idx);
       box.style.left = `${Math.max(0, issue.bbox.x - 3)}px`;
@@ -1592,20 +1739,37 @@
       box.style.width = `${Math.max(18, issue.bbox.w + 6)}px`;
       box.style.height = `${Math.max(18, issue.bbox.h + 6)}px`;
 
-      if (issue.criterion === '2.5.8') {
-        const ring = document.createElement('span');
-        ring.className = 'target-ring-24';
+      if (issue.criterion === "2.5.8") {
+        const ring = document.createElement("span");
+        ring.className = "target-ring-24";
         box.appendChild(ring);
       }
 
-      const badge = document.createElement('span');
-      badge.className = issue.bbox.y < 26 ? 'badge badge-below' : 'badge';
-      const defaultLabel = `#${idx + 1} · ${issue.hudCallout || `SC ${issue.criterion}`}`;
-      badge.dataset.beforeText = defaultLabel;
-      badge.dataset.afterText = `#${idx + 1} ✓ ИСПРАВЛЕНО (SC ${issue.criterion})`;
-      badge.textContent = defaultLabel;
-      badge.title = 'Нажмите для сравнения ДО / ПОСЛЕ';
-      badge.addEventListener('click', e => {
+      const badge = document.createElement("span");
+      badge.className = issue.bbox.y < 22 ? "badge badge-below" : "badge";
+      const beforeShort = `#${idx + 1}`;
+      const afterShort = `✓${idx + 1}`;
+      const beforeFull = `#${idx + 1} · ${issue.hudCallout || `SC ${issue.criterion}`}`;
+      const afterFull = `#${idx + 1} ✓ ИСПРАВЛЕНО (SC ${issue.criterion})`;
+
+      badge.dataset.beforeShort = beforeShort;
+      badge.dataset.afterShort = afterShort;
+      badge.dataset.beforeFull = beforeFull;
+      badge.dataset.afterFull = afterFull;
+      badge.textContent = beforeShort;
+      badge.title = `${beforeFull} — нажмите для сравнения ДО / ПОСЛЕ`;
+
+      badge.addEventListener("mouseenter", () => {
+        const morphed = window.__wcag22SimActive && window.__wcag22IssueElements?.[idx]?.hasAttribute("data-wcag22-sim");
+        badge.textContent = morphed ? afterFull : beforeFull;
+      });
+      badge.addEventListener("mouseleave", () => {
+        if (window.__wcag22ActiveIdx !== idx) {
+          const morphed = window.__wcag22SimActive && window.__wcag22IssueElements?.[idx]?.hasAttribute("data-wcag22-sim");
+          badge.textContent = morphed ? afterShort : beforeShort;
+        }
+      });
+      badge.addEventListener("click", e => {
         e.stopPropagation();
         openInspectorForIndex(idx, false);
       });
@@ -1613,32 +1777,51 @@
       wrapper.appendChild(box);
     });
 
+    // Subtle SVG tether connector linking docked/dragged Inspector Card to active element!
+    const svgNS = "http://www.w3.org/2000/svg";
+    const tetherSvg = document.createElementNS(svgNS, "svg");
+    tetherSvg.setAttribute("class", "tether-svg");
+    const tetherPath = document.createElementNS(svgNS, "path");
+    tetherPath.setAttribute("id", "wcag22-tether-path");
+    tetherPath.setAttribute("fill", "none");
+    tetherPath.setAttribute("stroke", "rgba(96, 165, 250, 0.78)");
+    tetherPath.setAttribute("stroke-width", "2");
+    tetherPath.setAttribute("stroke-dasharray", "5 4");
+    const tetherDot = document.createElementNS(svgNS, "circle");
+    tetherDot.setAttribute("id", "wcag22-tether-dot");
+    tetherDot.setAttribute("r", "4.5");
+    tetherDot.setAttribute("fill", "#3b82f6");
+    tetherDot.setAttribute("stroke", "#ffffff");
+    tetherDot.setAttribute("stroke-width", "1.5");
+    tetherDot.setAttribute("opacity", "0");
+    tetherSvg.append(tetherPath, tetherDot);
+    wrapper.appendChild(tetherSvg);
+
     if (Array.isArray(tabStops) && tabStops.length > 0) {
-      const tabLayer = document.createElement('div');
-      tabLayer.className = 'tabmap-layer';
+      const tabLayer = document.createElement("div");
+      tabLayer.className = "tabmap-layer";
 
       const docW = Math.max(document.documentElement.scrollWidth, window.innerWidth);
       const docH = Math.max(document.documentElement.scrollHeight, window.innerHeight);
-      const svgNS = 'http://www.w3.org/2000/svg';
-      const svg = document.createElementNS(svgNS, 'svg');
-      svg.setAttribute('class', 'tabmap-svg');
-      svg.setAttribute('width', String(docW));
-      svg.setAttribute('height', String(docH));
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("class", "tabmap-svg");
+      svg.setAttribute("width", String(docW));
+      svg.setAttribute("height", String(docH));
 
       if (tabStops.length > 1) {
-        const poly = document.createElementNS(svgNS, 'polyline');
-        poly.setAttribute('points', tabStops.map(s => `${s.x},${s.y}`).join(' '));
-        poly.setAttribute('fill', 'none');
-        poly.setAttribute('stroke', 'rgba(124, 58, 237, 0.72)');
-        poly.setAttribute('stroke-width', '2');
-        poly.setAttribute('stroke-dasharray', '4 3');
+        const poly = document.createElementNS(svgNS, "polyline");
+        poly.setAttribute("points", tabStops.map(s => `${s.x},${s.y}`).join(" "));
+        poly.setAttribute("fill", "none");
+        poly.setAttribute("stroke", "rgba(124, 58, 237, 0.72)");
+        poly.setAttribute("stroke-width", "2");
+        poly.setAttribute("stroke-dasharray", "4 3");
         svg.appendChild(poly);
       }
       tabLayer.appendChild(svg);
 
       tabStops.slice(0, 99).forEach(s => {
-        const dot = document.createElement('div');
-        dot.className = 'tab-stop-dot';
+        const dot = document.createElement("div");
+        dot.className = "tab-stop-dot";
         dot.style.left = `${s.x}px`;
         dot.style.top = `${s.y}px`;
         dot.textContent = String(s.order);
@@ -1648,20 +1831,19 @@
       wrapper.appendChild(tabLayer);
     }
 
-    // Inspector Popover Container
-    const inspCard = document.createElement('div');
-    inspCard.id = 'wcag22-inspector-card';
-    inspCard.className = 'inspector-card';
+    const inspCard = document.createElement("div");
+    inspCard.id = "wcag22-inspector-card";
+    inspCard.className = "inspector-card";
     inspCard.hidden = true;
     wrapper.appendChild(inspCard);
 
-    // Floating On-Page Before/After Studio Dock
-    const dock = document.createElement('div');
-    dock.id = 'wcag22-auditor-dock';
-    dock.className = 'auditor-dock';
+    const dock = document.createElement("div");
+    dock.id = "wcag22-auditor-dock";
+    dock.className = "auditor-dock";
 
-    const initVisCount = showWarnings ? issues.length : issues.filter(i => i.severity === 'fail').length;
+    const initVisCount = showWarnings ? issues.length : issues.filter(i => i.severity === "fail").length;
     dock.innerHTML = `
+      <span class="dock-grip" id="dock-drag-grip" title="Перетащить панель">⠿</span>
       <span class="dock-score">EAA ${counts.score ?? 100}% · 🔴 ${counts.fail ?? 0}</span>
       <div class="dock-seg" role="group" aria-label="Before and After Simulation">
         <button type="button" id="dock-btn-before" class="seg-btn seg-before is-active">🔴 ДО (Ошибки)</button>
@@ -1669,11 +1851,11 @@
       </div>
       <div class="dock-stepper">
         <button type="button" id="dock-prev" class="step-arrow" title="Предыдущий элемент">◀</button>
-        <span id="dock-step-lbl">${initVisCount > 0 ? `1 / ${initVisCount}` : '0 / 0'}</span>
+        <span id="dock-step-lbl">${initVisCount > 0 ? `1 / ${initVisCount}` : "0 / 0"}</span>
         <button type="button" id="dock-next" class="step-arrow" title="Следующий элемент">▶</button>
       </div>
-      <button type="button" id="dock-warn-chip" class="dock-chip ${showWarnings ? 'is-on' : ''}">+Риски (${counts.warning ?? 0})</button>
-      <button type="button" id="dock-tab-chip" class="dock-chip dock-chip-tab ${showTabMap ? 'is-on' : ''}">Tab#</button>
+      <button type="button" id="dock-warn-chip" class="dock-chip ${showWarnings ? "is-on" : ""}">+Риски (${counts.warning ?? 0})</button>
+      <button type="button" id="dock-tab-chip" class="dock-chip dock-chip-tab ${showTabMap ? "is-on" : ""}">Tab#</button>
       <button type="button" id="dock-open-report" class="dock-report-btn">📄 Отчет / PDF</button>
       <button type="button" id="dock-close-hud" class="dock-close" title="Скрыть панель">&times;</button>
     `;
@@ -1682,32 +1864,32 @@
     shadow.appendChild(wrapper);
     document.documentElement.appendChild(host);
 
-    // Wire up On-Page Dock interactions
-    dock.querySelector('#dock-btn-before')?.addEventListener('click', () => {
+    attachPointerDrag(dock, dock.querySelector("#dock-drag-grip"));
+
+    dock.querySelector("#dock-btn-before")?.addEventListener("click", () => {
       setLiveFixSimulation(false);
     });
-    dock.querySelector('#dock-btn-after')?.addEventListener('click', () => {
-      // If page has 0 AA fails but has warnings, auto-enable +Риски so user immediately sees warnings morph!
+    dock.querySelector("#dock-btn-after")?.addEventListener("click", () => {
       if ((counts.fail || 0) === 0 && (counts.warning || 0) > 0 && !window.__wcag22ShowWarnings) {
         window.__wcag22ShowWarnings = true;
-        wrapper.classList.remove('fails-only');
-        dock.querySelector('#dock-warn-chip')?.classList.add('is-on');
+        wrapper.classList.remove("fails-only");
+        dock.querySelector("#dock-warn-chip")?.classList.add("is-on");
       }
       setLiveFixSimulation(true);
       const vis = getVisibleIssueIndices();
-      if (vis.length > 0 && (typeof window.__wcag22ActiveIdx !== 'number' || window.__wcag22ActiveIdx < 0)) {
+      if (vis.length > 0 && (typeof window.__wcag22ActiveIdx !== "number" || window.__wcag22ActiveIdx < 0)) {
         openInspectorForIndex(vis[0], false);
       }
     });
 
-    dock.querySelector('#dock-prev')?.addEventListener('click', () => {
+    dock.querySelector("#dock-prev")?.addEventListener("click", () => {
       const vis = getVisibleIssueIndices();
       if (!vis.length) return;
       const curPos = vis.indexOf(window.__wcag22ActiveIdx ?? vis[0]);
       const nextPos = (curPos - 1 + vis.length) % vis.length;
       openInspectorForIndex(vis[nextPos], true);
     });
-    dock.querySelector('#dock-next')?.addEventListener('click', () => {
+    dock.querySelector("#dock-next")?.addEventListener("click", () => {
       const vis = getVisibleIssueIndices();
       if (!vis.length) return;
       const curPos = vis.indexOf(window.__wcag22ActiveIdx ?? -1);
@@ -1715,32 +1897,38 @@
       openInspectorForIndex(vis[nextPos], true);
     });
 
-    dock.querySelector('#dock-warn-chip')?.addEventListener('click', e => {
+    dock.querySelector("#dock-warn-chip")?.addEventListener("click", e => {
       window.__wcag22ShowWarnings = !window.__wcag22ShowWarnings;
-      wrapper.classList.toggle('fails-only', !window.__wcag22ShowWarnings);
-      e.currentTarget.classList.toggle('is-on', window.__wcag22ShowWarnings);
+      wrapper.classList.toggle("fails-only", !window.__wcag22ShowWarnings);
+      e.currentTarget.classList.toggle("is-on", window.__wcag22ShowWarnings);
       const vis = getVisibleIssueIndices();
-      const stepLbl = dock.querySelector('#dock-step-lbl');
-      if (stepLbl) stepLbl.textContent = vis.length ? `1 / ${vis.length}` : '0 / 0';
+      const stepLbl = dock.querySelector("#dock-step-lbl");
+      if (stepLbl) stepLbl.textContent = vis.length ? `1 / ${vis.length}` : "0 / 0";
       if (window.__wcag22SimActive) setLiveFixSimulation(true);
     });
 
-    dock.querySelector('#dock-tab-chip')?.addEventListener('click', e => {
+    dock.querySelector("#dock-tab-chip")?.addEventListener("click", e => {
       window.__wcag22ShowTabMap = !window.__wcag22ShowTabMap;
-      wrapper.classList.toggle('hide-tabmap', !window.__wcag22ShowTabMap);
-      e.currentTarget.classList.toggle('is-on', window.__wcag22ShowTabMap);
+      wrapper.classList.toggle("hide-tabmap", !window.__wcag22ShowTabMap);
+      e.currentTarget.classList.toggle("is-on", window.__wcag22ShowTabMap);
     });
 
-    dock.querySelector('#dock-open-report')?.addEventListener('click', () => {
-      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-        chrome.runtime.sendMessage({ type: 'OPEN_REPORT_FROM_PAGE', mode: 'pdf', audit: window.__wcag22LastAudit });
+    dock.querySelector("#dock-open-report")?.addEventListener("click", () => {
+      if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: "OPEN_REPORT_FROM_PAGE", mode: "pdf", audit: window.__wcag22LastAudit });
       }
     });
 
-    dock.querySelector('#dock-close-hud')?.addEventListener('click', () => {
+    dock.querySelector("#dock-close-hud")?.addEventListener("click", () => {
       clearLiveSimulationArtifacts();
-      host.style.display = 'none';
+      host.style.display = "none";
     });
+  }
+
+  if (!window.__wcag22ScrollTetherInstalled) {
+    window.__wcag22ScrollTetherInstalled = true;
+    window.addEventListener("scroll", () => requestAnimationFrame(updateTetherLine), { passive: true });
+    window.addEventListener("resize", () => requestAnimationFrame(updateTetherLine), { passive: true });
   }
 
   function computeReadinessScore(failCount, warnCount, checkedNodes) {
@@ -1751,8 +1939,8 @@
 
   function refreshProCacheFlag() {
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        chrome.storage.local.get(['monetize_paid_verified', 'dev_pro_override_v23'], res => {
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        chrome.storage.local.get(["monetize_paid_verified", "dev_pro_override_v23"], res => {
           window.__wcag22ProUnlocked = Boolean(res?.monetize_paid_verified || res?.dev_pro_override_v23);
         });
       }
@@ -1784,14 +1972,14 @@
     window.__wcag22IssueElements = sortedWithRefs.map(item => item._el || null);
     const allIssues = sortedWithRefs.map(({ _el, ...serializable }) => serializable);
 
-    const failCount = allIssues.filter(i => i.severity === 'fail').length;
-    const warnCount = allIssues.filter(i => i.severity === 'warning').length;
-    const manualCount = allIssues.filter(i => i.severity === 'manual').length;
+    const failCount = allIssues.filter(i => i.severity === "fail").length;
+    const warnCount = allIssues.filter(i => i.severity === "warning").length;
+    const manualCount = allIssues.filter(i => i.severity === "manual").length;
     const checkedNodes = r258.checkedCount + rFocus.checkedCount;
     const readinessScore = computeReadinessScore(failCount, warnCount, checkedNodes);
 
     const result = {
-      auditorVersion: '0.6.0',
+      auditorVersion: "0.6.1",
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,
       scannedAt: new Date().toISOString(),
@@ -1820,7 +2008,6 @@
       { fail: failCount, warning: warnCount, score: readinessScore }
     );
 
-    // Auto-open the visual "ДО vs ПОСЛЕ" inspector card on Finding #1 if an AA fail exists!
     if (failCount > 0) {
       openInspectorForIndex(0, false);
     }
@@ -1830,51 +2017,51 @@
 
   if (!window.__wcag22ListenerInstalled) {
     window.__wcag22ListenerInstalled = true;
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (!msg || !msg.type) return false;
         const host = document.getElementById(HUD_ID);
-        const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+        const root = host && host.shadowRoot && host.shadowRoot.getElementById("hud-root");
 
-        if (msg.type === 'HIGHLIGHT_ISSUE') {
-          if (host) host.style.display = 'block';
+        if (msg.type === "HIGHLIGHT_ISSUE") {
+          if (host) host.style.display = "block";
           openInspectorForIndex(msg.index, true);
           sendResponse({ ok: true });
-        } else if (msg.type === 'SIMULATE_FIXES') {
-          if (host) host.style.display = 'block';
+        } else if (msg.type === "SIMULATE_FIXES") {
+          if (host) host.style.display = "block";
           sendResponse(setLiveFixSimulation(Boolean(msg.enabled)));
-        } else if (msg.type === 'TOGGLE_HUD') {
+        } else if (msg.type === "TOGGLE_HUD") {
           if (!msg.visible) clearLiveSimulationArtifacts();
-          if (host) host.style.display = msg.visible ? 'block' : 'none';
+          if (host) host.style.display = msg.visible ? "block" : "none";
           sendResponse({ ok: true });
-        } else if (msg.type === 'SET_HUD_WARNINGS') {
+        } else if (msg.type === "SET_HUD_WARNINGS") {
           window.__wcag22ShowWarnings = Boolean(msg.showWarnings);
           if (root) {
-            root.classList.toggle('fails-only', !window.__wcag22ShowWarnings);
-            root.querySelector('#dock-warn-chip')?.classList.toggle('is-on', window.__wcag22ShowWarnings);
+            root.classList.toggle("fails-only", !window.__wcag22ShowWarnings);
+            root.querySelector("#dock-warn-chip")?.classList.toggle("is-on", window.__wcag22ShowWarnings);
           }
           if (window.__wcag22SimActive) setLiveFixSimulation(true);
           sendResponse({ ok: true });
-        } else if (msg.type === 'SET_HUD_TABMAP') {
+        } else if (msg.type === "SET_HUD_TABMAP") {
           window.__wcag22ShowTabMap = Boolean(msg.showTabMap);
           if (root) {
-            root.classList.toggle('hide-tabmap', !window.__wcag22ShowTabMap);
-            root.querySelector('#dock-tab-chip')?.classList.toggle('is-on', window.__wcag22ShowTabMap);
+            root.classList.toggle("hide-tabmap", !window.__wcag22ShowTabMap);
+            root.querySelector("#dock-tab-chip")?.classList.toggle("is-on", window.__wcag22ShowTabMap);
           }
           sendResponse({ ok: true });
-        } else if (msg.type === 'SCROLL_FOR_CROP') {
+        } else if (msg.type === "SCROLL_FOR_CROP") {
           clearLiveSimulationArtifacts();
           const item = window.__wcag22LastAudit && window.__wcag22LastAudit.issues[msg.index];
           const liveEl = window.__wcag22IssueElements && window.__wcag22IssueElements[msg.index];
           if (item && item.bbox) {
-            if (host) host.style.display = 'none';
+            if (host) host.style.display = "none";
 
             if (liveEl && liveEl.isConnected) {
               const layer = getLayerRoot(liveEl);
               if (layer !== document.body || item.bbox.y < window.innerHeight * 0.42) {
                 window.scrollTo(0, 0);
               } else {
-                liveEl.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+                liveEl.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
               }
             } else {
               const targetScrollY = item.bbox.y < window.innerHeight * 0.42
@@ -1907,12 +2094,12 @@
           } else {
             sendResponse({ ok: false });
           }
-        } else if (msg.type === 'RESTORE_HUD_AFTER_CROP') {
-          if (host) host.style.display = 'block';
+        } else if (msg.type === "RESTORE_HUD_AFTER_CROP") {
+          if (host) host.style.display = "block";
           if (root) {
-            root.classList.toggle('hide-tabmap', !window.__wcag22ShowTabMap);
-            root.querySelectorAll('.box').forEach(b => {
-              b.style.display = '';
+            root.classList.toggle("hide-tabmap", !window.__wcag22ShowTabMap);
+            root.querySelectorAll(".box").forEach(b => {
+              b.style.display = "";
             });
           }
           sendResponse({ ok: true });
