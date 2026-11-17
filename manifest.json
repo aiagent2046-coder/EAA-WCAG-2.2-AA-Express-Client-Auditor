@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "default_locale": "en",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -11,7 +11,9 @@
     "storage"
   ],
   "host_permissions": [
-    "https://appbox.space/*"
+    "https://appbox.space/*",
+    "https://*.workers.dev/*",
+    "http://127.0.0.1:8787/*"
   ],
   "action": {
     "default_title": "Audit Page for WCAG 2.2 AA & EAA",

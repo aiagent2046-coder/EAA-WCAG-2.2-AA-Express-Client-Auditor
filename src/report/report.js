@@ -469,102 +469,91 @@ function renderReport() {
 
 const PAYWALL_I18N = {
   ru: {
-    btnUnlockToolbar: 'Разблокировать Pro / Войти',
+    btnUnlockToolbar: 'Разблокировать Pro',
     btnAccountToolbar: 'Аккаунт Pro',
-    btnOpenBanner: 'Открыть Paywall / Войти',
+    btnOpenBanner: 'Оплатить / Восстановить Pro',
     lockTitle: 'White-Label экспорт заблокирован (Paywall #926)',
-    lockSub: 'Войдите по Email-коду или активируйте тариф через Paywall #926, чтобы открыть печать чистого A4 PDF, Markdown и Jira CSV.',
-    noAuditYet: 'Сначала запустите аудит на любой веб-странице через иконку расширения (или войдите в Pro-аккаунт кнопкой выше).',
+    lockSub: 'Перейдите сразу к оплате картой в Stripe без писем подтверждения и кодов, чтобы разблокировать A4 PDF, Markdown и Jira CSV.',
+    noAuditYet: 'Сначала запустите аудит на любой веб-странице через иконку расширения (или активируйте Pro кнопкой выше).',
     modalTitle: 'Express Client Auditor Pro',
-    modalSub: 'Разблокируйте клиентский A4 PDF без водяных знаков, брендирование агентства и выгрузку задач в Markdown / Jira CSV.',
+    modalSub: 'Прямая активация через Stripe без регистрации и писем подтверждения: клиентские A4 PDF без водяных знаков, логотип агентства и экспорт в Markdown / Jira CSV.',
     lblPlan: 'Тарифный план (Paywall #926)',
-    lblAuth: 'Шаг 1 · Вход или регистрация по одноразовому Email-коду',
+    lblEmail: 'Email для квитанции Stripe и привязки лицензии',
     phEmail: 'you@agency.com',
-    btnSendOtp: 'Получить код',
-    btnResendOtp: 'Отправить повторно',
-    phOtp: 'Код из письма ИЛИ вставьте ссылку из кнопки письма',
-    btnVerifyOtp: 'Подтвердить',
-    otpSentInfo: email => `Письмо отправлено на ${email}. Введите код ниже — если в письме вместо цифр пришла кнопка/ссылка (на Default domain она не открывается в браузере), просто скопируйте адрес ссылки из письма и вставьте целиком в поле ниже!`,
-    signedInAs: email => `Аккаунт: ${email}`,
-    btnSignOut: 'Выйти',
-    btnCheckout: 'Перейти к оплате тарифа',
-    btnPortal: 'Управление подпиской (Stripe Portal)',
+    btnCheckout: 'Перейти сразу к оплате в Stripe',
+    btnRestore: 'Уже покупали на этот Email? Восстановить доступ',
+    signedInAs: email => `Активная подписка: ${email}`,
+    btnSignOut: 'Сменить Email',
+    btnPortal: 'Управление подпиской (Stripe Billing Portal)',
     awaitTitle: 'Окно оплаты Stripe открыто в соседней вкладке',
-    awaitHint: 'В тестовом режиме используйте карту песочницы Stripe: <code>4242 4242 4242 4242</code> (любой будущий срок MM/YY и любой CVC). Доступ откроется автоматически через 2–3 секунды после оплаты.',
-    btnCheckNow: 'Я оплатил — проверить доступ',
+    awaitHint: 'Для тестовой оплаты введите карту песочницы Stripe: <code>4242 4242 4242 4242</code> (любой будущий срок MM/YY и любой CVC). При возврате на эту вкладку Pro-доступ откроется автоматически.',
+    btnCheckNow: 'Я оплатил — проверить сейчас',
     btnReopenUrl: 'Открыть оплату снова',
-    loadingPlans: 'Загрузка тарифов с appbox.space...',
-    noPlans: 'У Paywall #926 пока нет привязанных тарифов во вкладке «Цены».',
-    unlockedSuccess: 'Оплата подтверждена! Pro-экспорт разблокирован.',
-    notPaidYet: 'Подписка пока не обнаружена — завершите оплату во вкладке Stripe и нажмите кнопку еще раз.',
+    loadingPlans: 'Загрузка тарифа с appbox.space...',
+    noPlans: 'У Paywall #926 пока нет активных тарифов во вкладке «Цены».',
+    unlockedSuccess: 'Оплата подтверждена! White-Label Pro экспорт разблокирован.',
+    notPaidYet: 'Активная оплата для этого Email пока не найдена — завершите платеж во вкладке Stripe и нажмите кнопку еще раз.',
     trialDays: n => `Пробный период: ${n} дн.`
   },
   en: {
-    btnUnlockToolbar: 'Unlock Pro / Sign In',
+    btnUnlockToolbar: 'Unlock Pro',
     btnAccountToolbar: 'Pro Account',
-    btnOpenBanner: 'Open Paywall / Sign In',
+    btnOpenBanner: 'Upgrade / Restore Pro',
     lockTitle: 'White-Label Export Locked (Paywall #926)',
-    lockSub: 'Sign in via Email OTP or upgrade via Paywall #926 to unlock clean A4 PDF printing, Markdown, and Jira CSV exports.',
-    noAuditYet: 'Run an audit on any webpage from the extension popup first (or sign in / upgrade above).',
+    lockSub: 'Proceed directly to Stripe Checkout in one click (no verification emails or OTP codes) to unlock clean A4 PDF, Markdown, and Jira CSV exports.',
+    noAuditYet: 'Run an audit on any webpage from the extension popup first (or unlock Pro above).',
     modalTitle: 'Express Client Auditor Pro',
-    modalSub: 'Unlock clean White-Label A4 PDF client reports, custom agency branding, and Markdown / Jira CSV ticket exports.',
+    modalSub: 'Instant 1-click Stripe Checkout with zero confirmation emails: unlock White-Label A4 PDF reports, custom agency branding, and Markdown / Jira CSV exports.',
     lblPlan: 'Select Plan (Paywall #926)',
-    lblAuth: 'Step 1 · Passwordless Email OTP Sign-In',
+    lblEmail: 'Work Email (for Stripe receipt & license lookup)',
     phEmail: 'you@agency.com',
-    btnSendOtp: 'Send OTP Code',
-    btnResendOtp: 'Resend Code',
-    phOtp: 'Paste 6-digit code OR confirmation link URL from email',
-    btnVerifyOtp: 'Verify Code',
-    otpSentInfo: email => `Email sent to ${email}. Paste the 6-digit code below — or if the email contains a confirmation link button (which fails on Default domain), copy and paste that link URL right into the box below!`,
-    signedInAs: email => `Signed in: ${email}`,
-    btnSignOut: 'Sign Out',
-    btnCheckout: 'Continue to Stripe Checkout',
-    btnPortal: 'Manage Subscription (Customer Portal)',
+    btnCheckout: 'Continue Directly to Stripe Checkout',
+    btnRestore: 'Already subscribed with this email? Restore Pro',
+    signedInAs: email => `Active Pro license: ${email}`,
+    btnSignOut: 'Switch Email',
+    btnPortal: 'Manage Subscription (Stripe Billing Portal)',
     awaitTitle: 'Stripe Checkout opened in a new tab',
-    awaitHint: 'In Test mode, use Stripe sandbox card <code>4242 4242 4242 4242</code> (any future expiry & CVC). Pro unlocks automatically within seconds after payment.',
+    awaitHint: 'In Test mode, enter Stripe sandbox card <code>4242 4242 4242 4242</code> (any future expiry & CVC). Pro unlocks automatically as soon as you return to this tab.',
     btnCheckNow: 'I completed payment — Check now',
     btnReopenUrl: 'Reopen Checkout Tab',
-    loadingPlans: 'Loading plans from appbox.space...',
+    loadingPlans: 'Loading plan from appbox.space...',
     noPlans: 'Paywall #926 has 0 attached prices in the Offers tab.',
     unlockedSuccess: 'Payment verified! White-Label Pro exports unlocked.',
-    notPaidYet: 'Active subscription not detected yet — complete Stripe Checkout and check again.',
+    notPaidYet: 'No active subscription found for this email yet — complete Stripe Checkout and check again.',
     trialDays: n => `${n}-day free trial included`
   },
   de: {
-    btnUnlockToolbar: 'Pro freischalten / Anmelden',
+    btnUnlockToolbar: 'Pro freischalten',
     btnAccountToolbar: 'Pro-Konto',
-    btnOpenBanner: 'Paywall öffnen / Anmelden',
+    btnOpenBanner: 'Pro kaufen / Wiederherstellen',
     lockTitle: 'White-Label-Export gesperrt (Paywall #926)',
-    lockSub: 'Melden Sie sich per E-Mail-Code über Paywall #926 an, um den sauberen A4-PDF-, Markdown- und Jira-CSV-Export freizuschalten.',
-    noAuditYet: 'Starten Sie zuerst eine Prüfung über das Erweiterungs-Popup (oder melden Sie sich oben an).',
+    lockSub: 'Direkt zu Stripe Checkout ohne Bestätigungs-E-Mails — schaltet sauberen A4-PDF-, Markdown- und Jira-CSV-Export sofort frei.',
+    noAuditYet: 'Starten Sie zuerst eine Prüfung über das Erweiterungs-Popup.',
     modalTitle: 'Express Client Auditor Pro',
-    modalSub: 'Schalten Sie saubere White-Label-A4-PDF-Berichte, Agentur-Branding sowie Markdown- und Jira-CSV-Exporte frei.',
-    lblPlan: 'Tarif wählen (Paywall #926)',
-    lblAuth: 'Schritt 1 · Anmeldung per Einmal-Code (E-Mail)',
+    modalSub: 'Direkte Zahlung via Stripe ohne OTP-Codes: White-Label-A4-PDF-Berichte, Agentur-Branding sowie Markdown- und Jira-CSV-Export.',
+    lblPlan: 'Tarif (Paywall #926)',
+    lblEmail: 'E-Mail-Adresse (für Stripe-Beleg & Lizenz)',
     phEmail: 'name@agentur.de',
-    btnSendOtp: 'Code senden',
-    btnResendOtp: 'Erneut senden',
-    phOtp: 'Code ODER Bestätigungs-Link aus der E-Mail einfügen',
-    btnVerifyOtp: 'Bestätigen',
-    otpSentInfo: email => `Einmal-Code an ${email} gesendet. Bitte unten eingeben.`,
-    signedInAs: email => `Angemeldet: ${email}`,
-    btnSignOut: 'Abmelden',
-    btnCheckout: 'Weiter zur Zahlung (Stripe)',
-    btnPortal: 'Abonnement verwalten (Portal)',
+    btnCheckout: 'Direkt weiter zu Stripe Checkout',
+    btnRestore: 'Bereits gekauft? Zugang per E-Mail wiederherstellen',
+    signedInAs: email => `Aktive Pro-Lizenz: ${email}`,
+    btnSignOut: 'E-Mail wechseln',
+    btnPortal: 'Abonnement verwalten (Stripe Portal)',
     awaitTitle: 'Stripe Checkout in neuem Tab geöffnet',
-    awaitHint: 'Im Testmodus Karte <code>4242 4242 4242 4242</code> (beliebiges Ablaufdatum & CVC) verwenden. Freischaltung erfolgt automatisch.',
-    btnCheckNow: 'Zahlung abgeschlossen — Status prüfen',
+    awaitHint: 'Im Testmodus Karte <code>4242 4242 4242 4242</code> verwenden. Nach der Zahlung wird Pro automatisch freigeschaltet.',
+    btnCheckNow: 'Zahlung abgeschlossen — Jetzt prüfen',
     btnReopenUrl: 'Zahlungslink erneut öffnen',
-    loadingPlans: 'Tarife werden geladen...',
-    noPlans: 'Paywall #926 enthält aktuell 0 verknüpfte Tarife.',
+    loadingPlans: 'Tarif wird geladen...',
+    noPlans: 'Paywall #926 enthält aktuell 0 Tarife.',
     unlockedSuccess: 'Zahlung bestätigt! Pro-Export freigeschaltet.',
-    notPaidYet: 'Noch keine aktive Zahlung gefunden — bitte Stripe Checkout abschließen.',
+    notPaidYet: 'Noch keine aktive Zahlung für diese E-Mail gefunden.',
     trialDays: n => `${n} Tage kostenlos testen`
   }
 };
 
 let reportProUnlocked = false;
 let reportDevOverride = false;
+let currentBillingEmail = '';
 let loadedPrices = [];
 let selectedPriceId = null;
 let lastCheckoutUrl = null;
@@ -666,25 +655,24 @@ function renderPlanCards() {
   });
 }
 
-function syncModalAuthState() {
+function syncModalView() {
   const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
-  const user = window.MonetizeBridge?.getCurrentUser?.();
-  const authBox = document.getElementById('pw-auth-box');
+  const coBox = document.getElementById('pw-checkout-box');
   const sessBox = document.getElementById('pw-session-box');
   const emailSpan = document.getElementById('pw-user-email');
-  const checkoutBtn = document.getElementById('pw-btn-checkout');
-  const portalBtn = document.getElementById('pw-btn-portal');
+  const emailInput = document.getElementById('pw-email');
 
-  if (user && (user.email || user.id)) {
-    authBox.hidden = true;
+  if (currentBillingEmail && emailInput && !emailInput.value) {
+    emailInput.value = currentBillingEmail;
+  }
+
+  if (reportProUnlocked && !reportDevOverride && currentBillingEmail) {
+    coBox.hidden = true;
     sessBox.hidden = false;
-    emailSpan.textContent = pt.signedInAs(user.email || user.id);
-    checkoutBtn.hidden = reportProUnlocked;
-    portalBtn.hidden = !reportProUnlocked;
+    emailSpan.textContent = pt.signedInAs(currentBillingEmail);
   } else {
-    authBox.hidden = false;
+    coBox.hidden = false;
     sessBox.hidden = true;
-    document.getElementById('pw-awaiting-box').hidden = true;
   }
 }
 
@@ -709,13 +697,11 @@ function renderChromeStrings() {
   document.getElementById('pw-title').textContent = pt.modalTitle;
   document.getElementById('pw-subtitle').textContent = pt.modalSub;
   document.getElementById('pw-lbl-plan').textContent = pt.lblPlan;
-  document.getElementById('pw-lbl-auth').textContent = pt.lblAuth;
+  document.getElementById('pw-lbl-email').textContent = pt.lblEmail;
   document.getElementById('pw-email').placeholder = pt.phEmail;
-  document.getElementById('pw-btn-send-otp').textContent = pt.btnSendOtp;
-  document.getElementById('pw-otp').placeholder = pt.phOtp;
-  document.getElementById('pw-btn-verify-otp').textContent = pt.btnVerifyOtp;
-  document.getElementById('pw-btn-signout').textContent = pt.btnSignOut;
   document.getElementById('pw-btn-checkout').textContent = pt.btnCheckout;
+  document.getElementById('pw-btn-restore').textContent = pt.btnRestore;
+  document.getElementById('pw-btn-signout').textContent = pt.btnSignOut;
   document.getElementById('pw-btn-portal').textContent = pt.btnPortal;
   document.getElementById('pw-await-title').textContent = pt.awaitTitle;
   document.getElementById('pw-await-hint').innerHTML = pt.awaitHint;
@@ -728,7 +714,7 @@ function renderChromeStrings() {
   if (loadedPrices.length) {
     renderPlanCards();
   }
-  syncModalAuthState();
+  syncModalView();
 }
 
 async function openPaywallDialog() {
@@ -736,7 +722,12 @@ async function openPaywallDialog() {
   if (!modal) return;
   modal.hidden = false;
   showModalAlert(null, '');
-  syncModalAuthState();
+
+  const state = await window.MonetizeBridge?.getStoredBillingState?.();
+  if (state?.email) {
+    currentBillingEmail = state.email;
+  }
+  syncModalView();
 
   const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
   const listEl = document.getElementById('pw-plans-list');
@@ -745,7 +736,7 @@ async function openPaywallDialog() {
   }
 
   try {
-    loadedPrices = await window.MonetizeBridge.loadPrices(false);
+    loadedPrices = await window.MonetizeBridge.loadPrices();
     renderPlanCards();
   } catch (err) {
     showModalAlert('error', window.MonetizeBridge.formatError(err));
@@ -769,11 +760,13 @@ function openExternalTab(url) {
 async function pollOnceForUnlock() {
   if (!pollTimer) return;
   try {
-    const res = await window.MonetizeBridge.checkAccess({ skipCacheFallback: true });
+    const emailVal = document.getElementById('pw-email')?.value || currentBillingEmail;
+    const res = await window.MonetizeBridge.checkAccess({ email: emailVal, skipCacheFallback: true });
     if (res && res.granted) {
       stopCheckoutPolling();
+      currentBillingEmail = res.email || emailVal;
       const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
-      applyLockUI(true);
+      applyLockUI(true, res.devOverride);
       showModalAlert('ok', pt.unlockedSuccess);
       setTimeout(() => closePaywallDialog(), 900);
     }
@@ -782,7 +775,7 @@ async function pollOnceForUnlock() {
 
 function startCheckoutPolling() {
   stopCheckoutPolling();
-  pollTimer = setInterval(pollOnceForUnlock, 3000);
+  pollTimer = setInterval(pollOnceForUnlock, 2500);
 }
 
 window.addEventListener('focus', () => { if (pollTimer) pollOnceForUnlock(); });
@@ -790,70 +783,55 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && pollTimer) pollOnceForUnlock();
 });
 
-async function handleSendOtp() {
+async function handleDirectCheckout() {
   const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
-  const emailIn = document.getElementById('pw-email');
-  const btn = document.getElementById('pw-btn-send-otp');
-  btn.disabled = true;
-  showModalAlert(null, '');
-  try {
-    const { email } = await window.MonetizeBridge.sendEmailOtp(emailIn.value);
-    emailIn.value = email;
-    document.getElementById('pw-otp-row').hidden = false;
-    document.getElementById('pw-otp').focus();
-    btn.textContent = pt.btnResendOtp;
-    showModalAlert('info', pt.otpSentInfo(email));
-  } catch (err) {
-    showModalAlert('error', window.MonetizeBridge.formatError(err));
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-async function handleVerifyOtp() {
-  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
-  const email = document.getElementById('pw-email').value;
-  const code = document.getElementById('pw-otp').value;
-  const btn = document.getElementById('pw-btn-verify-otp');
-  btn.disabled = true;
-  showModalAlert(null, '');
-  try {
-    const { access } = await window.MonetizeBridge.verifyEmailOtp(email, code);
-    syncModalAuthState();
-    if (access && access.granted) {
-      applyLockUI(true);
-      showModalAlert('ok', pt.unlockedSuccess);
-      setTimeout(() => closePaywallDialog(), 800);
-    } else {
-      showModalAlert('ok', pt.signedInAs(email));
-    }
-  } catch (err) {
-    showModalAlert('error', window.MonetizeBridge.formatError(err));
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-async function handleStartCheckout() {
-  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const emailVal = document.getElementById('pw-email').value;
   const btn = document.getElementById('pw-btn-checkout');
   btn.disabled = true;
   showModalAlert(null, '');
+
   try {
     if (!selectedPriceId && loadedPrices.length) {
       selectedPriceId = loadedPrices[0].id;
     }
-    const res = await window.MonetizeBridge.startStripeCheckout(selectedPriceId);
+    const res = await window.MonetizeBridge.startStripeCheckout(emailVal, selectedPriceId);
+    currentBillingEmail = res.email || emailVal.trim().toLowerCase();
+
     if (res.alreadyPurchased) {
-      applyLockUI(true);
+      applyLockUI(true, false);
       showModalAlert('ok', pt.unlockedSuccess);
       setTimeout(() => closePaywallDialog(), 800);
       return;
     }
+
     lastCheckoutUrl = res.checkoutUrl;
     document.getElementById('pw-awaiting-box').hidden = false;
     openExternalTab(res.checkoutUrl);
     startCheckoutPolling();
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleRestorePurchase() {
+  const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
+  const emailVal = document.getElementById('pw-email').value;
+  const btn = document.getElementById('pw-btn-restore');
+  btn.disabled = true;
+  showModalAlert(null, '');
+
+  try {
+    const res = await window.MonetizeBridge.restorePurchaseByEmail(emailVal);
+    if (res && res.granted) {
+      currentBillingEmail = res.email || emailVal.trim().toLowerCase();
+      applyLockUI(true, res.devOverride);
+      showModalAlert('ok', pt.unlockedSuccess);
+      setTimeout(() => closePaywallDialog(), 800);
+    } else {
+      showModalAlert('info', pt.notPaidYet);
+    }
   } catch (err) {
     showModalAlert('error', window.MonetizeBridge.formatError(err));
   } finally {
@@ -916,7 +894,7 @@ function applyLockUI(unlocked, devOverride = reportDevOverride) {
     devBtn.hidden = false;
     devBtn.textContent = reportDevOverride ? 'Dev Override: ON (Lock)' : 'Dev: Test Unlock';
   }
-  syncModalAuthState();
+  syncModalView();
 }
 
 function triggerPaywallModal() {
@@ -948,19 +926,17 @@ document.getElementById('pw-close')?.addEventListener('click', closePaywallDialo
 document.getElementById('paywall-modal')?.addEventListener('click', e => {
   if (e.target.id === 'paywall-modal') closePaywallDialog();
 });
-document.getElementById('pw-btn-send-otp')?.addEventListener('click', handleSendOtp);
+document.getElementById('pw-btn-checkout')?.addEventListener('click', handleDirectCheckout);
 document.getElementById('pw-email')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') handleSendOtp();
+  if (e.key === 'Enter') handleDirectCheckout();
 });
-document.getElementById('pw-btn-verify-otp')?.addEventListener('click', handleVerifyOtp);
-document.getElementById('pw-otp')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') handleVerifyOtp();
-});
-document.getElementById('pw-btn-checkout')?.addEventListener('click', handleStartCheckout);
+document.getElementById('pw-btn-restore')?.addEventListener('click', handleRestorePurchase);
+
 document.getElementById('pw-btn-signout')?.addEventListener('click', async () => {
   await window.MonetizeBridge.signOut();
-  applyLockUI(false);
-  syncModalAuthState();
+  currentBillingEmail = '';
+  document.getElementById('pw-email').value = '';
+  applyLockUI(false, false);
 });
 document.getElementById('pw-btn-portal')?.addEventListener('click', async () => {
   try {
@@ -972,14 +948,20 @@ document.getElementById('pw-btn-portal')?.addEventListener('click', async () => 
 });
 document.getElementById('pw-btn-check-now')?.addEventListener('click', async () => {
   const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
-  const res = await window.MonetizeBridge.checkAccess({ skipCacheFallback: true });
-  if (res && res.granted) {
-    stopCheckoutPolling();
-    applyLockUI(true);
-    showModalAlert('ok', pt.unlockedSuccess);
-    setTimeout(() => closePaywallDialog(), 800);
-  } else {
-    showModalAlert('info', pt.notPaidYet);
+  const emailVal = document.getElementById('pw-email').value || currentBillingEmail;
+  try {
+    const res = await window.MonetizeBridge.checkAccess({ email: emailVal, skipCacheFallback: true, throwOnError: true });
+    if (res && res.granted) {
+      stopCheckoutPolling();
+      currentBillingEmail = res.email || emailVal;
+      applyLockUI(true, res.devOverride);
+      showModalAlert('ok', pt.unlockedSuccess);
+      setTimeout(() => closePaywallDialog(), 800);
+    } else {
+      showModalAlert('info', pt.notPaidYet);
+    }
+  } catch (err) {
+    showModalAlert('error', window.MonetizeBridge.formatError(err));
   }
 });
 document.getElementById('pw-btn-reopen-url')?.addEventListener('click', () => {
@@ -995,21 +977,23 @@ document.getElementById('btn-dev-report-toggle')?.addEventListener('click', asyn
 
 async function initPaywallGate() {
   if (!window.MonetizeBridge) {
-    applyLockUI(false);
+    applyLockUI(false, false);
     return;
   }
 
   window.MonetizeBridge.onOpenModal(() => openPaywallDialog());
   window.MonetizeBridge.onAccessChange((granted, detail) => {
+    if (detail?.email) currentBillingEmail = detail.email;
     applyLockUI(granted, detail?.devOverride ?? reportDevOverride);
   });
 
-  applyLockUI(false);
+  applyLockUI(false, false);
 
   const params = new URLSearchParams(window.location.search);
   const explicitPaywallOpen = params.get('paywall') === '1';
 
   const access = await window.MonetizeBridge.checkAccess();
+  if (access.email) currentBillingEmail = access.email;
   applyLockUI(access.granted, access.devOverride);
 
   if (explicitPaywallOpen || !access.granted) {

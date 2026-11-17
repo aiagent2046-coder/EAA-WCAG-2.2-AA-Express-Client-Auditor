@@ -5,7 +5,9 @@
     "storage"
   ],
   "host_permissions": [
-    "https://appbox.space/*"
+    "https://appbox.space/*",
+    "https://*.workers.dev/*",
+    "http://127.0.0.1:8787/*"
   ],
   "background": {
     "scripts": [

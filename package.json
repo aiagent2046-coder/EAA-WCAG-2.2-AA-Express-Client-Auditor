@@ -1,16 +1,16 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "private": true,
-  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with @monetize.software SDK 3.0",
+  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with Direct Stripe Checkout via Monetize.software Headless API",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "package": "npm run build && python3 scripts/package_store.py"
-  },
-  "dependencies": {
-    "@monetize.software/sdk": "^3.0.0"
+    "package": "npm run build && python3 scripts/package_store.py",
+    "start:proxy": "node paywall-worker/local-dev-server.mjs",
+    "deploy:worker": "npx wrangler deploy --config paywall-worker/wrangler.toml",
+    "set-worker": "node scripts/set_worker_url.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.2"
   }
 }

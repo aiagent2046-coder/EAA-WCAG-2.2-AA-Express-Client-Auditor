@@ -1,87 +1,16 @@
 import { PAYWALL_CONFIG } from './config.js';
 
-export function parseVerificationInput(rawInput) {
-  let str = String(rawInput || '').trim();
-  if (!str) return { token: '', type: null, isHashFromUrl: false };
-
-  // Unwrap multi-layer URL encoding (e.g. Gmail's https://www.google.com/url?q=https://monetize.software%26token_hash%3D...)
-  for (let i = 0; i < 3; i++) {
-    if (/%[0-9A-Fa-f]{2}/.test(str)) {
-      try {
-        const dec = decodeURIComponent(str);
-        if (dec === str) break;
-        str = dec;
-      } catch (_) {
-        break;
-      }
-    } else {
-      break;
-    }
-  }
-
-  const hashMatch = str.match(/(?:[?&]|\b)token_hash=([A-Za-z0-9._-]+)/i);
-  const tokMatch = str.match(/(?:[?&]|\b)token=([A-Za-z0-9._-]+)/i);
-  const typeMatch = str.match(/(?:[?&]|\b)type=([A-Za-z0-9_-]+)/i);
-
-  const extractedToken = (hashMatch && hashMatch[1]) || (tokMatch && tokMatch[1]) || null;
-  const extractedType = (typeMatch && typeMatch[1]) ? typeMatch[1].toLowerCase() : null;
-
-  if (extractedToken) {
-    return {
-      token: extractedToken,
-      type: extractedType,
-      isHashFromUrl: Boolean(hashMatch)
-    };
-  }
-
-  // Also detect a standalone pasted 40-128 hex token_hash
-  const compact = str.replace(/\s+/g, '');
-  if (/^[a-f0-9]{32,128}$/i.test(compact)) {
-    return {
-      token: compact,
-      type: 'signup',
-      isHashFromUrl: true
-    };
-  }
-
-  return {
-    token: compact,
-    type: null,
-    isHashFromUrl: false
-  };
-}
-
-export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
-  const auth = new AuthClient({
-    paywallId: PAYWALL_CONFIG.paywallId,
-    apiOrigin: PAYWALL_CONFIG.apiOrigin
-  });
-
-  const billing = new BillingClient({
-    paywallId: PAYWALL_CONFIG.paywallId,
-    apiOrigin: PAYWALL_CONFIG.apiOrigin,
-    auth
-  });
-
+export function attachGlobalPaywallBridge() {
   const accessListeners = new Set();
   const openModalListeners = new Set();
 
   function formatError(err) {
     if (!err) return 'Unknown error';
     if (typeof err === 'string') return err;
-    const parts = [];
-    if (err.status || err.statusCode) parts.push(`HTTP ${err.status || err.statusCode}`);
-    if (err.code) parts.push(`[${err.code}]`);
-    if (err.message) parts.push(err.message);
-    else if (err.error) parts.push(typeof err.error === 'string' ? err.error : JSON.stringify(err.error));
-    return parts.length ? parts.join(' ') : String(err);
-  }
-
-  function withTimeout(promise, ms, fallbackValue) {
-    return Promise.race([
-      Promise.resolve(promise),
-      new Promise(resolve => setTimeout(() => resolve(fallbackValue), ms))
-    ]);
+    if (err.message === 'Failed to fetch' || /NetworkError/i.test(String(err.message))) {
+      return `Нет связи с платежным прокси (${PAYWALL_CONFIG.workerOrigin}). Запустите в терминале: npm run start:proxy (предварительно указав MONETIZE_API_KEY в paywall-worker/.env) либо задеплойте Cloudflare Worker.`;
+    }
+    return err.message || err.error || String(err);
   }
 
   function notifyAccess(granted, detail = {}) {
@@ -90,109 +19,68 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     });
   }
 
-  async function ensureAuthReady() {
+  async function getStoredBillingState() {
+    const local = await chrome.storage.local.get(['dev_pro_override_v23', 'billing_email', 'monetize_paid_verified']);
+    let syncEmail = null;
     try {
-      if (typeof auth.ready === 'function') {
-        await withTimeout(auth.ready(), 3000, null);
+      if (chrome.storage.sync) {
+        const s = await chrome.storage.sync.get(['billing_email']);
+        syncEmail = s?.billing_email || null;
       }
     } catch (_) {}
+    return {
+      devOverride: Boolean(local.dev_pro_override_v23),
+      email: local.billing_email || syncEmail || '',
+      cachedPaid: Boolean(local.monetize_paid_verified)
+    };
   }
 
-  function getCurrentUser() {
+  async function saveBillingState(email, paid) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const payload = { monetize_paid_verified: Boolean(paid) };
+    if (cleanEmail) payload.billing_email = cleanEmail;
+    await chrome.storage.local.set(payload);
+    if (cleanEmail) {
+      try {
+        if (chrome.storage.sync) await chrome.storage.sync.set({ billing_email: cleanEmail });
+      } catch (_) {}
+    }
+  }
+
+  async function fetchWorkerJson(path, opts = {}) {
+    const base = PAYWALL_CONFIG.workerOrigin.replace(/\/+$/, '');
+    const res = await fetch(`${base}${path}`, {
+      ...opts,
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.ok === false) {
+      const e = new Error(data?.error || `HTTP ${res.status}`);
+      e.code = data?.code || `HTTP_${res.status}`;
+      throw e;
+    }
+    return data;
+  }
+
+  // Loads live prices from Worker (/prices), falling back directly to public appbox.space bootstrap so $10/month card renders even before proxy starts!
+  async function loadPrices() {
     try {
-      if (typeof auth.getCachedUser === 'function') {
-        const u = auth.getCachedUser();
-        if (u && !u.is_anonymous && (u.email || u.id)) return u;
-      }
-      if (typeof auth.getCachedSession === 'function') {
-        const s = auth.getCachedSession();
-        if (s && s.user && !s.user.is_anonymous && (s.user.email || s.user.id)) return s.user;
-      }
+      const data = await fetchWorkerJson('/prices', { method: 'GET' });
+      if (Array.isArray(data?.prices) && data.prices.length > 0) return data.prices;
     } catch (_) {}
-    return null;
-  }
 
-  async function fetchLiveUserPaidStatus() {
-    try {
-      await ensureAuthReady();
-      const user = getCurrentUser();
-      if (!user) return { granted: false, reason: 'not_signed_in', user: null };
-
-      if (typeof auth.getAccessToken !== 'function') return null;
-      const token = await withTimeout(auth.getAccessToken(), 4000, null);
-      if (!token) return { granted: false, reason: 'no_token', user: null };
-
-      const url = `${PAYWALL_CONFIG.apiOrigin.replace(/\/+$/, '')}/api/v1/paywall/${encodeURIComponent(PAYWALL_CONFIG.paywallId)}/user`;
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Paywall-Id': String(PAYWALL_CONFIG.paywallId)
-        },
-        cache: 'no-store',
-        credentials: 'omit'
-      });
-
-      if (res.status === 401 || res.status === 403 || res.status === 404) {
-        return { granted: false, reason: `http_${res.status}`, user };
-      }
-      if (!res.ok) return null;
-
-      const data = await res.json();
-      const hasActiveSub = Array.isArray(data?.purchases) && data.purchases.some(
-        p => p && (p.status === 'active' || p.status === 'trialing' || p.status === 'paid')
-      );
-      const isPaid = Boolean(data?.paid === true || hasActiveSub);
-      return {
-        granted: isPaid,
-        user: data?.user || user,
-        purchases: data?.purchases || []
-      };
-    } catch (_) {
-      return null;
+    const bootUrl = `${PAYWALL_CONFIG.apiOrigin.replace(/\/+$/, '')}/api/v1/paywall/${encodeURIComponent(PAYWALL_CONFIG.paywallId)}/bootstrap`;
+    const res = await fetch(bootUrl, {
+      method: 'GET',
+      headers: { 'X-Paywall-Id': String(PAYWALL_CONFIG.paywallId) },
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+    const boot = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(boot?.message || boot?.error || `Bootstrap HTTP ${res.status}`);
     }
-  }
-
-  async function checkAccess(opts = {}) {
-    const manifest = chrome.runtime.getManifest();
-    const stored = await chrome.storage.local.get(['dev_pro_override_v23', 'monetize_paid_verified']);
-
-    if (!manifest.update_url && stored.dev_pro_override_v23 === true) {
-      return { granted: true, devOverride: true, source: 'dev_override', user: getCurrentUser() };
-    }
-
-    await ensureAuthReady();
-    const user = getCurrentUser();
-
-    if (!user) {
-      if (stored.monetize_paid_verified) {
-        await chrome.storage.local.set({ monetize_paid_verified: false });
-      }
-      return { granted: false, devOverride: false, source: 'signed_out', user: null };
-    }
-
-    const liveUser = await fetchLiveUserPaidStatus();
-    if (liveUser && typeof liveUser.granted === 'boolean') {
-      await chrome.storage.local.set({ monetize_paid_verified: liveUser.granted });
-      return {
-        granted: liveUser.granted,
-        devOverride: false,
-        source: 'live_user_api',
-        user: liveUser.user
-      };
-    }
-
-    if (!opts.skipCacheFallback && stored.monetize_paid_verified === true) {
-      return { granted: true, devOverride: false, source: 'verified_cache', user };
-    }
-
-    return { granted: false, devOverride: false, source: 'unpaid', user };
-  }
-
-  async function loadPrices(force = false) {
-    const prices = await billing.getPrices({ force });
-    if (Array.isArray(prices) && prices.length > 0) return prices;
-    const boot = await billing.bootstrap();
     if (Array.isArray(boot?.prices) && boot.prices.length > 0) return boot.prices;
     if (Array.isArray(boot?.offers)) {
       return boot.offers.flatMap(o => (Array.isArray(o?.prices) ? o.prices : []));
@@ -200,136 +88,94 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     return [];
   }
 
-  async function sendEmailOtp(email) {
-    const cleanEmail = String(email || '').trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      throw new Error('Введите корректный Email адрес.');
+  async function checkAccess(opts = {}) {
+    const manifest = chrome.runtime.getManifest();
+    const state = await getStoredBillingState();
+
+    if (!manifest.update_url && state.devOverride) {
+      return { granted: true, devOverride: true, source: 'dev_override', email: state.email };
     }
-    await auth.sendOtp({ email: cleanEmail, createUser: true });
-    return { ok: true, email: cleanEmail };
+
+    const emailToCheck = String(opts.email || state.email || '').trim().toLowerCase();
+    if (!emailToCheck) {
+      return { granted: false, devOverride: false, source: 'no_email', email: '' };
+    }
+
+    try {
+      const status = await fetchWorkerJson(`/status?email=${encodeURIComponent(emailToCheck)}`, { method: 'GET' });
+      const isPaid = Boolean(status?.paid === true);
+      await saveBillingState(emailToCheck, isPaid);
+      if (isPaid) {
+        notifyAccess(true, { source: 'worker_status', email: emailToCheck, devOverride: false });
+      }
+      return { granted: isPaid, devOverride: false, source: 'worker_status', email: emailToCheck };
+    } catch (err) {
+      if (opts.throwOnError) throw err;
+      if (!opts.skipCacheFallback && state.cachedPaid) {
+        return { granted: true, devOverride: false, source: 'verified_cache', email: emailToCheck };
+      }
+      return { granted: false, devOverride: false, source: 'offline_unpaid', email: emailToCheck };
+    }
   }
 
-  async function verifyEmailOtp(email, rawCodeOrLink) {
+  // 1-Click Direct Stripe Checkout — ZERO confirmation emails!
+  async function startStripeCheckout(email, priceId) {
     const cleanEmail = String(email || '').trim().toLowerCase();
-    const parsed = parseVerificationInput(rawCodeOrLink);
-    if (!parsed.token) {
-      throw new Error('Вставьте код из письма или скопированную ссылку подтверждения.');
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw new Error('Введите корректный Email адрес для квитанции и привязки подписки.');
     }
-
-    // Build ordered candidate attempts covering both 6-digit OTPs and magiclink/signup token_hash URLs
-    const candidateTypes = [];
-    if (parsed.type) candidateTypes.push(parsed.type);
-    if (parsed.isHashFromUrl) {
-      for (const t of ['magiclink', 'signup', 'email']) {
-        if (!candidateTypes.includes(t)) candidateTypes.push(t);
-      }
-    } else {
-      for (const t of ['email', 'signup', 'magiclink']) {
-        if (!candidateTypes.includes(t)) candidateTypes.push(t);
-      }
-    }
-
-    let session = null;
-    let lastError = null;
-
-    for (const t of candidateTypes) {
-      // Attempt A: standard SDK v3 signature { email, token, token_hash, type }
-      try {
-        const payload = parsed.isHashFromUrl
-          ? { email: cleanEmail, token: parsed.token, token_hash: parsed.token, tokenHash: parsed.token, type: t }
-          : { email: cleanEmail, token: parsed.token, type: t };
-        session = await auth.verifyOtp(payload);
-        if (session) break;
-      } catch (errA) {
-        lastError = errA;
-      }
-
-      // Attempt B: token_hash-only signature (used when backend forbids email + token_hash together)
-      if (parsed.isHashFromUrl) {
-        try {
-          session = await auth.verifyOtp({ token_hash: parsed.token, tokenHash: parsed.token, token: parsed.token, type: t });
-          if (session) break;
-        } catch (errB) {
-          lastError = errB;
-        }
-      }
-    }
-
-    if (!session) {
-      throw lastError || new Error('Не удалось подтвердить токен/код.');
-    }
-
-    const access = await checkAccess({ skipCacheFallback: true });
-    notifyAccess(access.granted, { event: 'otp_verified', user: session?.user, devOverride: access.devOverride });
-    return { session, access };
-  }
-
-  async function startStripeCheckout(priceId) {
     if (!priceId) {
       throw new Error('Тариф не выбран.');
     }
-    await ensureAuthReady();
-    const user = getCurrentUser();
-    if (!user) {
-      const err = new Error('AUTH_REQUIRED');
-      err.code = 'AUTH_REQUIRED';
-      throw err;
+
+    // Save email right away so auto-polling knows which email is checking out
+    await saveBillingState(cleanEmail, false);
+
+    const data = await fetchWorkerJson('/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, priceId })
+    });
+
+    if (data?.alreadyPurchased || data?.paid) {
+      await saveBillingState(cleanEmail, true);
+      notifyAccess(true, { event: 'already_purchased', email: cleanEmail, devOverride: false });
+      return { alreadyPurchased: true, email: cleanEmail };
     }
 
-    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return {
+      checkoutUrl: data.checkoutUrl,
+      email: cleanEmail,
+      acquiring: data.acquiring || 'stripe'
+    };
+  }
 
-    try {
-      const res = await billing.createCheckout({
-        priceId,
-        successUrl: PAYWALL_CONFIG.successRedirectUrl,
-        idempotencyKey
-      });
-      const checkoutUrl = res?.url || res?.checkoutUrl;
-      if (!checkoutUrl) {
-        throw new Error('Сервер не вернул ссылку на оплату (checkoutUrl).');
-      }
-      return { checkoutUrl, sessionId: res?.sessionId, acquiring: res?.acquiring };
-    } catch (err) {
-      if (err?.status === 409 || err?.code === 'already_purchased' || err?.hasActivePurchase) {
-        await chrome.storage.local.set({ monetize_paid_verified: true });
-        notifyAccess(true, { event: 'already_purchased', devOverride: false });
-        return { alreadyPurchased: true };
-      }
-      throw err;
+  async function restorePurchaseByEmail(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw new Error('Введите Email, на который оформлялась подписка.');
     }
+    const res = await checkAccess({ email: cleanEmail, skipCacheFallback: true, throwOnError: true });
+    notifyAccess(res.granted, { event: 'restore_check', email: cleanEmail, devOverride: res.devOverride });
+    return res;
   }
 
   async function openCustomerPortal() {
-    await ensureAuthReady();
-    const token = typeof auth.getAccessToken === 'function' ? await auth.getAccessToken() : null;
-    if (!token) throw new Error('Сначала войдите по Email.');
-
-    const url = `${PAYWALL_CONFIG.apiOrigin.replace(/\/+$/, '')}/api/v1/paywall/${encodeURIComponent(PAYWALL_CONFIG.paywallId)}/get-customer-portal`;
-    const res = await fetch(url, {
+    const state = await getStoredBillingState();
+    if (!state.email) throw new Error('Email подписки не найден.');
+    const data = await fetchWorkerJson('/portal', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Paywall-Id': String(PAYWALL_CONFIG.paywallId)
-      },
-      body: '{}',
-      credentials: 'omit'
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: state.email })
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.url) {
-      throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
-    }
     return data.url;
   }
 
   async function signOut() {
+    await chrome.storage.local.remove(['billing_email', 'monetize_paid_verified']);
     try {
-      if (typeof auth.signOut === 'function') await auth.signOut();
-      else if (typeof auth.logout === 'function') await auth.logout();
+      if (chrome.storage.sync) await chrome.storage.sync.remove(['billing_email']);
     } catch (_) {}
-    await chrome.storage.local.set({ monetize_paid_verified: false });
     notifyAccess(false, { event: 'signout', devOverride: false });
   }
 
@@ -359,16 +205,12 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
 
   window.MonetizeBridge = {
     config: PAYWALL_CONFIG,
-    auth,
-    billing,
-    parseVerificationInput,
     formatError,
-    getCurrentUser,
+    getStoredBillingState,
     checkAccess,
     loadPrices,
-    sendEmailOtp,
-    verifyEmailOtp,
     startStripeCheckout,
+    restorePurchaseByEmail,
     openCustomerPortal,
     signOut,
     openPaywall,

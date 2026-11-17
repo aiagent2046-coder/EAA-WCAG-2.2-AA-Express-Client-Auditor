@@ -460,3 +460,5 @@ body.is-paywall-locked .sheet .qa-table {
     display: none !important;
   }
 }
+
+.pw-input-block { display: block; width: 100%; }

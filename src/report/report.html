@@ -19,9 +19,9 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="de">DE</button>
       </div>
-      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Разблокировать Pro / Войти</button>
+      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Разблокировать Pro</button>
       <button id="btn-account-pro" type="button" class="btn-outline" hidden>Pro Account</button>
-      <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev: Unlock</button>
+      <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev: Test Unlock</button>
       <button id="btn-dl-md" type="button" class="btn-outline">.MD</button>
       <button id="btn-dl-csv" type="button" class="btn-outline">Jira .CSV</button>
       <button id="btn-print" type="button" class="btn-solid">Сохранить PDF для клиента</button>
@@ -33,19 +33,19 @@
       <div class="locked-row">
         <div class="locked-copy">
           <strong id="ui-lock-title">White-Label экспорт заблокирован (Paywall #926)</strong>
-          <p id="ui-lock-sub">Войдите по Email-коду или активируйте тариф через Paywall #926, чтобы открыть печать чистого A4 PDF, Markdown и Jira CSV.</p>
+          <p id="ui-lock-sub">Активируйте Pro-доступ в 1 клик через Stripe (без кодов и писем подтверждения), чтобы открыть печать чистого A4 PDF, Markdown и Jira CSV.</p>
         </div>
-        <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Открыть Paywall / Войти</button>
+        <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Оплатить / Восстановить Pro</button>
       </div>
     </div>
   </div>
 
-  <!-- Native Extension Paywall & Email OTP Modal (@monetize.software/sdk/core) -->
+  <!-- Direct 1-Click Stripe Checkout Modal (Zero Email Verification Friction) -->
   <div id="paywall-modal" class="pw-backdrop no-print" hidden>
     <div class="pw-dialog" role="dialog" aria-modal="true" aria-labelledby="pw-title">
       <div class="pw-head">
         <div>
-          <span class="pw-badge">Paywall #926 · appbox.space</span>
+          <span class="pw-badge">Paywall #926 · Direct Stripe Checkout</span>
           <h3 id="pw-title">Express Client Auditor Pro</h3>
         </div>
         <button id="pw-close" type="button" class="pw-close" aria-label="Close">&times;</button>
@@ -57,43 +57,37 @@
 
       <!-- Dynamic Plans Section -->
       <div id="pw-plans-wrap" class="pw-section">
-        <div class="pw-label" id="pw-lbl-plan">Выберите тариф</div>
+        <div class="pw-label" id="pw-lbl-plan">Тарифный план</div>
         <div id="pw-plans-list" class="pw-plans-list"></div>
       </div>
 
-      <!-- Step 1: Email OTP Sign-In (shown when signed out) -->
-      <div id="pw-auth-box" class="pw-section">
-        <div class="pw-label" id="pw-lbl-auth">Вход или регистрация по одноразовому Email-коду</div>
-        <div class="pw-inline-form">
-          <input id="pw-email" type="email" class="pw-input" placeholder="you@agency.com" autocomplete="email">
-          <button id="pw-btn-send-otp" type="button" class="pw-btn pw-btn-secondary">Получить код</button>
-        </div>
-        <div id="pw-otp-row" class="pw-inline-form pw-mt" hidden>
-          <input id="pw-otp" type="text" class="pw-input" placeholder="Код из письма ИЛИ скопированная ссылка подтверждения" autocomplete="one-time-code">
-          <button id="pw-btn-verify-otp" type="button" class="pw-btn pw-btn-primary">Подтвердить</button>
-        </div>
+      <!-- Unpaid Direct Checkout Form (1-Step: Email -> Stripe!) -->
+      <div id="pw-checkout-box" class="pw-section">
+        <div class="pw-label" id="pw-lbl-email">Ваш рабочий Email (для квитанции Stripe и восстановления подписки)</div>
+        <input id="pw-email" type="email" class="pw-input pw-input-block" placeholder="you@agency.com" autocomplete="email">
+        <button id="pw-btn-checkout" type="button" class="pw-btn pw-btn-primary pw-btn-full pw-mt">Перейти сразу к оплате Stripe</button>
+        <button id="pw-btn-restore" type="button" class="pw-btn pw-btn-ghost pw-btn-full pw-mt-sm">Уже покупали на этот Email? Восстановить доступ</button>
       </div>
 
-      <!-- Step 2: Signed-in User & Checkout Trigger -->
+      <!-- Active Paid Account Box -->
       <div id="pw-session-box" class="pw-section" hidden>
         <div class="pw-user-bar">
           <span id="pw-user-email"></span>
-          <button id="pw-btn-signout" type="button" class="pw-link-btn">Выйти</button>
+          <button id="pw-btn-signout" type="button" class="pw-link-btn">Сменить Email</button>
         </div>
-        <button id="pw-btn-checkout" type="button" class="pw-btn pw-btn-primary pw-btn-full">Перейти к оплате тарифа</button>
-        <button id="pw-btn-portal" type="button" class="pw-btn pw-btn-ghost pw-btn-full pw-mt-sm" hidden>Управление подпиской (Stripe Portal)</button>
+        <button id="pw-btn-portal" type="button" class="pw-btn pw-btn-secondary pw-btn-full">Управление подпиской (Stripe Billing Portal)</button>
       </div>
 
-      <!-- Step 3: Awaiting Stripe Checkout Polling Box -->
+      <!-- Awaiting Stripe Checkout Auto-Poller -->
       <div id="pw-awaiting-box" class="pw-awaiting" hidden>
         <div class="pw-spinner-row">
           <span class="pw-dot-pulse"></span>
-          <strong id="pw-await-title">Окно оплаты открыто в соседней вкладке</strong>
+          <strong id="pw-await-title">Страница оплаты Stripe открыта в соседней вкладке</strong>
         </div>
-        <p id="pw-await-hint">Для тестового платежа используйте карту песочницы Stripe: <code>4242 4242 4242 4242</code> (любой будущий срок действия и CVC). Статус обновится автоматически через пару секунд после оплаты.</p>
+        <p id="pw-await-hint">В тестовом режиме введите карту <code>4242 4242 4242 4242</code> (любой будущий MM/YY и любой CVC). Как только вы вернетесь на эту вкладку после оплаты, отчет разблокируется автоматически.</p>
         <div class="pw-inline-actions">
-          <button id="pw-btn-check-now" type="button" class="pw-btn pw-btn-primary">Я оплатил — проверить доступ</button>
-          <button id="pw-btn-reopen-url" type="button" class="pw-btn pw-btn-secondary">Открыть ссылку оплаты снова</button>
+          <button id="pw-btn-check-now" type="button" class="pw-btn pw-btn-primary">Я оплатил — проверить сейчас</button>
+          <button id="pw-btn-reopen-url" type="button" class="pw-btn pw-btn-secondary">Открыть оплату снова</button>
         </div>
       </div>
     </div>

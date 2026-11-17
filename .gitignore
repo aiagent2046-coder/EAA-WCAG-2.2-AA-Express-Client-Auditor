@@ -1,6 +1,12 @@
 dist/
 dist-sdk/
 node_modules/
+paywall-worker/node_modules/
+paywall-worker/.wrangler/
+paywall-worker/.env
+paywall-worker/.dev.vars
+.env
+.dev.vars
 __pycache__/
 *.pyc
 .DS_Store

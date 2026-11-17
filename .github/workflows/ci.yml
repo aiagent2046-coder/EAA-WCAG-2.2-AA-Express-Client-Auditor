@@ -17,18 +17,20 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies & bundle @monetize.software SDK 3.0
+      - name: Install build tools & bundle extension
         run: |
           npm install
           npm run build
 
-      - name: Check JS syntax
+      - name: Check JS syntax (Extension & Direct Stripe Worker)
         run: |
           node --check dist-sdk/sw.js
           node --check dist-sdk/paywall-bridge.js
           node --check src/content/scanner.js
           node --check src/popup/popup.js
           node --check src/report/report.js
+          node --check paywall-worker/local-dev-server.mjs
+          node --check scripts/set_worker_url.mjs
 
       - name: Build Chrome, Edge, and Firefox store packages
         run: python3 scripts/package_store.py
