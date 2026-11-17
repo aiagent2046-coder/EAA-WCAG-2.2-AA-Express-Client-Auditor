@@ -51,23 +51,26 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     try {
       if (typeof auth.getCachedUser === 'function') {
         const u = auth.getCachedUser();
-        if (u && (u.email || u.id)) return u;
+        if (u && !u.is_anonymous && (u.email || u.id)) return u;
       }
       if (typeof auth.getCachedSession === 'function') {
         const s = auth.getCachedSession();
-        if (s && s.user) return s.user;
+        if (s && s.user && !s.user.is_anonymous && (s.user.email || s.user.id)) return s.user;
       }
     } catch (_) {}
     return null;
   }
 
-  // Direct uncached check against GET /api/v1/paywall/{id}/user so Stripe test payments unlock in <2s without 5-min bootstrap cache delay
+  // Strictly verifies actual paid subscription / purchase via GET /api/v1/paywall/{id}/user with Bearer token
   async function fetchLiveUserPaidStatus() {
     try {
       await ensureAuthReady();
+      const user = getCurrentUser();
+      if (!user) return { granted: false, reason: 'not_signed_in', user: null };
+
       if (typeof auth.getAccessToken !== 'function') return null;
       const token = await withTimeout(auth.getAccessToken(), 4000, null);
-      if (!token) return null;
+      if (!token) return { granted: false, reason: 'no_token', user: null };
 
       const url = `${PAYWALL_CONFIG.apiOrigin.replace(/\/+$/, '')}/api/v1/paywall/${encodeURIComponent(PAYWALL_CONFIG.paywallId)}/user`;
       const res = await fetch(url, {
@@ -80,58 +83,63 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
         credentials: 'omit'
       });
 
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (typeof data?.paid === 'boolean') {
-        const hasActiveSub = Array.isArray(data.purchases) && data.purchases.some(
-          p => p && (p.status === 'active' || p.status === 'trialing' || p.status === 'paid')
-        );
-        return {
-          granted: Boolean(data.paid || hasActiveSub),
-          user: data.user || getCurrentUser(),
-          purchases: data.purchases || []
-        };
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        // 404 identity_not_on_paywall means user signed in via OTP but hasn't purchased Paywall #926 yet
+        return { granted: false, reason: `http_${res.status}`, user };
       }
-    } catch (_) {}
-    return null;
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      const hasActiveSub = Array.isArray(data?.purchases) && data.purchases.some(
+        p => p && (p.status === 'active' || p.status === 'trialing' || p.status === 'paid')
+      );
+      const isPaid = Boolean(data?.paid === true || hasActiveSub);
+      return {
+        granted: isPaid,
+        user: data?.user || user,
+        purchases: data?.purchases || []
+      };
+    } catch (_) {
+      return null;
+    }
   }
 
   async function checkAccess(opts = {}) {
     const manifest = chrome.runtime.getManifest();
-    const stored = await chrome.storage.local.get(['dev_pro_override', 'monetize_pro_unlocked']);
+    const stored = await chrome.storage.local.get(['dev_pro_override_v23', 'monetize_paid_verified']);
 
-    if (!manifest.update_url && stored.dev_pro_override) {
-      return { granted: true, source: 'dev_override', user: getCurrentUser() };
+    if (!manifest.update_url && stored.dev_pro_override_v23 === true) {
+      return { granted: true, devOverride: true, source: 'dev_override', user: getCurrentUser() };
     }
 
     await ensureAuthReady();
+    const user = getCurrentUser();
 
-    // 1. Live /user check when Bearer session exists (zero cache lag after checkout!)
+    // Unauthenticated users are NEVER Pro (prevents false-positive unlock from non-tokenized billing.getAccess({}))
+    if (!user) {
+      if (stored.monetize_paid_verified) {
+        await chrome.storage.local.set({ monetize_paid_verified: false });
+      }
+      return { granted: false, devOverride: false, source: 'signed_out', user: null };
+    }
+
     const liveUser = await fetchLiveUserPaidStatus();
     if (liveUser && typeof liveUser.granted === 'boolean') {
-      await chrome.storage.local.set({ monetize_pro_unlocked: liveUser.granted });
-      if (liveUser.granted) {
-        notifyAccess(true, { source: 'live_user_api' });
-      }
-      return { granted: liveUser.granted, source: 'live_user_api', user: liveUser.user };
+      await chrome.storage.local.set({ monetize_paid_verified: liveUser.granted });
+      return {
+        granted: liveUser.granted,
+        devOverride: false,
+        source: 'live_user_api',
+        user: liveUser.user
+      };
     }
 
-    // 2. Fallback to BillingClient.getAccess({}) (covers active trials & SDK state)
-    try {
-      if (typeof billing.getAccess === 'function') {
-        const acc = await withTimeout(billing.getAccess({}), 3500, null);
-        if (acc && typeof acc.granted === 'boolean') {
-          await chrome.storage.local.set({ monetize_pro_unlocked: acc.granted });
-          return { granted: acc.granted, source: 'sdk_access', user: getCurrentUser() };
-        }
-      }
-    } catch (_) {}
-
-    if (!opts.skipCacheFallback && stored.monetize_pro_unlocked && getCurrentUser()) {
-      return { granted: true, source: 'cache', user: getCurrentUser() };
+    // Offline cache fallback ONLY if a previously verified paid user temporarily loses network
+    if (!opts.skipCacheFallback && stored.monetize_paid_verified === true) {
+      return { granted: true, devOverride: false, source: 'verified_cache', user };
     }
 
-    return { granted: false, source: 'default', user: getCurrentUser() };
+    return { granted: false, devOverride: false, source: 'unpaid', user };
   }
 
   async function loadPrices(force = false) {
@@ -164,7 +172,6 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     try {
       session = await auth.verifyOtp({ email: cleanEmail, token: cleanToken, type: 'email' });
     } catch (firstErr) {
-      // Fallback if first-time signup OTP requires type: 'signup'
       try {
         session = await auth.verifyOtp({ email: cleanEmail, token: cleanToken, type: 'signup' });
       } catch (_) {
@@ -172,7 +179,7 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
       }
     }
     const access = await checkAccess({ skipCacheFallback: true });
-    notifyAccess(access.granted, { event: 'otp_verified', user: session?.user });
+    notifyAccess(access.granted, { event: 'otp_verified', user: session?.user, devOverride: access.devOverride });
     return { session, access };
   }
 
@@ -193,7 +200,6 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     try {
-      // Pass explicit https:// successUrl because chrome-extension:// URLs are rejected with HTTP 400 by /start-checkout
       const res = await billing.createCheckout({
         priceId,
         successUrl: PAYWALL_CONFIG.successRedirectUrl,
@@ -205,10 +211,9 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
       }
       return { checkoutUrl, sessionId: res?.sessionId, acquiring: res?.acquiring };
     } catch (err) {
-      // HTTP 409 / already_purchased means user ALREADY owns an active subscription on Paywall #926!
       if (err?.status === 409 || err?.code === 'already_purchased' || err?.hasActivePurchase) {
-        await chrome.storage.local.set({ monetize_pro_unlocked: true });
-        notifyAccess(true, { event: 'already_purchased' });
+        await chrome.storage.local.set({ monetize_paid_verified: true });
+        notifyAccess(true, { event: 'already_purchased', devOverride: false });
         return { alreadyPurchased: true };
       }
       throw err;
@@ -243,8 +248,8 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
       if (typeof auth.signOut === 'function') await auth.signOut();
       else if (typeof auth.logout === 'function') await auth.logout();
     } catch (_) {}
-    await chrome.storage.local.set({ monetize_pro_unlocked: false });
-    notifyAccess(false, { event: 'signout' });
+    await chrome.storage.local.set({ monetize_paid_verified: false });
+    notifyAccess(false, { event: 'signout', devOverride: false });
   }
 
   function openPaywall(opts = {}) {
@@ -265,8 +270,8 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
 
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && (changes.monetize_pro_unlocked || changes.dev_pro_override)) {
-        checkAccess().then(res => notifyAccess(res.granted, { event: 'storage' }));
+      if (area === 'local' && (changes.monetize_paid_verified || changes.dev_pro_override_v23)) {
+        checkAccess().then(res => notifyAccess(res.granted, { event: 'storage', devOverride: res.devOverride }));
       }
     });
   }

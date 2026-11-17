@@ -3,7 +3,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'SET_DEV_PRO_OVERRIDE') {
     const enabled = Boolean(msg.paid);
-    chrome.storage.local.set({ dev_pro_override: enabled })
+    chrome.storage.local.set({ dev_pro_override_v23: enabled })
       .then(() => sendResponse({ ok: true, paid: enabled }));
     return true;
   }

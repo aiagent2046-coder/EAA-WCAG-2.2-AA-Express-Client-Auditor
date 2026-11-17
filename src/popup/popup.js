@@ -3,6 +3,7 @@ let currentWindowId = null;
 let lastAudit = null;
 let activeFilter = 'all';
 let isPro = false;
+let isDevOverride = false;
 
 const btnScan = document.getElementById('btn-scan');
 const statusMsg = document.getElementById('status-msg');
@@ -25,7 +26,7 @@ function updateProBadges() {
   const devBtn = document.getElementById('btn-dev-unlock');
   if (!manifest.update_url && devBtn) {
     devBtn.hidden = false;
-    devBtn.textContent = isPro ? 'Dev Mode: Switch to Free' : 'Dev Mode: Unlock Pro';
+    devBtn.textContent = isDevOverride ? 'Dev Override: ON (Reset to Free)' : 'Dev Mode: Test Pro';
   }
 }
 
@@ -34,6 +35,8 @@ async function refreshProStatus() {
     if (window.MonetizeBridge) {
       const res = await window.MonetizeBridge.checkAccess();
       isPro = Boolean(res && res.granted);
+      isDevOverride = Boolean(res && res.devOverride);
+      isDevOverride = Boolean(res && res.devOverride);
     }
   } catch (_) {
     isPro = false;
@@ -42,8 +45,9 @@ async function refreshProStatus() {
 }
 
 if (window.MonetizeBridge) {
-  window.MonetizeBridge.onAccessChange(granted => {
+  window.MonetizeBridge.onAccessChange((granted, detail) => {
     isPro = Boolean(granted);
+    if (detail && typeof detail.devOverride === 'boolean') isDevOverride = detail.devOverride;
     updateProBadges();
     renderIssues();
   });
@@ -272,8 +276,9 @@ document.getElementById('btn-open-paywall').addEventListener('click', openAccoun
 planPill.addEventListener('click', openAccountOrPaywallTab);
 
 document.getElementById('btn-dev-unlock').addEventListener('click', async () => {
-  const res = await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: !isPro });
-  isPro = Boolean(res && res.paid);
+  const nextDev = !isDevOverride;
+  await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: nextDev });
+  await refreshProStatus();
   updateProBadges();
   renderIssues();
   showStatus(isPro ? 'Dev Mode: Pro unlocked locally.' : 'Dev Mode: Switched back to Free tier.');

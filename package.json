@@ -1,6 +1,6 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with @monetize.software SDK 3.0",
   "scripts": {
@@ -8,9 +8,9 @@
     "package": "npm run build && python3 scripts/package_store.py"
   },
   "dependencies": {
-    "@monetize.software/sdk": "^3.5.4"
+    "@monetize.software/sdk": "^3.0.0"
   },
   "devDependencies": {
-    "esbuild": "^0.24.2"
+    "esbuild": "^0.24.0"
   }
 }

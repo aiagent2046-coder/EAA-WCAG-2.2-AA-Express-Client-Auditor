@@ -359,41 +359,86 @@ function renderReport() {
     });
   }
 
-  // 2. Render Warnings in a compact single table instead of multi-page full cards
+  // 2. Render Warnings in a compact component-grouped table (keeps mega-footer sites like stripe.com at 2-3 pages instead of 21 pages!)
   const warns = auditData.issues.filter(i => i.severity === 'warning');
   const warnSection = document.getElementById('warnings-section');
   const warnTbody = document.getElementById('warnings-tbody');
   warnTbody.replaceChildren();
 
+  function getComponentSignature(w) {
+    const raw = String(w.selector || '').trim();
+    const parts = raw.split('>').map(s => s.trim()).filter(Boolean);
+    const leaf = (parts[parts.length - 1] || raw).replace(/:nth-of-type\(\d+\)/g, '');
+    const parent = (parts[parts.length - 2] || '').replace(/:nth-of-type\(\d+\)/g, '');
+    // If leaf has an explicit semantic class (e.g. a.hds-link.footer-links-block__item), group across repeated columns!
+    const hasLeafClass = leaf.includes('.');
+    const sigSelector = hasLeafClass ? leaf : `${parent} > ${leaf}`;
+    return `${w.criterion}|${w.code || ''}|${sigSelector}|${w.fixCode || ''}`;
+  }
+
   if (warns.length === 0) {
     warnSection.hidden = true;
   } else {
     warnSection.hidden = false;
+    const groupsMap = new Map();
     warns.forEach(w => {
+      const key = getComponentSignature(w);
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, []);
+      }
+      groupsMap.get(key).push(w);
+    });
+
+    for (const items of groupsMap.values()) {
+      const first = items[0];
       const tr = document.createElement('tr');
       const tdCrit = document.createElement('td');
-      tdCrit.textContent = `SC ${w.criterion}`;
+      tdCrit.textContent = `SC ${first.criterion}`;
 
-      const tdEl = document.createElement('td');
+      const tdSel = document.createElement('td');
       const lbl = document.createElement('div');
-      lbl.textContent = w.elementLabel || '—';
       const code = document.createElement('div');
       code.className = 'compact-code notranslate';
       code.setAttribute('translate', 'no');
-      code.textContent = w.selector;
-      tdEl.append(lbl, code);
 
       const tdObs = document.createElement('td');
-      tdObs.textContent = t.issueObs(w);
+
+      if (items.length === 1) {
+        lbl.textContent = first.elementLabel || 'Control';
+        code.textContent = first.selector;
+        tdObs.textContent = t.issueObs(first);
+      } else {
+        const sampleLabels = items
+          .map(x => x.elementLabel)
+          .filter(Boolean)
+          .slice(0, 4)
+          .map(s => `"${s}"`)
+          .join(', ');
+        const moreCount = Math.max(0, items.length - 4);
+        const countBadge = currentLang === 'ru'
+          ? `Однотипный компонент (×${items.length} шт.): `
+          : (currentLang === 'de' ? `Gleichartiges Bauteil (×${items.length}): ` : `Repeated component (×${items.length} controls): `);
+        const moreSuffix = moreCount > 0
+          ? (currentLang === 'ru' ? ` и еще ${moreCount}` : (currentLang === 'de' ? ` +${moreCount} weitere` : ` +${moreCount} more`))
+          : '';
+        lbl.textContent = `${countBadge}${sampleLabels}${moreSuffix}`;
+
+        const parts = String(first.selector || '').split('>').map(s => s.trim());
+        const cleanLeaf = (parts[parts.length - 1] || first.selector).replace(/:nth-of-type\(\d+\)/g, '');
+        code.textContent = `${cleanLeaf}  /* e.g. ${first.selector} */`;
+        tdObs.textContent = t.issueObs(first);
+      }
+
+      tdSel.append(lbl, code);
 
       const tdFix = document.createElement('td');
       tdFix.className = 'compact-code notranslate';
       tdFix.setAttribute('translate', 'no');
-      tdFix.textContent = w.fixCode;
+      tdFix.textContent = first.fixCode;
 
-      tr.append(tdCrit, tdEl, tdObs, tdFix);
+      tr.append(tdCrit, tdSel, tdObs, tdFix);
       warnTbody.appendChild(tr);
-    });
+    }
   }
 
   // 3. Guided Manual QA table
@@ -519,6 +564,7 @@ const PAYWALL_I18N = {
 };
 
 let reportProUnlocked = false;
+let reportDevOverride = false;
 let loadedPrices = [];
 let selectedPriceId = null;
 let lastCheckoutUrl = null;
@@ -845,8 +891,9 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
   });
 });
 
-function applyLockUI(unlocked) {
+function applyLockUI(unlocked, devOverride = reportDevOverride) {
   reportProUnlocked = Boolean(unlocked);
+  reportDevOverride = Boolean(devOverride);
   document.body.classList.toggle('is-paywall-locked', !reportProUnlocked);
 
   const btnUnlock = document.getElementById('btn-unlock-pro');
@@ -867,7 +914,7 @@ function applyLockUI(unlocked) {
   const devBtn = document.getElementById('btn-dev-report-toggle');
   if (!manifest.update_url && devBtn) {
     devBtn.hidden = false;
-    devBtn.textContent = reportProUnlocked ? 'Dev: Lock' : 'Dev: Unlock';
+    devBtn.textContent = reportDevOverride ? 'Dev Override: ON (Lock)' : 'Dev: Test Unlock';
   }
   syncModalAuthState();
 }
@@ -940,8 +987,10 @@ document.getElementById('pw-btn-reopen-url')?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-dev-report-toggle')?.addEventListener('click', async () => {
-  const res = await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: !reportProUnlocked });
-  applyLockUI(Boolean(res && res.paid));
+  const nextDev = !reportDevOverride;
+  await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: nextDev });
+  const access = await window.MonetizeBridge.checkAccess();
+  applyLockUI(access.granted, access.devOverride);
 });
 
 async function initPaywallGate() {
@@ -951,8 +1000,8 @@ async function initPaywallGate() {
   }
 
   window.MonetizeBridge.onOpenModal(() => openPaywallDialog());
-  window.MonetizeBridge.onAccessChange(granted => {
-    applyLockUI(granted);
+  window.MonetizeBridge.onAccessChange((granted, detail) => {
+    applyLockUI(granted, detail?.devOverride ?? reportDevOverride);
   });
 
   applyLockUI(false);
@@ -961,7 +1010,7 @@ async function initPaywallGate() {
   const explicitPaywallOpen = params.get('paywall') === '1';
 
   const access = await window.MonetizeBridge.checkAccess();
-  applyLockUI(access.granted);
+  applyLockUI(access.granted, access.devOverride);
 
   if (explicitPaywallOpen || !access.granted) {
     openPaywallDialog();
