@@ -1,86 +1,116 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru" translate="no" class="notranslate">
 <head>
   <meta charset="utf-8">
+  <meta name="google" content="notranslate">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WCAG 2.2 AA & EAA Client Compliance Report</title>
+  <title>WCAG 2.2 AA & EAA Compliance Audit Report</title>
   <link rel="stylesheet" href="report.css">
 </head>
 <body>
   <div class="toolbar no-print">
     <div class="toolbar-left">
-      <strong>White-Label Client Report Preview</strong>
-      <span id="toolbar-sub">Ready for PDF export or developer ticket handoff</span>
+      <strong id="ui-toolbar-title">White-Label Client Report</strong>
+      <span id="ui-toolbar-sub">Clean A4 PDF without browser headers or extension URLs</span>
     </div>
     <div class="toolbar-actions">
-      <button id="btn-dl-md" type="button" class="btn-outline">Download Markdown (.md)</button>
-      <button id="btn-dl-csv" type="button" class="btn-outline">Download Jira CSV (.csv)</button>
-      <button id="btn-print" type="button" class="btn-solid">Print / Save Client PDF</button>
+      <div class="lang-group" role="group" aria-label="Report Language">
+        <button type="button" class="lang-btn" data-lang="ru">RU</button>
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" data-lang="de">DE</button>
+      </div>
+      <button id="btn-dl-md" type="button" class="btn-outline">.MD</button>
+      <button id="btn-dl-csv" type="button" class="btn-outline">Jira .CSV</button>
+      <button id="btn-print" type="button" class="btn-solid" id="ui-btn-print">Save Client PDF</button>
     </div>
   </div>
 
-  <article class="sheet">
-    <header class="report-header">
-      <div class="brand-col">
-        <img id="rep-logo" class="agency-logo" alt="Agency Logo" hidden>
-        <div>
-          <div class="eyebrow">European Accessibility Act (EN 301 549 V4.1.1) · WCAG 2.2 Level AA</div>
-          <h1 class="report-title">Accessibility Delta Audit Report</h1>
-          <div id="rep-agency" class="agency-meta">Prepared by Accessibility QA Team</div>
-        </div>
-      </div>
-      <div class="verdict-pill" id="rep-verdict">Audit Pending</div>
-    </header>
+  <!-- Repeating print margin table guarantees 13mm top/bottom padding on EVERY A4 page while @page { margin: 0 } suppresses chrome-extension:// URL footers -->
+  <table class="print-frame">
+    <thead><tr><td><div class="print-page-space"></div></td></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <article class="sheet">
+            <header class="report-header">
+              <div class="brand-col">
+                <img id="rep-logo" class="agency-logo" alt="Agency Logo" hidden>
+                <div>
+                  <div class="eyebrow" id="ui-eyebrow">European Accessibility Act (EN 301 549 V4.1.1) · WCAG 2.2 Level AA</div>
+                  <h1 class="report-title" id="ui-title">Accessibility Delta Audit Report</h1>
+                  <div id="rep-agency" class="agency-meta">Prepared by Accessibility QA Team</div>
+                </div>
+              </div>
+              <div class="verdict-pill" id="rep-verdict">—</div>
+            </header>
 
-    <section class="meta-strip">
-      <div><span class="meta-lbl">Client / Project</span><strong id="rep-client">—</strong></div>
-      <div><span class="meta-lbl">Audited URL</span><strong id="rep-url">—</strong></div>
-      <div><span class="meta-lbl">Timestamp</span><strong id="rep-date">—</strong></div>
-      <div><span class="meta-lbl">Viewport</span><strong id="rep-vp">—</strong></div>
-    </section>
+            <section class="meta-strip">
+              <div><span class="meta-lbl" id="ui-lbl-client">Client / Project</span><strong id="rep-client" class="wrap-word">—</strong></div>
+              <div><span class="meta-lbl" id="ui-lbl-url">Audited URL</span><strong id="rep-url" class="wrap-url">—</strong></div>
+              <div><span class="meta-lbl" id="ui-lbl-date">Audit Timestamp</span><strong id="rep-date">—</strong></div>
+              <div><span class="meta-lbl" id="ui-lbl-vp">Viewport</span><strong id="rep-vp">—</strong></div>
+            </section>
 
-    <section class="summary-cards">
-      <div class="s-card s-fail">
-        <div class="s-num" id="sum-fail">0</div>
-        <div class="s-lbl">Level AA Violations</div>
-      </div>
-      <div class="s-card s-warn">
-        <div class="s-num" id="sum-warn">0</div>
-        <div class="s-lbl">Advisory / Spacing Warnings</div>
-      </div>
-      <div class="s-card s-manual">
-        <div class="s-num" id="sum-manual">0</div>
-        <div class="s-lbl">Guided Manual QA Items</div>
-      </div>
-      <div class="s-card">
-        <div class="s-num" id="sum-nodes">0</div>
-        <div class="s-lbl">Evaluated DOM Controls</div>
-      </div>
-    </section>
+            <section class="summary-cards">
+              <div class="s-card s-fail">
+                <div class="s-num" id="sum-fail">0</div>
+                <div class="s-lbl" id="ui-kpi-fail">Level AA Violations</div>
+              </div>
+              <div class="s-card s-warn">
+                <div class="s-num" id="sum-warn">0</div>
+                <div class="s-lbl" id="ui-kpi-warn">Spacing & Advisory Warnings</div>
+              </div>
+              <div class="s-card s-manual">
+                <div class="s-num" id="sum-manual">0</div>
+                <div class="s-lbl" id="ui-kpi-manual">Guided Manual QA Items</div>
+              </div>
+              <div class="s-card">
+                <div class="s-num" id="sum-nodes">0</div>
+                <div class="s-lbl" id="ui-kpi-nodes">Evaluated DOM Controls</div>
+              </div>
+            </section>
 
-    <section class="scope-note">
-      <strong>Scope & Methodology:</strong> Deterministic browser geometry and behavioral inspection against W3C WCAG 2.2 Level AA delta criteria required under EN 301 549 V4.1.1 (SC 2.5.8 Target Size Minimum 24x24 CSS px, SC 2.4.11 Focus Not Obscured Minimum, SC 3.3.8 Accessible Authentication, and SC 2.5.7 Dragging Movements). Pair automated findings with assistive screen-reader traversal prior to formal EAA legal sign-off.
-    </section>
+            <section class="scope-note" id="ui-scope-note"></section>
 
-    <section>
-      <h2>1. Automated Violations & Advisory Warnings</h2>
-      <div id="findings-container" class="findings-list"></div>
-    </section>
+            <section>
+              <h2 id="ui-sec-fails">1. Level AA Violations (Action Required)</h2>
+              <div id="fails-container" class="findings-list"></div>
+            </section>
 
-    <section>
-      <h2>2. Guided 10-Second Manual QA Sign-Off (SC 2.5.7 / 3.2.6 / 3.3.7)</h2>
-      <table class="qa-table">
-        <thead>
-          <tr>
-            <th>Criterion</th>
-            <th>Selector / Check</th>
-            <th>Auditor Sign-Off</th>
-          </tr>
-        </thead>
-        <tbody id="manual-tbody"></tbody>
-      </table>
-    </section>
-  </article>
+            <section id="warnings-section">
+              <h2 id="ui-sec-warns">2. Compact Advisory & Spacing Digest (Passes AA via Spacing)</h2>
+              <table class="qa-table compact-table">
+                <thead>
+                  <tr>
+                    <th id="ui-th-w-crit">Criterion</th>
+                    <th id="ui-th-w-el">Control & Selector</th>
+                    <th id="ui-th-w-obs">Measured Geometry</th>
+                    <th id="ui-th-w-fix">Recommended Hardening CSS</th>
+                  </tr>
+                </thead>
+                <tbody id="warnings-tbody"></tbody>
+              </table>
+            </section>
+
+            <section>
+              <h2 id="ui-sec-manual">3. Guided 10-Second Manual QA Sign-Off (SC 2.5.7 / 3.2.6 / 3.3.7)</h2>
+              <table class="qa-table">
+                <thead>
+                  <tr>
+                    <th id="ui-th-m-crit">Criterion</th>
+                    <th id="ui-th-m-desc">Verification Check</th>
+                    <th id="ui-th-m-sign">Auditor Sign-Off</th>
+                  </tr>
+                </thead>
+                <tbody id="manual-tbody"></tbody>
+              </table>
+            </section>
+          </article>
+        </td>
+      </tr>
+    </tbody>
+    <tfoot><tr><td><div class="print-page-space"></div></td></tr></tfoot>
+  </table>
 
   <script src="report.js"></script>
 </body>

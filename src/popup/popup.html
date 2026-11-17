@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no" class="notranslate">
 <head>
   <meta charset="utf-8">
+  <meta name="google" content="notranslate">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EAA & WCAG 2.2 AA Auditor</title>
   <link rel="stylesheet" href="popup.css">
@@ -9,13 +10,19 @@
 <body>
   <header class="top-bar">
     <div>
-      <div class="brand">WCAG 2.2 AA Auditor</div>
+      <div class="brand">WCAG 2.2 AA Auditor <span class="ver">v0.1.1</span></div>
       <div class="sub-badge">EN 301 549 V4.1.1 · Local-Only</div>
     </div>
-    <label class="hud-switch" title="Show/Hide visual overlay on page">
-      <input type="checkbox" id="chk-hud" checked>
-      <span>HUD</span>
-    </label>
+    <div class="hud-controls">
+      <label class="hud-switch" title="Show/Hide visual overlay on page">
+        <input type="checkbox" id="chk-hud" checked>
+        <span>HUD</span>
+      </label>
+      <label class="hud-switch" title="Also show orange Warnings on page HUD">
+        <input type="checkbox" id="chk-warn-hud">
+        <span>+Warn</span>
+      </label>
+    </div>
   </header>
 
   <main class="container">
@@ -45,10 +52,10 @@
 
       <div class="filter-bar" role="tablist">
         <button type="button" class="chip is-active" data-filter="all">All</button>
+        <button type="button" class="chip" data-filter="fail">Fails Only</button>
         <button type="button" class="chip" data-filter="2.5.8">2.5.8 Target</button>
         <button type="button" class="chip" data-filter="2.4.11">2.4.11 Focus</button>
         <button type="button" class="chip" data-filter="3.3.8">3.3.8 Auth</button>
-        <button type="button" class="chip" data-filter="2.5.7">2.5.7 Drag</button>
       </div>
 
       <div id="issues-list" class="issues-list"></div>
@@ -76,7 +83,7 @@
     <section id="paywall-card" class="paywall-card" hidden>
       <div class="paywall-title">Unlock White-Label Client Reports</div>
       <p class="paywall-copy">
-        Export branded A4 PDF compliance briefs with cropped visual evidence, CSS fix snippets, and Jira CSV / GitHub Markdown tickets.
+        Export branded A4 PDF compliance briefs (RU / EN / DE) with isolated screenshot evidence, CSS fixes, and Jira CSV / Markdown tickets.
       </p>
       <div class="paywall-actions">
         <button id="btn-buy-monthly" type="button" class="btn-primary">Agency Pro — $24/mo</button>

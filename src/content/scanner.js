@@ -32,12 +32,37 @@
     if (!(el instanceof Element)) return false;
     if (el.id === HUD_ID || el.closest(`#${HUD_ID}`)) return false;
     if (el.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+
     const style = window.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
       return false;
     }
+
+    // Walk ancestors to filter content inside closed <details> or collapsed 0px overflow:hidden accordions
+    let child = el;
+    let parent = el.parentElement;
+    while (parent && parent !== document.documentElement) {
+      if (parent.tagName === 'DETAILS' && !parent.open) {
+        // Inside a closed <details>, ONLY its direct <summary> subtree is rendered & interactive
+        if (child.tagName !== 'SUMMARY') return false;
+      }
+      const ps = window.getComputedStyle(parent);
+      if (ps.display === 'none' || ps.visibility === 'hidden' || parseFloat(ps.opacity) === 0) {
+        return false;
+      }
+      const clips = ['hidden', 'clip'].includes(ps.overflow) ||
+        ['hidden', 'clip'].includes(ps.overflowY) ||
+        ['hidden', 'clip'].includes(ps.overflowX);
+      if (clips) {
+        const pr = parent.getBoundingClientRect();
+        if (pr.width < 1 || pr.height < 1) return false;
+      }
+      child = parent;
+      parent = parent.parentElement;
+    }
+
     const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
+    return rect.width > 0.5 && rect.height > 0.5;
   }
 
   function getReadableSelector(el) {
@@ -78,13 +103,15 @@
       el.value ||
       ''
     ).replace(/\s+/g, ' ').trim();
-    return label ? label.slice(0, 60) : `<${el.tagName.toLowerCase()}>`;
+    return label ? label.slice(0, 64) : `<${el.tagName.toLowerCase()}>`;
   }
 
   function isInlineTextException(el, style) {
     if (style.display !== 'inline') return false;
     const parent = el.parentElement;
     if (!parent) return false;
+    const pStyle = window.getComputedStyle(parent);
+    if (pStyle.display.includes('flex') || pStyle.display.includes('grid')) return false;
     const parentText = (parent.textContent || '').replace(/\s+/g, ' ').trim();
     const ownText = (el.textContent || '').replace(/\s+/g, ' ').trim();
     return parentText.length > ownText.length + 2;
@@ -94,8 +121,7 @@
     if (!['INPUT', 'SELECT'].includes(el.tagName)) return false;
     const type = (el.getAttribute('type') || '').toLowerCase();
     if (['button', 'submit', 'reset', 'image'].includes(type)) return false;
-    const hasExplicitSize = Boolean(el.style.width || el.style.height);
-    if (hasExplicitSize) return false;
+    if (el.style.width || el.style.height) return false;
     return style.appearance !== 'none' && style.webkitAppearance !== 'none';
   }
 
@@ -157,25 +183,29 @@
 
       if (collisions.length > 0) {
         issues.push({
+          code: 'TARGET_COLLISION',
           criterion: '2.5.8',
           level: 'AA',
           severity: 'fail',
           title: 'Target Size (Minimum) < 24x24 CSS px with spacing collision',
           elementLabel: getSnippetText(t.el),
           selector: getReadableSelector(t.el),
-          actual: `${w} x ${h} px — 24px spacing circle intersects ${collisions[0]}`,
+          params: { w, h, neighbor: collisions[0] },
+          actual: `${w} x ${h} px — 24px circle intersects ${collisions[0]}`,
           fixCode: `min-width: 24px; min-height: 24px; padding: ${padY}px ${padX}px;`,
           bbox: { x: t.rect.left + window.scrollX, y: t.rect.top + window.scrollY, w: t.rect.width, h: t.rect.height }
         });
       } else {
         issues.push({
+          code: 'TARGET_SPACING_PASS',
           criterion: '2.5.8',
           level: 'AA-spacing',
           severity: 'warning',
-          title: 'Undersized target (< 24x24 px) relies on empty spacing exception',
+          title: 'Undersized target (< 24x24 px) relies on spacing exception',
           elementLabel: getSnippetText(t.el),
           selector: getReadableSelector(t.el),
-          actual: `${w} x ${h} px (passes via 24px circle spacing, enlarge hit-box if responsive layout reflows)`,
+          params: { w, h },
+          actual: `${w} x ${h} px (passes via 24px circle spacing)`,
           fixCode: `min-width: 24px; min-height: 24px;`,
           bbox: { x: t.rect.left + window.scrollX, y: t.rect.top + window.scrollY, w: t.rect.width, h: t.rect.height }
         });
@@ -184,11 +214,18 @@
     return { issues, checkedCount: targets.length };
   }
 
-  function findStickyAncestor(node) {
+  function findOverlayAncestor(node, focusedEl) {
     let cur = node;
     while (cur && cur !== document.body && cur !== document.documentElement) {
-      const pos = window.getComputedStyle(cur).position;
-      if (pos === 'fixed' || pos === 'sticky') return cur;
+      if (cur.contains(focusedEl)) return null;
+      const st = window.getComputedStyle(cur);
+      if (st.position === 'fixed' || st.position === 'sticky') {
+        return cur;
+      }
+      if (st.position === 'absolute') {
+        const z = parseInt(st.zIndex, 10);
+        if (!Number.isNaN(z) && z >= 10) return cur;
+      }
       cur = cur.parentElement;
     }
     return null;
@@ -210,7 +247,6 @@
     const issues = [];
 
     for (const el of focusables) {
-      const ownStickyRoot = findStickyAncestor(el);
       try {
         el.focus({ preventScroll: false });
       } catch (_) {
@@ -227,8 +263,8 @@
       const xs = [left + 1, (left + right) / 2, right - 1];
       const ys = [top + 1, (top + bottom) / 2, bottom - 1];
 
-      let visibleSampleCount = 0;
-      let blockerNode = null;
+      let unobscuredCount = 0;
+      let overlayBlocker = null;
 
       for (const x of xs) {
         for (const y of ys) {
@@ -239,45 +275,52 @@
             return st.pointerEvents !== 'none' && parseFloat(st.opacity) > 0.05;
           });
 
-          if (!topHit) {
-            visibleSampleCount++;
+          if (!topHit || el === topHit || el.contains(topHit) || topHit.contains(el)) {
+            unobscuredCount++;
             continue;
           }
 
-          const belongsToTarget = el === topHit || el.contains(topHit) || topHit.contains(el) ||
-            (ownStickyRoot && ownStickyRoot.contains(topHit));
-
-          if (belongsToTarget) {
-            visibleSampleCount++;
-          } else if (!blockerNode) {
-            blockerNode = findStickyAncestor(topHit) || topHit;
+          // Only count genuine fixed/sticky/high-z overlay layers per W3C F110
+          const overlay = findOverlayAncestor(topHit, el);
+          if (overlay) {
+            if (!overlayBlocker) overlayBlocker = overlay;
+          } else {
+            unobscuredCount++;
           }
         }
       }
 
-      if (visibleSampleCount === 0 && blockerNode) {
-        const blockerRect = blockerNode.getBoundingClientRect();
+      if (unobscuredCount === 0 && overlayBlocker) {
+        const blockerRect = overlayBlocker.getBoundingClientRect();
+        const blockerH = Math.round(blockerRect.height);
+        const blockerSel = getReadableSelector(overlayBlocker);
         issues.push({
+          code: 'FOCUS_OBSCURED_FULL',
           criterion: '2.4.11',
           level: 'AA',
           severity: 'fail',
-          title: 'Focused element is 100% obscured by sticky/overlay layer (F110)',
+          title: 'Focused element is 100% obscured by sticky/fixed overlay (F110)',
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
-          actual: `100% hidden behind ${getReadableSelector(blockerNode)} (${Math.round(blockerRect.height)}px height)`,
-          fixCode: `html { scroll-padding-top: ${Math.ceil(blockerRect.height + 16)}px; }`,
+          params: { blocker: blockerSel, blockerH, coveredPts: 9 },
+          actual: `100% hidden behind ${blockerSel} (${blockerH}px height)`,
+          fixCode: `html { scroll-padding-top: ${Math.ceil(blockerH + 16)}px; }`,
           bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
         });
-      } else if (visibleSampleCount > 0 && visibleSampleCount < 9 && blockerNode) {
+      } else if (unobscuredCount > 0 && unobscuredCount < 9 && overlayBlocker) {
+        const blockerSel = getReadableSelector(overlayBlocker);
+        const coveredPts = 9 - unobscuredCount;
         issues.push({
+          code: 'FOCUS_OBSCURED_PARTIAL',
           criterion: '2.4.11',
           level: 'AAA-warn',
           severity: 'warning',
-          title: `Focused element is partially obscured (${9 - visibleSampleCount}/9 sample points covered)`,
+          title: `Focused element is partially obscured (${coveredPts}/9 points covered)`,
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
-          actual: `Partially overlapped by ${getReadableSelector(blockerNode)} (passes 2.4.11 AA, fails 2.4.12 AAA)`,
-          fixCode: `Add scroll-margin-top / scroll-margin-bottom to clear fixed headers and cookie banners.`,
+          params: { blocker: blockerSel, coveredPts },
+          actual: `Partially overlapped by ${blockerSel} (${coveredPts}/9 pts)`,
+          fixCode: `scroll-margin-top: 96px; scroll-margin-bottom: 96px;`,
           bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
         });
       }
@@ -312,28 +355,32 @@
 
       if (pasteBlocked) {
         issues.push({
+          code: 'AUTH_PASTE_BLOCKED',
           criterion: '3.3.8',
           level: 'AA',
           severity: 'fail',
           title: 'Credential field blocks clipboard paste (breaks password managers)',
           elementLabel: getSnippetText(input),
           selector: getReadableSelector(input),
-          actual: 'paste event cancelled via preventDefault() or inline onpaste handler',
-          fixCode: 'Remove paste event blockers and enable autocomplete="current-password".',
+          params: {},
+          actual: 'paste event cancelled via preventDefault() or inline onpaste',
+          fixCode: 'Remove paste event blockers and set autocomplete="current-password".',
           bbox: { x: rect.left + window.scrollX, y: rect.top + window.scrollY, w: rect.width, h: rect.height }
         });
       }
 
       if ((input.getAttribute('autocomplete') || '').toLowerCase() === 'off') {
         issues.push({
+          code: 'AUTH_AUTOCOMPLETE_OFF',
           criterion: '3.3.8',
           level: 'AA',
           severity: 'warning',
-          title: 'Credential field disables password manager autofill (autocomplete="off")',
+          title: 'Credential field disables autofill (autocomplete="off")',
           elementLabel: getSnippetText(input),
           selector: getReadableSelector(input),
-          actual: 'autocomplete="off" present on authentication input',
-          fixCode: 'Set autocomplete="current-password", "new-password", or "one-time-code".',
+          params: {},
+          actual: 'autocomplete="off" on authentication input',
+          fixCode: 'autocomplete="current-password"',
           bbox: { x: rect.left + window.scrollX, y: rect.top + window.scrollY, w: rect.width, h: rect.height }
         });
       }
@@ -347,28 +394,36 @@
     const issues = els.map(el => {
       const rect = el.getBoundingClientRect();
       return {
+        code: 'DRAG_MANUAL_CHECK',
         criterion: '2.5.7',
         level: 'AA',
         severity: 'manual',
         title: 'Verify single-pointer (click/tap) alternative for draggable / slider control',
         elementLabel: getSnippetText(el),
         selector: getReadableSelector(el),
-        actual: `Drag/slider widget detected (${el.tagName.toLowerCase()})`,
-        fixCode: 'Provide explicit Step +/-, Prev/Next buttons, or direct tap/input control alongside drag.',
+        params: { tag: el.tagName.toLowerCase() },
+        actual: `Interactive drag/slider widget (${el.tagName.toLowerCase()})`,
+        fixCode: 'Provide explicit Step +/-, Prev/Next buttons, or tap input alongside drag.',
         bbox: { x: rect.left + window.scrollX, y: rect.top + window.scrollY, w: rect.width, h: rect.height }
       };
     });
     return { issues, checkedCount: els.length };
   }
 
-  function renderShadowHud(issues) {
+  function renderShadowHud(issues, showWarnings = false) {
     let host = document.getElementById(HUD_ID);
     if (host) host.remove();
 
     host = document.createElement('div');
     host.id = HUD_ID;
+    host.setAttribute('translate', 'no');
+    host.className = 'notranslate';
     host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
     const shadow = host.attachShadow({ mode: 'open' });
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'hud-root';
+    if (!showWarnings) wrapper.classList.add('fails-only');
 
     const style = document.createElement('style');
     style.textContent = `
@@ -378,6 +433,13 @@
         pointer-events: none;
         border-radius: 3px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .fails-only .box-warning,
+      .fails-only .box-manual {
+        display: none;
+      }
+      .box.force-show {
+        display: block !important;
       }
       .box-fail { border: 2px solid #dc2626; background: rgba(220, 38, 38, 0.10); }
       .box-warning { border: 2px dashed #d97706; background: rgba(217, 119, 6, 0.08); }
@@ -416,9 +478,10 @@
       badge.className = 'badge';
       badge.textContent = `#${idx + 1} · ${issue.criterion}`;
       box.appendChild(badge);
-      shadow.appendChild(box);
+      wrapper.appendChild(box);
     });
 
+    shadow.appendChild(wrapper);
     document.documentElement.appendChild(host);
   }
 
@@ -437,7 +500,7 @@
       ...r257.issues
     ].sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
 
-    renderShadowHud(allIssues);
+    renderShadowHud(allIssues, Boolean(window.__wcag22ShowWarnings));
 
     const result = {
       url: window.location.href,
@@ -463,6 +526,9 @@
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (!msg || !msg.type) return false;
+        const host = document.getElementById(HUD_ID);
+        const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+
         if (msg.type === 'HIGHLIGHT_ISSUE') {
           const audit = window.__wcag22LastAudit;
           const item = audit && audit.issues[msg.index];
@@ -471,23 +537,31 @@
               top: Math.max(0, item.bbox.y - window.innerHeight / 3),
               behavior: 'smooth'
             });
-            const host = document.getElementById(HUD_ID);
-            const box = host && host.shadowRoot && host.shadowRoot.querySelector(`[data-idx="${msg.index}"]`);
+            const box = root && root.querySelector(`[data-idx="${msg.index}"]`);
             if (box) {
-              box.classList.add('pulse');
+              box.classList.add('force-show', 'pulse');
               setTimeout(() => box.classList.remove('pulse'), 1100);
             }
           }
           sendResponse({ ok: true });
         } else if (msg.type === 'TOGGLE_HUD') {
-          const host = document.getElementById(HUD_ID);
-          if (host) {
-            host.style.display = msg.visible ? 'block' : 'none';
+          if (host) host.style.display = msg.visible ? 'block' : 'none';
+          sendResponse({ ok: true });
+        } else if (msg.type === 'SET_HUD_WARNINGS') {
+          window.__wcag22ShowWarnings = Boolean(msg.showWarnings);
+          if (root) {
+            root.classList.toggle('fails-only', !window.__wcag22ShowWarnings);
           }
           sendResponse({ ok: true });
         } else if (msg.type === 'SCROLL_FOR_CROP') {
           const item = window.__wcag22LastAudit && window.__wcag22LastAudit.issues[msg.index];
           if (item && item.bbox) {
+            // Isolate ONLY the target issue box so neighboring badges never overlap the screenshot crop!
+            if (root) {
+              root.querySelectorAll('.box').forEach(b => {
+                b.style.display = b.dataset.idx === String(msg.index) ? 'block' : 'none';
+              });
+            }
             const targetScrollY = Math.max(0, item.bbox.y - Math.round(window.innerHeight / 3));
             window.scrollTo(0, targetScrollY);
             sendResponse({
@@ -503,6 +577,13 @@
           } else {
             sendResponse({ ok: false });
           }
+        } else if (msg.type === 'RESTORE_HUD_AFTER_CROP') {
+          if (root) {
+            root.querySelectorAll('.box').forEach(b => {
+              b.style.display = '';
+            });
+          }
+          sendResponse({ ok: true });
         }
         return false;
       });

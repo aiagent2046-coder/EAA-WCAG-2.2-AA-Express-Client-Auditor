@@ -10,6 +10,7 @@ const resultsPanel = document.getElementById('results-panel');
 const issuesList = document.getElementById('issues-list');
 const paywallCard = document.getElementById('paywall-card');
 const chkHud = document.getElementById('chk-hud');
+const chkWarnHud = document.getElementById('chk-warn-hud');
 
 function showStatus(text) {
   statusMsg.textContent = text;
@@ -23,7 +24,6 @@ async function refreshProStatus() {
   } catch (_) {
     isPro = false;
   }
-  // Show Dev Toggle button when running unpacked (no update_url in manifest)
   const manifest = chrome.runtime.getManifest();
   const devBtn = document.getElementById('btn-dev-unlock');
   if (!manifest.update_url && devBtn) {
@@ -46,12 +46,16 @@ function renderIssues() {
 
   const filtered = lastAudit.issues
     .map((item, idx) => ({ item, idx }))
-    .filter(({ item }) => activeFilter === 'all' || item.criterion.startsWith(activeFilter));
+    .filter(({ item }) => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'fail') return item.severity === 'fail';
+      return item.criterion.startsWith(activeFilter);
+    });
 
   if (filtered.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'status-msg';
-    empty.textContent = 'No issues found in this category.';
+    empty.textContent = 'Zero violations in this filter.';
     issuesList.appendChild(empty);
     return;
   }
@@ -96,26 +100,32 @@ function renderIssues() {
   });
 }
 
-async function captureTopIssueCrops(audit, maxCrops = 8) {
+async function captureTopIssueCrops(audit, maxCrops = 10) {
   const enriched = structuredClone(audit);
   if (!currentTabId) return enriched;
 
+  // Capture screenshot evidence strictly for Level AA Fails (warnings go into compact digest table)
   const targets = enriched.issues
     .map((issue, idx) => ({ issue, idx }))
-    .filter(x => x.issue.severity === 'fail' || x.issue.severity === 'warning')
+    .filter(x => x.issue.severity === 'fail')
     .slice(0, maxCrops);
 
   for (const { issue, idx } of targets) {
     try {
       const pos = await chrome.tabs.sendMessage(currentTabId, { type: 'SCROLL_FOR_CROP', index: idx });
       if (!pos || !pos.ok) continue;
-      await new Promise(r => setTimeout(r, 90));
+      await new Promise(r => setTimeout(r, 110));
       const shot = await chrome.runtime.sendMessage({ type: 'CAPTURE_VISIBLE_TAB', windowId: currentWindowId });
       if (!shot || !shot.dataUrl) continue;
 
       issue.cropDataUrl = await cropDataUrl(shot.dataUrl, pos.viewportRect);
     } catch (_) {}
   }
+
+  try {
+    await chrome.tabs.sendMessage(currentTabId, { type: 'RESTORE_HUD_AFTER_CROP' });
+  } catch (_) {}
+
   return enriched;
 }
 
@@ -127,8 +137,8 @@ function cropDataUrl(dataUrl, rect) {
       const pad = 28;
       const sx = Math.max(0, Math.round((rect.x - pad) * dpr));
       const sy = Math.max(0, Math.round((rect.y - pad) * dpr));
-      const sw = Math.min(img.width - sx, Math.max(120, Math.round((rect.w + pad * 2) * dpr)));
-      const sh = Math.min(img.height - sy, Math.max(80, Math.round((rect.h + pad * 2) * dpr)));
+      const sw = Math.min(img.width - sx, Math.max(140, Math.round((rect.w + pad * 2) * dpr)));
+      const sh = Math.min(img.height - sy, Math.max(84, Math.round((rect.h + pad * 2) * dpr)));
 
       const canvas = document.createElement('canvas');
       canvas.width = Math.min(480, sw);
@@ -148,7 +158,7 @@ btnScan.addEventListener('click', async () => {
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id || !tab.url || /^(chrome|edge|about|moz-extension):/i.test(tab.url)) {
-    showStatus('Open any regular HTTP/HTTPS webpage (or local file URL) to run a WCAG 2.2 audit.');
+    showStatus('Open any HTTP/HTTPS webpage to run a WCAG 2.2 AA audit.');
     return;
   }
   currentTabId = tab.id;
@@ -162,6 +172,10 @@ btnScan.addEventListener('click', async () => {
     lastAudit = injected && injected[0] && injected[0].result;
     if (!lastAudit) throw new Error('Scanner returned empty result');
 
+    if (chkWarnHud.checked) {
+      chrome.tabs.sendMessage(tab.id, { type: 'SET_HUD_WARNINGS', showWarnings: true });
+    }
+
     await chrome.storage.local.set({ latestAuditReport: lastAudit });
 
     document.getElementById('cnt-fail').textContent = String(lastAudit.counts.fail);
@@ -169,7 +183,7 @@ btnScan.addEventListener('click', async () => {
     document.getElementById('cnt-manual').textContent = String(lastAudit.counts.manual);
     document.getElementById('cnt-nodes').textContent = String(lastAudit.counts.checkedNodes);
 
-    showStatus(`Scanned in ${lastAudit.durationMs} ms · ${lastAudit.viewport}`);
+    showStatus(`Scanned in ${lastAudit.durationMs} ms · ${lastAudit.viewport} · HUD: ${chkWarnHud.checked ? 'Fails + Warnings' : 'Fails Only'}`);
     resultsPanel.hidden = false;
     renderIssues();
   } catch (err) {
@@ -189,6 +203,15 @@ document.querySelectorAll('.chip').forEach(btn => {
 chkHud.addEventListener('change', () => {
   if (currentTabId) {
     chrome.tabs.sendMessage(currentTabId, { type: 'TOGGLE_HUD', visible: chkHud.checked });
+  }
+});
+
+chkWarnHud.addEventListener('change', () => {
+  if (currentTabId) {
+    chrome.tabs.sendMessage(currentTabId, { type: 'SET_HUD_WARNINGS', showWarnings: chkWarnHud.checked });
+    if (lastAudit) {
+      showStatus(`Scanned in ${lastAudit.durationMs} ms · ${lastAudit.viewport} · HUD: ${chkWarnHud.checked ? 'Fails + Warnings' : 'Fails Only'}`);
+    }
   }
 });
 
@@ -224,7 +247,7 @@ async function openReportOrPaywall(mode) {
     return;
   }
   if (!lastAudit) return;
-  showStatus('Capturing issue evidence thumbnails...');
+  showStatus('Capturing isolated evidence thumbnails...');
   const enriched = await captureTopIssueCrops(lastAudit);
   await chrome.storage.local.set({ latestAuditReport: enriched, reportAutoAction: mode });
   chrome.tabs.create({ url: chrome.runtime.getURL('src/report/report.html') });
