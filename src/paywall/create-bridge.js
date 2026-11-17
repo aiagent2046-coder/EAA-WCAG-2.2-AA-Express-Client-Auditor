@@ -1,5 +1,56 @@
 import { PAYWALL_CONFIG } from './config.js';
 
+export function parseVerificationInput(rawInput) {
+  let str = String(rawInput || '').trim();
+  if (!str) return { token: '', type: null, isHashFromUrl: false };
+
+  // Unwrap multi-layer URL encoding (e.g. Gmail's https://www.google.com/url?q=https://monetize.software%26token_hash%3D...)
+  for (let i = 0; i < 3; i++) {
+    if (/%[0-9A-Fa-f]{2}/.test(str)) {
+      try {
+        const dec = decodeURIComponent(str);
+        if (dec === str) break;
+        str = dec;
+      } catch (_) {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  const hashMatch = str.match(/(?:[?&]|\b)token_hash=([A-Za-z0-9._-]+)/i);
+  const tokMatch = str.match(/(?:[?&]|\b)token=([A-Za-z0-9._-]+)/i);
+  const typeMatch = str.match(/(?:[?&]|\b)type=([A-Za-z0-9_-]+)/i);
+
+  const extractedToken = (hashMatch && hashMatch[1]) || (tokMatch && tokMatch[1]) || null;
+  const extractedType = (typeMatch && typeMatch[1]) ? typeMatch[1].toLowerCase() : null;
+
+  if (extractedToken) {
+    return {
+      token: extractedToken,
+      type: extractedType,
+      isHashFromUrl: Boolean(hashMatch)
+    };
+  }
+
+  // Also detect a standalone pasted 40-128 hex token_hash
+  const compact = str.replace(/\s+/g, '');
+  if (/^[a-f0-9]{32,128}$/i.test(compact)) {
+    return {
+      token: compact,
+      type: 'signup',
+      isHashFromUrl: true
+    };
+  }
+
+  return {
+    token: compact,
+    type: null,
+    isHashFromUrl: false
+  };
+}
+
 export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
   const auth = new AuthClient({
     paywallId: PAYWALL_CONFIG.paywallId,
@@ -61,7 +112,6 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     return null;
   }
 
-  // Strictly verifies actual paid subscription / purchase via GET /api/v1/paywall/{id}/user with Bearer token
   async function fetchLiveUserPaidStatus() {
     try {
       await ensureAuthReady();
@@ -84,7 +134,6 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
       });
 
       if (res.status === 401 || res.status === 403 || res.status === 404) {
-        // 404 identity_not_on_paywall means user signed in via OTP but hasn't purchased Paywall #926 yet
         return { granted: false, reason: `http_${res.status}`, user };
       }
       if (!res.ok) return null;
@@ -115,7 +164,6 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     await ensureAuthReady();
     const user = getCurrentUser();
 
-    // Unauthenticated users are NEVER Pro (prevents false-positive unlock from non-tokenized billing.getAccess({}))
     if (!user) {
       if (stored.monetize_paid_verified) {
         await chrome.storage.local.set({ monetize_paid_verified: false });
@@ -134,7 +182,6 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
       };
     }
 
-    // Offline cache fallback ONLY if a previously verified paid user temporarily loses network
     if (!opts.skipCacheFallback && stored.monetize_paid_verified === true) {
       return { granted: true, devOverride: false, source: 'verified_cache', user };
     }
@@ -162,22 +209,56 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     return { ok: true, email: cleanEmail };
   }
 
-  async function verifyEmailOtp(email, code) {
+  async function verifyEmailOtp(email, rawCodeOrLink) {
     const cleanEmail = String(email || '').trim().toLowerCase();
-    const cleanToken = String(code || '').trim().replace(/\s+/g, '');
-    if (!cleanToken) {
-      throw new Error('Введите одноразовый код из письма.');
+    const parsed = parseVerificationInput(rawCodeOrLink);
+    if (!parsed.token) {
+      throw new Error('Вставьте код из письма или скопированную ссылку подтверждения.');
     }
-    let session;
-    try {
-      session = await auth.verifyOtp({ email: cleanEmail, token: cleanToken, type: 'email' });
-    } catch (firstErr) {
-      try {
-        session = await auth.verifyOtp({ email: cleanEmail, token: cleanToken, type: 'signup' });
-      } catch (_) {
-        throw firstErr;
+
+    // Build ordered candidate attempts covering both 6-digit OTPs and magiclink/signup token_hash URLs
+    const candidateTypes = [];
+    if (parsed.type) candidateTypes.push(parsed.type);
+    if (parsed.isHashFromUrl) {
+      for (const t of ['magiclink', 'signup', 'email']) {
+        if (!candidateTypes.includes(t)) candidateTypes.push(t);
+      }
+    } else {
+      for (const t of ['email', 'signup', 'magiclink']) {
+        if (!candidateTypes.includes(t)) candidateTypes.push(t);
       }
     }
+
+    let session = null;
+    let lastError = null;
+
+    for (const t of candidateTypes) {
+      // Attempt A: standard SDK v3 signature { email, token, token_hash, type }
+      try {
+        const payload = parsed.isHashFromUrl
+          ? { email: cleanEmail, token: parsed.token, token_hash: parsed.token, tokenHash: parsed.token, type: t }
+          : { email: cleanEmail, token: parsed.token, type: t };
+        session = await auth.verifyOtp(payload);
+        if (session) break;
+      } catch (errA) {
+        lastError = errA;
+      }
+
+      // Attempt B: token_hash-only signature (used when backend forbids email + token_hash together)
+      if (parsed.isHashFromUrl) {
+        try {
+          session = await auth.verifyOtp({ token_hash: parsed.token, tokenHash: parsed.token, token: parsed.token, type: t });
+          if (session) break;
+        } catch (errB) {
+          lastError = errB;
+        }
+      }
+    }
+
+    if (!session) {
+      throw lastError || new Error('Не удалось подтвердить токен/код.');
+    }
+
     const access = await checkAccess({ skipCacheFallback: true });
     notifyAccess(access.granted, { event: 'otp_verified', user: session?.user, devOverride: access.devOverride });
     return { session, access };
@@ -280,6 +361,7 @@ export function attachGlobalPaywallBridge({ AuthClient, BillingClient }) {
     config: PAYWALL_CONFIG,
     auth,
     billing,
+    parseVerificationInput,
     formatError,
     getCurrentUser,
     checkAccess,

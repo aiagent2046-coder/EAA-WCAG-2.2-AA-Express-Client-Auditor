@@ -1,6 +1,6 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with @monetize.software SDK 3.0",
   "scripts": {
