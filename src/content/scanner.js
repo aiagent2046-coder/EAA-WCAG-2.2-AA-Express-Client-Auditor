@@ -1,5 +1,6 @@
 (() => {
   const HUD_ID = 'wcag22-express-auditor-hud';
+  const SIM_STYLE_ID = 'wcag22-live-fix-sim-style';
 
   const INTERACTIVE_SELECTOR = [
     'a[href]',
@@ -27,6 +28,12 @@
     'summary',
     '[tabindex]:not([tabindex="-1"])'
   ].join(',');
+
+  function clearLiveSimulation() {
+    const prevStyle = document.getElementById(SIM_STYLE_ID);
+    if (prevStyle) prevStyle.remove();
+    window.__wcag22SimActive = false;
+  }
 
   function isElementRendered(el) {
     if (!(el instanceof Element)) return false;
@@ -124,8 +131,6 @@
     return label ? label.slice(0, 64) : `<${el.tagName.toLowerCase()}>`;
   }
 
-  // Returns nearest fixed/sticky stacking layer ancestor (or document.body for normal scrolling flow).
-  // Prevents false SC 2.5.8 collisions between sticky headers and scrolling page content underneath.
   function getLayerRoot(el) {
     let cur = el;
     while (cur && cur !== document.body && cur !== document.documentElement) {
@@ -141,7 +146,6 @@
     return document.body;
   }
 
-  // Canonical destination URL for Equivalent Target exception (W3C Understanding SC 2.5.8)
   function getCanonicalActionKey(el) {
     const anchor = el.tagName === 'A' ? el : el.closest('a[href]');
     if (anchor && anchor.href) {
@@ -207,7 +211,6 @@
       };
     });
 
-    // Build set of canonical destinations that ALREADY have a >= 24x24 CSS px control on the page
     const compliantActionKeys = new Set();
     for (const t of targets) {
       if (!t.undersized && t.actionKey) {
@@ -221,8 +224,6 @@
       if (!t.undersized) continue;
       if (isInlineTextException(t.el, t.style)) continue;
       if (isNativeUnstyledControl(t.el, t.style)) continue;
-
-      // W3C SC 2.5.8 Equivalent Exception: if an equivalent >=24x24px control achieves the identical destination
       if (t.actionKey && compliantActionKeys.has(t.actionKey)) continue;
 
       const wrappingLabel = t.el.closest('label');
@@ -236,11 +237,7 @@
         if (i === j) continue;
         const other = targets[j];
         if (t.el.contains(other.el) || other.el.contains(t.el)) continue;
-
-        // Ignore cross-layer overlaps (e.g. sticky top header vs scrolling carousel card underneath)
         if (t.layerRoot !== other.layerRoot) continue;
-
-        // Ignore sibling links inside a card pointing to the exact same canonical destination
         if (t.actionKey && other.actionKey && t.actionKey === other.actionKey) continue;
 
         const hitsBox = circleIntersectsRect(t.cx, t.cy, 12, other.rect);
@@ -264,6 +261,7 @@
           criterion: '2.5.8',
           level: 'AA',
           severity: 'fail',
+          hudCallout: `${w}×${h}px < 24px`,
           title: 'Target Size (Minimum) < 24x24 CSS px with spacing collision',
           elementLabel: getSnippetText(t.el),
           selector: getReadableSelector(t.el),
@@ -280,6 +278,7 @@
           criterion: '2.5.8',
           level: 'AA-spacing',
           severity: 'warning',
+          hudCallout: `${w}×${h}px (24px zone)`,
           title: 'Undersized target (< 24x24 px) relies on spacing exception',
           elementLabel: getSnippetText(t.el),
           selector: getReadableSelector(t.el),
@@ -369,7 +368,6 @@
     const rawFocusables = Array.from(document.querySelectorAll(FOCUSABLE_SELECTOR))
       .filter(el => isElementRendered(el) && el.tabIndex >= 0);
 
-    // Sort in true browser Tab order: positive tabindex ascending first, then DOM order (tabIndex === 0)
     const positiveTabs = rawFocusables
       .filter(el => el.tabIndex > 0)
       .sort((a, b) => a.tabIndex - b.tabIndex);
@@ -379,7 +377,6 @@
     const issues = [];
     const tabStops = [];
 
-    // Record initial tab-stop positions at original scroll before programmatic focus moves viewport
     focusables.forEach((el, idx) => {
       const r0 = el.getBoundingClientRect();
       tabStops.push({
@@ -400,6 +397,7 @@
           criterion: '2.4.3',
           level: 'A',
           severity: 'warning',
+          hudCallout: `tabindex="${explicitTabAttr}"`,
           title: `Positive tabindex="${explicitTabAttr}" disrupts natural keyboard focus order`,
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
@@ -413,7 +411,6 @@
     });
 
     for (const el of focusables) {
-      // Capture unfocused visual state on text inputs (where programmatic .focus() reliably activates :focus-visible)
       const isTextEntry = (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'file', 'color'].includes((el.type || '').toLowerCase())) ||
         el.tagName === 'TEXTAREA';
       let preFocusSig = null;
@@ -436,7 +433,6 @@
       const r = el.getBoundingClientRect();
       const stFocus = window.getComputedStyle(el);
 
-      // Check SC 2.4.7 Focus Visible / SC 2.4.13 Focus Appearance
       const outlineW = parseFloat(stFocus.outlineWidth) || 0;
       const hasOutline = stFocus.outlineStyle !== 'none' && outlineW > 0;
 
@@ -452,6 +448,7 @@
             criterion: '2.4.7',
             level: 'AA',
             severity: 'fail',
+            hudCallout: 'NO FOCUS RING (Tab)',
             title: 'Keyboard focus indicator suppressed (outline: none without replacement)',
             elementLabel: getSnippetText(el),
             selector: getReadableSelector(el),
@@ -474,6 +471,7 @@
               criterion: '2.4.13',
               level: 'AAA-warn',
               severity: 'warning',
+              hudCallout: `Focus ${ratio}:1 < 3:1`,
               title: `Low focus outline contrast (${ratio}:1 < 3:1 recommended)`,
               elementLabel: getSnippetText(el),
               selector: getReadableSelector(el),
@@ -534,6 +532,7 @@
           criterion: '2.4.11',
           level: 'AA',
           severity: 'fail',
+          hudCallout: `HIDDEN UNDER STICKY (${blockerH}px)`,
           title: 'Focused element is 100% obscured by sticky/fixed overlay (F110)',
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
@@ -552,6 +551,7 @@
           criterion: '2.4.11',
           level: 'AAA-warn',
           severity: 'warning',
+          hudCallout: `Overlap ${coveredPts}/9 pts`,
           title: `Focused element is partially obscured (${coveredPts}/9 points covered)`,
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
@@ -598,6 +598,7 @@
           criterion: '3.3.8',
           level: 'AA',
           severity: 'fail',
+          hudCallout: 'PASTE BLOCKED',
           title: 'Credential field blocks clipboard paste (breaks password managers)',
           elementLabel: getSnippetText(input),
           selector: getReadableSelector(input),
@@ -616,6 +617,7 @@
           criterion: '3.3.8',
           level: 'AA',
           severity: 'warning',
+          hudCallout: 'autocomplete="off"',
           title: 'Credential field disables autofill (autocomplete="off")',
           elementLabel: getSnippetText(input),
           selector: getReadableSelector(input),
@@ -628,7 +630,6 @@
       }
     }
 
-    // Check split 4-8 digit OTP inputs without one-time-code / paste support (W3C SC 3.3.8 Figure 3)
     const forms = Array.from(document.querySelectorAll('form, [role="form"], body'));
     const seenSplitContainers = new Set();
     for (const container of forms) {
@@ -646,6 +647,7 @@
               criterion: '3.3.8',
               level: 'AA',
               severity: 'warning',
+              hudCallout: 'Split OTP (no paste)',
               title: `Split ${singleCharInputs.length}-digit verification inputs lack autocomplete="one-time-code"`,
               elementLabel: getSnippetText(singleCharInputs[0]),
               selector: getReadableSelector(singleCharInputs[0]),
@@ -660,7 +662,6 @@
       }
     }
 
-    // Check Cognitive / Puzzle CAPTCHA widgets in auth flows (SC 3.3.8)
     const captchaCandidates = Array.from(document.querySelectorAll(
       'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="arkoselabs"], .g-recaptcha, .h-captcha, img[alt*="captcha" i]'
     )).filter(isElementRendered);
@@ -677,6 +678,7 @@
           criterion: '3.3.8',
           level: 'AA',
           severity: 'manual',
+          hudCallout: 'CAPTCHA Puzzle',
           title: 'CAPTCHA challenge detected — verify non-cognitive or object-recognition alternative',
           elementLabel: getSnippetText(cap),
           selector: getReadableSelector(cap),
@@ -689,8 +691,6 @@
       }
     }
 
-    // Check SC 3.3.7 Redundant Entry: shipping + billing address fields without "same as shipping" toggle,
-    // or checkout identity inputs explicitly disabling autocomplete="off"
     const allInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="password"]), select')).filter(isElementRendered);
     const hasShipping = allInputs.some(i => /ship/i.test(`${i.name} ${i.id} ${i.getAttribute('autocomplete') || ''}`));
     const hasBilling = allInputs.some(i => /bill/i.test(`${i.name} ${i.id} ${i.getAttribute('autocomplete') || ''}`));
@@ -708,6 +708,7 @@
           criterion: '3.3.7',
           level: 'A',
           severity: 'warning',
+          hudCallout: 'Duplicate Entry',
           title: 'Separate Shipping & Billing inputs detected without a "Same as shipping" toggle',
           elementLabel: getSnippetText(billInput),
           selector: getReadableSelector(billInput),
@@ -739,7 +740,6 @@
     const els = Array.from(document.querySelectorAll(dragSelectors)).filter(isElementRendered);
     const issues = [];
     for (const el of els) {
-      // Skip carousels/sliders that already expose visible Prev/Next or numeric single-pointer controls nearby!
       if (hasSinglePointerAlternative(el)) continue;
 
       const rect = el.getBoundingClientRect();
@@ -749,6 +749,7 @@
         criterion: '2.5.7',
         level: 'AA',
         severity: 'manual',
+        hudCallout: 'Drag-Only Risk',
         title: 'Draggable / slider widget has no detected single-pointer buttons nearby',
         elementLabel: getSnippetText(el),
         selector: getReadableSelector(el),
@@ -762,7 +763,6 @@
     return { issues, checkedCount: els.length };
   }
 
-  // Detect 3rd-party "accessibility overlay" widgets warned against by European regulators (EDF / IAAP)
   function auditAccessibilityOverlays() {
     const overlaySignatures = [
       { name: 'accessiBe', sel: 'script[src*="acsbapp.com"], #acsb-trigger, [class*="acsb-"]' },
@@ -783,6 +783,7 @@
           criterion: 'EN 301 549',
           level: 'EAA-Risk',
           severity: 'warning',
+          hudCallout: `Overlay: ${sig.name}`,
           title: `Third-party overlay widget (${sig.name}) detected — insufficient for EAA compliance`,
           elementLabel: sig.name,
           selector: getReadableSelector(node),
@@ -797,7 +798,6 @@
     return issues;
   }
 
-  // Extract SC 3.2.6 Consistent Help mechanisms & their landmark order for cross-page verification
   function extractConsistentHelpMechanisms() {
     const mechanisms = [];
     const seenTypes = new Set();
@@ -815,9 +815,9 @@
     for (const el of candidates) {
       const href = (el.getAttribute('href') || '').toLowerCase();
       const text = `${el.innerText || ''} ${el.getAttribute('aria-label') || ''} ${el.id || ''} ${el.className || ''}`.toLowerCase();
+      const visibleLabel = `${el.innerText || ''} ${el.getAttribute('aria-label') || ''}`.trim();
 
       let kind = null;
-      const visibleLabel = `${el.innerText || ''} ${el.getAttribute('aria-label') || ''}`.trim();
       if (href.startsWith('tel:')) kind = 'phone';
       else if (href.startsWith('mailto:')) kind = 'email';
       else if (/(?<![\p{L}\p{N}])(livechat|intercom|zendesk|crisp|chatbot|чат|онлайн-чат)(?![\p{L}\p{N}])/iu.test(text)) kind = 'chat';
@@ -848,6 +848,7 @@
     };
   }
 
+  // Visual X-Ray HUD with 24px Target-Radius Rings, Sticky Hazard Stripes & Live "Before / After Fix" Mode!
   function renderShadowHud(issues, tabStops, showWarnings = false, showTabMap = false) {
     let host = document.getElementById(HUD_ID);
     if (host) host.remove();
@@ -870,8 +871,8 @@
         position: absolute;
         box-sizing: border-box;
         pointer-events: none;
-        border-radius: 3px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 5px;
+        transition: all 0.22s ease;
       }
       .fails-only .box-warning,
       .fails-only .box-manual {
@@ -883,29 +884,95 @@
       .box.force-show {
         display: block !important;
       }
-      .box-fail { border: 2px solid #dc2626; background: rgba(220, 38, 38, 0.10); }
-      .box-warning { border: 2px dashed #d97706; background: rgba(217, 119, 6, 0.08); }
-      .box-manual { border: 2px dotted #2563eb; background: rgba(37, 99, 235, 0.08); }
+      .box-fail {
+        border: 2.5px solid #ef4444;
+        background: rgba(239, 68, 68, 0.14);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22), 0 4px 14px rgba(15, 23, 42, 0.28);
+      }
+      .box-obscured {
+        background: repeating-linear-gradient(
+          -45deg,
+          rgba(239, 68, 68, 0.26) 0px,
+          rgba(239, 68, 68, 0.26) 6px,
+          rgba(239, 68, 68, 0.08) 6px,
+          rgba(239, 68, 68, 0.08) 12px
+        );
+      }
+      .box-warning { border: 2px dashed #f59e0b; background: rgba(245, 158, 11, 0.10); }
+      .box-manual { border: 2px dotted #3b82f6; background: rgba(59, 130, 246, 0.10); }
+
+      /* Visual 24x24 CSS px Minimum Touch/Pointer Circle */
+      .target-ring-24 {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 24px;
+        height: 24px;
+        margin-left: -12px;
+        margin-top: -12px;
+        border-radius: 999px;
+        border: 1.5px dashed #ef4444;
+        background: rgba(239, 68, 68, 0.16);
+      }
+
       .badge {
         position: absolute;
-        top: -18px;
+        top: -22px;
         left: -2px;
-        font: 600 10px/14px ui-monospace, SFMono-Regular, Menlo, monospace;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font: 700 10.5px/15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: #ffffff;
-        padding: 1px 5px;
-        border-radius: 3px;
+        padding: 2px 7px;
+        border-radius: 999px;
         white-space: nowrap;
+        box-shadow: 0 3px 8px rgba(15, 23, 42, 0.35);
       }
       .badge.badge-below {
         top: auto;
-        bottom: -18px;
+        bottom: -22px;
       }
       .box-fail .badge { background: #dc2626; }
       .box-warning .badge { background: #d97706; }
       .box-manual .badge { background: #2563eb; }
+
+      /* Live Fix Simulation State ("AFTER" Green Mode) */
+      #hud-root.sim-fixed .box-fail {
+        border: 2.5px solid #10b981 !important;
+        background: rgba(16, 185, 129, 0.14) !important;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
+      }
+      #hud-root.sim-fixed .box-fail .badge {
+        background: #059669 !important;
+      }
+      #hud-root.sim-fixed .target-ring-24 {
+        border-color: #10b981 !important;
+        background: rgba(16, 185, 129, 0.15) !important;
+      }
+
+      .sim-toast {
+        position: fixed;
+        bottom: 18px;
+        right: 18px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        background: #064e3b;
+        color: #ecfdf5;
+        border: 1.5px solid #10b981;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font: 700 12.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+      }
+      #hud-root.sim-fixed .sim-toast {
+        display: inline-flex;
+      }
+
       .pulse {
         transform: scale(1.06);
-        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.35);
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.45) !important;
       }
       .tabmap-svg {
         position: absolute;
@@ -916,15 +983,15 @@
       }
       .tab-stop-dot {
         position: absolute;
-        width: 18px;
-        height: 18px;
-        margin-left: -9px;
-        margin-top: -9px;
+        width: 19px;
+        height: 19px;
+        margin-left: -9.5px;
+        margin-top: -9.5px;
         border-radius: 999px;
         background: #7c3aed;
         border: 2px solid #ffffff;
         color: #ffffff;
-        font: 700 9px/14px ui-monospace, monospace;
+        font: 700 9.5px/15px ui-monospace, monospace;
         text-align: center;
         box-shadow: 0 2px 6px rgba(15, 23, 42, 0.45);
       }
@@ -934,21 +1001,35 @@
     issues.forEach((issue, idx) => {
       if (!issue.bbox) return;
       const box = document.createElement('div');
-      box.className = `box box-${issue.severity}`;
+      const extraCls = issue.code === 'FOCUS_OBSCURED_FULL' ? ' box-obscured' : '';
+      box.className = `box box-${issue.severity}${extraCls}`;
       box.dataset.idx = String(idx);
-      box.style.left = `${Math.max(0, issue.bbox.x - 2)}px`;
-      box.style.top = `${Math.max(0, issue.bbox.y - 2)}px`;
-      box.style.width = `${Math.max(16, issue.bbox.w + 4)}px`;
-      box.style.height = `${Math.max(16, issue.bbox.h + 4)}px`;
+      box.style.left = `${Math.max(0, issue.bbox.x - 3)}px`;
+      box.style.top = `${Math.max(0, issue.bbox.y - 3)}px`;
+      box.style.width = `${Math.max(18, issue.bbox.w + 6)}px`;
+      box.style.height = `${Math.max(18, issue.bbox.h + 6)}px`;
+
+      if (issue.criterion === '2.5.8' && issue.severity === 'fail') {
+        const ring = document.createElement('span');
+        ring.className = 'target-ring-24';
+        box.appendChild(ring);
+      }
 
       const badge = document.createElement('span');
-      badge.className = issue.bbox.y < 22 ? 'badge badge-below' : 'badge';
-      badge.textContent = `#${idx + 1} · ${issue.criterion}`;
+      badge.className = issue.bbox.y < 26 ? 'badge badge-below' : 'badge';
+      const defaultLabel = `#${idx + 1} · ${issue.hudCallout || `SC ${issue.criterion}`}`;
+      badge.dataset.beforeText = defaultLabel;
+      badge.dataset.afterText = `#${idx + 1} · ИСПРАВЛЕНО (SC ${issue.criterion})`;
+      badge.textContent = defaultLabel;
       box.appendChild(badge);
       wrapper.appendChild(box);
     });
 
-    // Visual Tab-Stop Focus Order Map (Microsoft Accessibility Insights FastPass style)
+    const toast = document.createElement('div');
+    toast.className = 'sim-toast';
+    toast.textContent = '✨ Режим «ПОСЛЕ»: CSS-исправления WCAG 2.2 применены на странице';
+    wrapper.appendChild(toast);
+
     if (Array.isArray(tabStops) && tabStops.length > 0) {
       const tabLayer = document.createElement('div');
       tabLayer.className = 'tabmap-layer';
@@ -988,6 +1069,69 @@
     document.documentElement.appendChild(host);
   }
 
+  // Toggle live non-destructive CSS fix simulation directly on the client page!
+  function setLiveFixSimulation(enabled) {
+    clearLiveSimulation();
+    const host = document.getElementById(HUD_ID);
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    const audit = window.__wcag22LastAudit;
+
+    if (!enabled || !audit) {
+      if (root) {
+        root.classList.remove('sim-fixed');
+        root.querySelectorAll('.box-fail .badge').forEach(b => {
+          if (b.dataset.beforeText) b.textContent = b.dataset.beforeText;
+        });
+      }
+      return { ok: true, active: false };
+    }
+
+    const cssRules = [];
+    let maxScrollPad = 0;
+
+    audit.issues.forEach((iss, idx) => {
+      if (iss.severity !== 'fail') return;
+      if (iss.code === 'TARGET_COLLISION' && iss.selector && iss.selector !== 'unknown') {
+        cssRules.push(`${iss.selector} { min-width: 24px !important; min-height: 24px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }`);
+      } else if (iss.code === 'FOCUS_RING_SUPPRESSED' && iss.selector && iss.selector !== 'unknown') {
+        cssRules.push(`${iss.selector}, ${iss.selector}:focus, ${iss.selector}:focus-visible { outline: 3px solid #2563eb !important; outline-offset: 2px !important; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25) !important; }`);
+        const liveEl = window.__wcag22IssueElements?.[idx];
+        if (liveEl && liveEl.isConnected) {
+          try { liveEl.focus({ preventScroll: true }); } catch (_) {}
+        }
+      } else if (iss.code === 'FOCUS_OBSCURED_FULL') {
+        maxScrollPad = Math.max(maxScrollPad, (iss.params?.blockerH || 96) + 20);
+      }
+    });
+
+    if (maxScrollPad > 0) {
+      cssRules.push(`html { scroll-padding-top: ${maxScrollPad}px !important; }`);
+    }
+
+    const styleEl = document.createElement('style');
+    styleEl.id = SIM_STYLE_ID;
+    styleEl.textContent = cssRules.join('\n');
+    document.head.appendChild(styleEl);
+    window.__wcag22SimActive = true;
+
+    if (root) {
+      root.classList.add('sim-fixed');
+      root.querySelectorAll('.box-fail .badge').forEach((b, i) => {
+        if (b.dataset.afterText) b.textContent = b.dataset.afterText;
+        const liveEl = window.__wcag22IssueElements?.[Number(b.parentElement?.dataset?.idx)];
+        if (liveEl && liveEl.isConnected) {
+          const nr = liveEl.getBoundingClientRect();
+          b.parentElement.style.left = `${Math.max(0, nr.left + window.scrollX - 3)}px`;
+          b.parentElement.style.top = `${Math.max(0, nr.top + window.scrollY - 3)}px`;
+          b.parentElement.style.width = `${Math.max(18, nr.width + 6)}px`;
+          b.parentElement.style.height = `${Math.max(18, nr.height + 6)}px`;
+        }
+      });
+    }
+
+    return { ok: true, active: true, rulesApplied: cssRules.length };
+  }
+
   function computeReadinessScore(failCount, warnCount, checkedNodes) {
     if (checkedNodes <= 0) return 100;
     const penalty = failCount * 12 + Math.min(24, warnCount * 1.5);
@@ -995,6 +1139,7 @@
   }
 
   function runFullAudit() {
+    clearLiveSimulation();
     const startedAt = performance.now();
     const r258 = auditTargetSize258();
     const rFocus = auditFocusAndTabOrder();
@@ -1012,8 +1157,6 @@
       ...overlayIssues
     ].sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
 
-    // Preserve live DOM element pointers in page memory for ultra-accurate screenshot cropping,
-    // while stripping non-serializable `_el` from the returned JSON payload.
     window.__wcag22IssueElements = sortedWithRefs.map(item => item._el || null);
     const allIssues = sortedWithRefs.map(({ _el, ...serializable }) => serializable);
 
@@ -1030,7 +1173,7 @@
     const checkedNodes = r258.checkedCount + rFocus.checkedCount;
 
     const result = {
-      auditorVersion: '0.4.1',
+      auditorVersion: '0.5.0',
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,
       scannedAt: new Date().toISOString(),
@@ -1081,9 +1224,11 @@
           const box = root && root.querySelector(`[data-idx="${msg.index}"]`);
           if (box) {
             box.classList.add('force-show', 'pulse');
-            setTimeout(() => box.classList.remove('pulse'), 1100);
+            setTimeout(() => box.classList.remove('pulse'), 1400);
           }
           sendResponse({ ok: true });
+        } else if (msg.type === 'SIMULATE_FIXES') {
+          sendResponse(setLiveFixSimulation(Boolean(msg.enabled)));
         } else if (msg.type === 'TOGGLE_HUD') {
           if (host) host.style.display = msg.visible ? 'block' : 'none';
           sendResponse({ ok: true });
@@ -1100,15 +1245,12 @@
           }
           sendResponse({ ok: true });
         } else if (msg.type === 'SCROLL_FOR_CROP') {
+          clearLiveSimulation();
           const item = window.__wcag22LastAudit && window.__wcag22LastAudit.issues[msg.index];
           const liveEl = window.__wcag22IssueElements && window.__wcag22IssueElements[msg.index];
           if (item && item.bbox) {
-            if (root) {
-              root.classList.add('hide-tabmap');
-              root.querySelectorAll('.box').forEach(b => {
-                b.style.display = b.dataset.idx === String(msg.index) ? 'block' : 'none';
-              });
-            }
+            // Hide HUD boxes during raw screenshot capture because popup.js draws ultra-crisp vector Spotlight + Callout annotations directly onto the canvas!
+            if (host) host.style.display = 'none';
 
             if (liveEl && liveEl.isConnected) {
               const layer = getLayerRoot(liveEl);
@@ -1133,18 +1275,6 @@
                   height: item.bbox.h
                 };
 
-            const box = root && root.querySelector(`[data-idx="${msg.index}"]`);
-            if (box) {
-              box.style.left = `${Math.max(0, rectNow.left + window.scrollX - 2)}px`;
-              box.style.top = `${Math.max(0, rectNow.top + window.scrollY - 2)}px`;
-              box.style.width = `${Math.max(16, rectNow.width + 4)}px`;
-              box.style.height = `${Math.max(16, rectNow.height + 4)}px`;
-              const badge = box.querySelector('.badge');
-              if (badge) {
-                badge.classList.toggle('badge-below', rectNow.top < 22);
-              }
-            }
-
             sendResponse({
               ok: true,
               viewportRect: {
@@ -1152,6 +1282,8 @@
                 y: rectNow.top,
                 w: rectNow.width,
                 h: rectNow.height,
+                vw: window.innerWidth,
+                vh: window.innerHeight,
                 dpr: window.devicePixelRatio || 1
               }
             });
@@ -1159,6 +1291,7 @@
             sendResponse({ ok: false });
           }
         } else if (msg.type === 'RESTORE_HUD_AFTER_CROP') {
+          if (host) host.style.display = 'block';
           if (root) {
             root.classList.toggle('hide-tabmap', !window.__wcag22ShowTabMap);
             root.querySelectorAll('.box').forEach(b => {

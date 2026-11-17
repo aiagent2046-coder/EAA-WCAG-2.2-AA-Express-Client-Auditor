@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="google" content="notranslate">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WCAG 2.2 AA & EAA Compliance Audit Report</title>
+  <title>WCAG 2.2 AA &amp; EAA Compliance Audit Report</title>
   <link rel="stylesheet" href="report.css">
 </head>
 <body>
   <div class="toolbar no-print">
     <div class="toolbar-left">
       <strong id="ui-toolbar-title">Клиентский White-Label отчет</strong>
-      <span id="ui-toolbar-sub">Чистый A4 PDF без браузерных колонтитулов и технических URL</span>
+      <span id="ui-toolbar-sub">Визуальные доказательства нарушений и чистый A4 PDF без колонтитулов браузера</span>
     </div>
     <div class="toolbar-actions">
       <div class="lang-group" role="group" aria-label="Report Language">
@@ -19,7 +19,7 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="de">DE</button>
       </div>
-      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Разблокировать Pro</button>
+      <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Разблокировать Pro ($10/мес)</button>
       <button id="btn-account-pro" type="button" class="btn-outline" hidden>Pro Account</button>
       <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev: Test Unlock</button>
       <button id="btn-dl-md" type="button" class="btn-outline">.MD</button>
@@ -32,15 +32,24 @@
     <div class="locked-card">
       <div class="locked-row">
         <div class="locked-copy">
-          <strong id="ui-lock-title">White-Label экспорт заблокирован (Paywall #926)</strong>
-          <p id="ui-lock-sub">Активируйте Pro-доступ в 1 клик через Stripe (без кодов и писем подтверждения), чтобы открыть печать чистого A4 PDF, Markdown и Jira CSV.</p>
+          <strong id="ui-lock-title">Демо-режим: карточка №1 открыта для наглядной проверки!</strong>
+          <p id="ui-lock-sub">Посмотрите живой скриншот с разметкой дефекта ниже. Разблокируйте Pro в 1 клик через Stripe, чтобы открыть все карточки, убрать водяные замки и скачать чистый клиентский A4 PDF.</p>
         </div>
-        <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Оплатить / Восстановить Pro</button>
+        <button id="btn-banner-paywall" type="button" class="btn-upgrade-lg">Открыть полный отчет ($10/мес)</button>
       </div>
     </div>
   </div>
 
-  <!-- Direct 1-Click Stripe Checkout Modal (Zero Email Verification Friction) -->
+  <!-- Lightbox for full-size visual evidence inspection -->
+  <div id="img-lightbox" class="lightbox no-print" hidden>
+    <div class="lightbox-inner">
+      <button id="lightbox-close" type="button" class="lightbox-close" aria-label="Close">&times;</button>
+      <img id="lightbox-img" src="" alt="Visual Accessibility Evidence">
+      <div id="lightbox-caption" class="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <!-- Direct 1-Click Stripe Checkout Modal -->
   <div id="paywall-modal" class="pw-backdrop no-print" hidden>
     <div class="pw-dialog" role="dialog" aria-modal="true" aria-labelledby="pw-title">
       <div class="pw-head">
@@ -51,17 +60,15 @@
         <button id="pw-close" type="button" class="pw-close" aria-label="Close">&times;</button>
       </div>
 
-      <p id="pw-subtitle" class="pw-subtitle">Разблокируйте клиентский A4 PDF без водяных знаков, брендирование агентства и выгрузку задач в Markdown / Jira CSV.</p>
+      <p id="pw-subtitle" class="pw-subtitle">Разблокируйте все визуальные карточки со скриншотами, чистый A4 PDF с логотипом вашего агентства и выгрузку задач в Markdown / Jira CSV.</p>
 
       <div id="pw-alert" class="pw-alert" hidden></div>
 
-      <!-- Dynamic Plans Section -->
       <div id="pw-plans-wrap" class="pw-section">
         <div class="pw-label" id="pw-lbl-plan">Тарифный план</div>
         <div id="pw-plans-list" class="pw-plans-list"></div>
       </div>
 
-      <!-- Unpaid Direct Checkout Form (1-Step: Email -> Stripe!) -->
       <div id="pw-checkout-box" class="pw-section">
         <div class="pw-label" id="pw-lbl-email">Ваш рабочий Email (для квитанции Stripe и восстановления подписки)</div>
         <input id="pw-email" type="email" class="pw-input pw-input-block" placeholder="you@agency.com" autocomplete="email">
@@ -69,7 +76,6 @@
         <button id="pw-btn-restore" type="button" class="pw-btn pw-btn-ghost pw-btn-full pw-mt-sm">Уже покупали на этот Email? Восстановить доступ</button>
       </div>
 
-      <!-- Active Paid Account Box -->
       <div id="pw-session-box" class="pw-section" hidden>
         <div class="pw-user-bar">
           <span id="pw-user-email"></span>
@@ -78,7 +84,6 @@
         <button id="pw-btn-portal" type="button" class="pw-btn pw-btn-secondary pw-btn-full">Управление подпиской (Stripe Billing Portal)</button>
       </div>
 
-      <!-- Awaiting Stripe Checkout Auto-Poller -->
       <div id="pw-awaiting-box" class="pw-awaiting" hidden>
         <div class="pw-spinner-row">
           <span class="pw-dot-pulse"></span>
@@ -105,7 +110,7 @@
                 <img id="rep-logo" class="agency-logo" alt="Agency Logo" hidden>
                 <div>
                   <div class="eyebrow" id="ui-eyebrow">European Accessibility Act (EN 301 549 V4.1.1) · WCAG 2.2 Level AA</div>
-                  <h1 class="report-title" id="ui-title">Accessibility Delta Audit Report</h1>
+                  <h1 class="report-title" id="ui-title">Accessibility &amp; EAA Visual Audit Report</h1>
                   <div id="rep-agency" class="agency-meta">Prepared by Accessibility QA Team</div>
                 </div>
               </div>
@@ -126,7 +131,7 @@
               </div>
               <div class="s-card s-warn">
                 <div class="s-num" id="sum-warn">0</div>
-                <div class="s-lbl" id="ui-kpi-warn">Spacing &amp; Advisory Warnings</div>
+                <div class="s-lbl" id="ui-kpi-warn">Warnings &amp; EAA Risks</div>
               </div>
               <div class="s-card s-score">
                 <div class="s-num" id="sum-score">100%</div>
@@ -138,29 +143,40 @@
               </div>
             </section>
 
+            <!-- NEW Visual 4-Pillar Compliance Scorecard -->
+            <section id="pillars-grid" class="pillars-grid"></section>
+
             <section class="scope-note" id="ui-scope-note"></section>
 
             <section>
-              <h2 id="ui-sec-fails">1. Level AA Violations (Action Required)</h2>
+              <h2 id="ui-sec-fails">1. Level AA Violations — Visual Evidence &amp; Remediation</h2>
               <div id="fails-container" class="findings-list"></div>
+
+              <!-- Inline Show-First Teaser CTA shown right after Finding #1 when Free user views report! -->
+              <div id="inline-teaser-gate" class="inline-teaser-gate no-print" hidden>
+                <div class="teaser-gate-badge">PRO WHITE-LABEL REPORT</div>
+                <h3 id="ui-teaser-title">Выше показан открытый разбор №1 на вашем сайте</h3>
+                <p id="ui-teaser-desc">Разблокируйте остальные найденные проблемы с крупными размеченными скриншотами, готовым CSS-кодом, брендированием вашего агентства и экспортом чистого A4 PDF без водяных знаков.</p>
+                <button id="btn-inline-unlock" type="button" class="btn-upgrade-lg">Разблокировать полный отчет — $10/мес</button>
+              </div>
             </section>
 
-            <section id="warnings-section">
-              <h2 id="ui-sec-warns">2. Compact Advisory &amp; Spacing Digest (Passes AA via Spacing)</h2>
+            <section id="warnings-section" class="lockable-section">
+              <h2 id="ui-sec-warns">2. Compact Advisory, Focus Contrast &amp; Spacing Digest</h2>
               <table class="qa-table compact-table">
                 <thead>
                   <tr>
                     <th id="ui-th-w-crit">Criterion</th>
                     <th id="ui-th-w-el">Control &amp; Selector</th>
-                    <th id="ui-th-w-obs">Measured Geometry</th>
-                    <th id="ui-th-w-fix">Recommended Hardening CSS</th>
+                    <th id="ui-th-w-obs">Measured Telemetry</th>
+                    <th id="ui-th-w-fix">Recommended Remediation</th>
                   </tr>
                 </thead>
                 <tbody id="warnings-tbody"></tbody>
               </table>
             </section>
 
-            <section>
+            <section class="lockable-section">
               <h2 id="ui-sec-manual">3. Guided 10-Second Manual QA Sign-Off (SC 2.5.7 / 3.2.6 / 3.3.7)</h2>
               <table class="qa-table">
                 <thead>

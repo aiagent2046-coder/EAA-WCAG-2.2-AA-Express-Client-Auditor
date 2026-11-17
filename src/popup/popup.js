@@ -5,6 +5,7 @@ let activeFilter = 'all';
 let isPro = false;
 let isDevOverride = false;
 let billingEmail = '';
+let simFixActive = false;
 
 const btnScan = document.getElementById('btn-scan');
 const statusMsg = document.getElementById('status-msg');
@@ -12,6 +13,7 @@ const resultsPanel = document.getElementById('results-panel');
 const issuesList = document.getElementById('issues-list');
 const helpBar = document.getElementById('help-consistency-bar');
 const promoBanner = document.getElementById('promo-banner');
+const btnSimFix = document.getElementById('btn-sim-fix');
 const chkHud = document.getElementById('chk-hud');
 const chkWarnHud = document.getElementById('chk-warn-hud');
 const chkTabMapHud = document.getElementById('chk-tabmap-hud');
@@ -22,6 +24,24 @@ const btnSignOutPro = document.getElementById('btn-signout-pro');
 function showStatus(text) {
   statusMsg.textContent = text;
   statusMsg.hidden = !text;
+}
+
+function getHumanSummary(iss) {
+  const p = iss.params || {};
+  switch (iss.code) {
+    case 'TARGET_COLLISION':
+      return `Hit area is only ${p.w}×${p.h}px (needs 24×24px) — users with motor tremor or touch screens misclick adjacent controls.`;
+    case 'FOCUS_RING_SUPPRESSED':
+      return 'Invisible when pressing Tab — keyboard users lose track of where they are typing or clicking.';
+    case 'FOCUS_OBSCURED_FULL':
+      return `100% hidden behind sticky bar (${p.blockerH}px) when tabbed — keyboard users cannot see what they focused.`;
+    case 'AUTH_PASTE_BLOCKED':
+      return 'Blocks password manager paste — violates EAA cognitive accessibility requirements.';
+    case 'EAA_OVERLAY_DETECTED':
+      return `Uses ${p.vendor} overlay widget — rejected by EU accessibility regulators as non-compliant.`;
+    default:
+      return iss.title;
+  }
 }
 
 function updateProBadges() {
@@ -42,7 +62,7 @@ function updateProBadges() {
     btnSignOutPro.hidden = !(isPro && !isDevOverride);
   }
 
-  const manifest = chrome.runtime.getManifest();
+  const manifest = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : {};
   const devBtn = document.getElementById('btn-dev-unlock');
   if (!manifest.update_url && devBtn) {
     devBtn.hidden = false;
@@ -164,6 +184,19 @@ function renderHelpBar(audit) {
   }
 }
 
+function updateScoreMeter(score) {
+  const s = Math.max(5, Math.min(100, Number(score ?? 100)));
+  const valEl = document.getElementById('score-meter-val');
+  const fillEl = document.getElementById('score-fill');
+  if (valEl) {
+    valEl.textContent = `${s}%`;
+    valEl.style.color = s >= 85 ? '#34d399' : (s >= 60 ? '#fbbf24' : '#f87171');
+  }
+  if (fillEl) {
+    fillEl.style.width = `${s}%`;
+  }
+}
+
 function renderIssues() {
   if (!lastAudit) return;
   issuesList.replaceChildren();
@@ -190,27 +223,34 @@ function renderIssues() {
 
     const head = document.createElement('div');
     head.className = 'issue-head';
-    head.textContent = `#${idx + 1} · SC ${item.criterion} (${item.severity.toUpperCase()})`;
+    const pill = document.createElement('span');
+    pill.className = 'issue-pill';
+    pill.textContent = `#${idx + 1} · SC ${item.criterion} · ${item.severity.toUpperCase()}`;
 
-    const title = document.createElement('div');
-    title.className = 'issue-title';
-    title.textContent = item.title;
+    const spot = document.createElement('span');
+    spot.className = 'spot-btn';
+    spot.textContent = item.bbox ? 'Spotlight ↗' : '';
+    head.append(pill, spot);
 
-    const sel = document.createElement('div');
-    sel.className = 'issue-sel';
-    sel.textContent = `${item.selector} — ${item.actual}`;
+    const elBadge = document.createElement('div');
+    elBadge.className = 'issue-el-badge';
+    elBadge.textContent = item.elementLabel ? `"${item.elementLabel}"` : item.selector;
 
-    card.append(head, title, sel);
+    const impact = document.createElement('div');
+    impact.className = 'issue-impact';
+    impact.textContent = getHumanSummary(item);
 
-    if (isPro || cardPos < 3) {
+    card.append(head, elBadge, impact);
+
+    if (isPro || cardPos < 1) {
       const fix = document.createElement('div');
       fix.className = 'issue-fix';
-      fix.textContent = item.fixCode;
+      fix.textContent = `Fix: ${item.fixCode}`;
       card.appendChild(fix);
     } else {
       const locked = document.createElement('div');
       locked.className = 'issue-locked';
-      locked.textContent = 'Fix snippet & screenshot crop included in Pro Client Report';
+      locked.textContent = '🔒 Annotated screenshot & CSS fix in Visual Report →';
       card.appendChild(locked);
     }
 
@@ -224,23 +264,147 @@ function renderIssues() {
   });
 }
 
+// Vector Spotlight Evidence Studio: draws CleanShot-style spotlight vignette, red corner brackets,
+// 24px target circle or sticky hazard band, and high-contrast callout pill directly onto the screenshot!
+function annotateEvidenceCrop(dataUrl, rect, issue, badgeNum) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const dpr = rect.dpr || 1;
+      // Generous contextual crop (minimum 440x230 CSS px) so client clearly sees WHERE on the page the bug lives!
+      const ctxW = Math.max(440, rect.w + 180);
+      const ctxH = Math.max(230, rect.h + 130);
+
+      const centerX = rect.x + rect.w / 2;
+      const centerY = rect.y + rect.h / 2;
+
+      const maxCssW = img.width / dpr;
+      const maxCssH = img.height / dpr;
+
+      const cropCssX = Math.max(0, Math.min(maxCssW - ctxW, centerX - ctxW / 2));
+      const cropCssY = Math.max(0, Math.min(maxCssH - ctxH, centerY - ctxH / 2));
+      const actualCssW = Math.max(80, Math.min(maxCssW - cropCssX, ctxW));
+      const actualCssH = Math.max(60, Math.min(maxCssH - cropCssY, ctxH));
+
+      const sx = Math.round(cropCssX * dpr);
+      const sy = Math.round(cropCssY * dpr);
+      const sw = Math.round(actualCssW * dpr);
+      const sh = Math.round(actualCssH * dpr);
+
+      const outW = 640;
+      const scale = outW / actualCssW;
+      const outH = Math.round(actualCssH * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext('2d');
+
+      // 1. Draw full crisp page context
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+
+      // Element coordinates inside output canvas
+      const ex = (rect.x - cropCssX) * scale;
+      const ey = (rect.y - cropCssY) * scale;
+      const ew = Math.max(16, rect.w * scale);
+      const eh = Math.max(16, rect.h * scale);
+
+      // 2. Subtle CleanShot Spotlight Vignette around outside so target element pops!
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.34)';
+      ctx.beginPath();
+      ctx.rect(0, 0, outW, outH);
+      const spotPad = 10;
+      ctx.rect(
+        Math.max(0, ex - spotPad),
+        Math.max(0, ey - spotPad),
+        Math.min(outW, ew + spotPad * 2),
+        Math.min(outH, eh + spotPad * 2)
+      );
+      ctx.fill('evenodd');
+      ctx.restore();
+
+      // 3. Criterion-specific visual proof overlay
+      if (issue.code === 'FOCUS_OBSCURED_FULL') {
+        // Diagonal red hazard stripes showing sticky header obscuring the focused element
+        ctx.save();
+        ctx.fillStyle = 'rgba(220, 38, 38, 0.24)';
+        ctx.fillRect(ex - 4, ey - 4, ew + 8, eh + 8);
+        ctx.restore();
+      } else if (issue.criterion === '2.5.8') {
+        // Draw red 24px minimum target radius circle centered on control
+        const r24 = 12 * scale;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ex + ew / 2, ey + eh / 2, r24, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = '#ef4444';
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 4. Crisp Red Spotlight Frame + Glow around target element
+      ctx.save();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.65)';
+      ctx.shadowBlur = 10;
+      ctx.strokeRect(ex - 4, ey - 4, ew + 8, eh + 8);
+      ctx.restore();
+
+      // 5. High-contrast Callout Pill (auto-positioned below if near top edge!)
+      const pillText = `#${badgeNum} · SC ${issue.criterion} · ${issue.hudCallout || 'AA VIOLATION'}`;
+      ctx.save();
+      ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const tw = ctx.measureText(pillText).width;
+      const pw = tw + 20;
+      const ph = 26;
+      const px = Math.max(8, Math.min(outW - pw - 8, ex - 4));
+      const py = (ey - ph - 10 >= 6) ? (ey - ph - 10) : Math.min(outH - ph - 6, ey + eh + 10);
+
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(px, py, pw, ph, 6);
+      } else {
+        ctx.rect(px, py, pw, ph);
+      }
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pillText, px + 10, py + ph / 2 + 0.5);
+      ctx.restore();
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
 async function captureTopIssueCrops(audit, maxCrops = 10) {
   const enriched = structuredClone(audit);
   if (!currentTabId) return enriched;
 
   const seenGroupKeys = new Set();
   const targets = [];
+  let groupOrder = 0;
   enriched.issues.forEach((issue, idx) => {
     if (issue.severity !== 'fail' || !issue.bbox) return;
     const gKey = issue.componentGroupKey || issue.selector;
     if (seenGroupKeys.has(gKey)) return;
     seenGroupKeys.add(gKey);
+    groupOrder += 1;
     if (targets.length < maxCrops) {
-      targets.push({ issue, idx });
+      targets.push({ issue, idx, badgeNum: groupOrder });
     }
   });
 
-  for (const { issue, idx } of targets) {
+  for (const { issue, idx, badgeNum } of targets) {
     try {
       const pos = await chrome.tabs.sendMessage(currentTabId, { type: 'SCROLL_FOR_CROP', index: idx });
       if (!pos || !pos.ok) continue;
@@ -248,7 +412,7 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
       const shot = await chrome.runtime.sendMessage({ type: 'CAPTURE_VISIBLE_TAB', windowId: currentWindowId });
       if (!shot || !shot.dataUrl) continue;
 
-      issue.cropDataUrl = await cropDataUrl(shot.dataUrl, pos.viewportRect);
+      issue.cropDataUrl = await annotateEvidenceCrop(shot.dataUrl, pos.viewportRect, issue, badgeNum);
     } catch (_) {}
   }
 
@@ -259,33 +423,26 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
   return enriched;
 }
 
-function cropDataUrl(dataUrl, rect) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const dpr = rect.dpr || 1;
-      const pad = 34;
-      const desiredW = Math.max(160, Math.round((rect.w + pad * 2) * dpr));
-      const desiredH = Math.max(92, Math.round((rect.h + pad * 2) * dpr));
-      const sx = Math.max(0, Math.min(img.width - desiredW, Math.round((rect.x - pad) * dpr)));
-      const sy = Math.max(0, Math.min(img.height - desiredH, Math.round((rect.y - pad) * dpr)));
-      const sw = Math.max(40, Math.min(img.width - sx, desiredW));
-      const sh = Math.max(30, Math.min(img.height - sy, desiredH));
-
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.min(480, sw);
-      canvas.height = Math.round((canvas.width / sw) * sh);
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(null);
-    img.src = dataUrl;
-  });
+function syncSimButtonUI() {
+  if (!btnSimFix || !lastAudit) return;
+  const hasFails = lastAudit.counts.fail > 0;
+  btnSimFix.hidden = !hasFails;
+  btnSimFix.classList.toggle('is-active', simFixActive);
+  document.getElementById('sim-text').textContent = simFixActive
+    ? 'Showing AFTER Fix on Page (Click to View Broken State)'
+    : `Preview CSS Fixes Live on Page (${lastAudit.counts.fail} AA Fails)`;
 }
 
+btnSimFix?.addEventListener('click', async () => {
+  if (!currentTabId || !lastAudit) return;
+  simFixActive = !simFixActive;
+  await chrome.tabs.sendMessage(currentTabId, { type: 'SIMULATE_FIXES', enabled: simFixActive });
+  syncSimButtonUI();
+});
+
 btnScan.addEventListener('click', async () => {
-  showStatus('Scanning WCAG 2.2 AA geometry, focus rings & EAA layers...');
+  simFixActive = false;
+  showStatus('Scanning WCAG 2.2 AA geometry, focus X-Ray & EAA layers...');
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id || !tab.url || /^(chrome|edge|about|moz-extension):/i.test(tab.url)) {
@@ -317,7 +474,9 @@ btnScan.addEventListener('click', async () => {
     document.getElementById('cnt-fail').textContent = String(lastAudit.counts.fail);
     document.getElementById('cnt-warn').textContent = String(lastAudit.counts.warning);
     document.getElementById('cnt-manual').textContent = String(lastAudit.counts.manual);
-    document.getElementById('cnt-score').textContent = `${lastAudit.readinessScore ?? 100}%`;
+    document.getElementById('cnt-nodes').textContent = String(lastAudit.counts.checkedNodes);
+    updateScoreMeter(lastAudit.readinessScore);
+    syncSimButtonUI();
 
     showStatus(`Scanned ${lastAudit.counts.checkedNodes} controls (${lastAudit.counts.tabStops || 0} tab stops) in ${lastAudit.durationMs} ms`);
     resultsPanel.hidden = false;
@@ -381,7 +540,7 @@ document.getElementById('btn-save-brand').addEventListener('click', async () => 
 
 async function openReportTab(mode) {
   if (!lastAudit) return;
-  showStatus('Capturing crisp visual evidence & preparing report...');
+  showStatus('Rendering Spotlight visual evidence cards...');
   const enriched = await captureTopIssueCrops(lastAudit);
   await chrome.storage.local.set({ latestAuditReport: enriched, reportAutoAction: mode });
   chrome.tabs.create({ url: chrome.runtime.getURL(`src/report/report.html?mode=${encodeURIComponent(mode)}`) });
@@ -406,7 +565,7 @@ btnSignOutPro?.addEventListener('click', async () => {
   isPro = false;
   await refreshProStatus();
   renderIssues();
-  showStatus('Signed out of Pro license — Free tier & Paywall re-enabled.');
+  showStatus('Signed out of Pro license — Free tier & Visual Teaser enabled.');
 });
 
 document.getElementById('btn-dev-unlock').addEventListener('click', async () => {

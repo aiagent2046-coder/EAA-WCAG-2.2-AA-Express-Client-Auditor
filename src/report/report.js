@@ -5,10 +5,10 @@ let currentLang = 'ru';
 const I18N = {
   ru: {
     toolbarTitle: 'Клиентский White-Label отчет',
-    toolbarSub: 'Чистый A4 PDF без браузерных колонтитулов и технических URL',
+    toolbarSub: 'Наглядные скриншоты дефектов и чистый A4 PDF без колонтитулов браузера',
     btnPrint: 'Сохранить PDF для клиента',
     eyebrow: 'Европейский акт о доступности (EN 301 549 V4.1.1) · WCAG 2.2 Уровень AA',
-    title: 'Отчет об аудите доступности (WCAG 2.2 & EAA)',
+    title: 'Визуальный отчет об аудите доступности (WCAG 2.2 & EAA)',
     defaultAgency: 'Подготовлено командой аудита доступности (QA)',
     preparedBy: 'Исполнитель:',
     lblClient: 'Клиент / Проект',
@@ -21,8 +21,8 @@ const I18N = {
     kpiNodes: 'Проверено контролов DOM',
     verdictFail: n => `Требуются правки (ошибок AA: ${n})`,
     verdictPass: 'Автопроверки WCAG 2.2 AA пройдены',
-    scope: '<strong>Методология и охват (v0.4.1 Zero-FP Engine):</strong> детерминированная проверка геометрии, видимости фокуса и кросс-страничной навигации по критериям W3C WCAG 2.2 AA в рамках стандарта EN 301 549 V4.1.1 (SC 2.5.8 минимальный размер 24×24 CSS px с учетом исключений Equivalent и слоев sticky/fixed, SC 2.4.7 / 2.4.11 / 2.4.13 видимость, контраст и отсутствие перекрытия фокуса, SC 3.2.6 согласованная помощь между страницами, SC 3.3.7 / 3.3.8 доступная аутентификация без запрета вставки и избыточного ввода, SC 2.5.7 альтернативы перетаскиванию, а также проверка на рискованные виджеты-оверлеи). Для полной приемки EAA дополните отчет проверкой со скринридером.',
-    secFails: '1. Критические нарушения уровня AA (обязательно к исправлению)',
+    scope: '<strong>Методология и визуальная верификация (v0.5.0 Visual X-Ray):</strong> автоматический замер геометрии, видимости фокуса и кросс-страничной навигации по стандарту EN 301 549 V4.1.1 / W3C WCAG 2.2 AA с автоматической Spotlight-разметкой снимков экрана.',
+    secFails: '1. Критические нарушения уровня AA — визуальные доказательства и код исправления',
     zeroFails: 'Критических нарушений уровня WCAG 2.2 AA на текущем экране не обнаружено.',
     secWarns: '2. Сводная таблица предупреждений, контраста фокуса и отступов',
     thWCrit: 'Критерий',
@@ -37,11 +37,37 @@ const I18N = {
     fail: 'Ошибка',
     na: 'Н/П',
     tagFail: 'НАРУШЕНИЕ AA',
-    lblSelector: 'Селектор:',
-    lblFix: 'Рекомендация разработчику:',
+    lblSelector: 'Технический селектор:',
+    lblFix: 'Готовый CSS / HTML фикс:',
+    cropHint: 'Нажмите на снимок для увеличения ↗',
     m326: 'Глобальный макет — ссылка или виджет помощи/контактов расположены в едином порядке на всех страницах.',
     m326AutoPass: n => `Автоматически подтверждено расширением на ${n} стр. этого домена.`,
     m337: 'Многошаговые формы — ранее введенные пользователем данные подставляются автоматически без повторного ввода.',
+    pillars: {
+      target: '1. Зоны клика и моторика (SC 2.5.8)',
+      focus: '2. Видимость и слой фокуса (SC 2.4.7 / 2.4.11)',
+      auth: '3. Вход без барьеров и формы (SC 3.3.7 / 3.3.8)',
+      nav: '4. Порядок Tab, помощь и EAA (SC 2.4.3 / 3.2.6)',
+      ok: 'В норме',
+      warn: n => `Риск (${n})`,
+      fail: n => `Ошибки AA (${n})`
+    },
+    humanImpact(iss) {
+      switch (iss.code) {
+        case 'TARGET_COLLISION':
+          return '👆 Риск для пользователя: слишком мелкая кнопка вплотную к соседней — люди с тремором рук и пользователи смартфонов промахиваются при нажатии.';
+        case 'FOCUS_RING_SUPPRESSED':
+          return '⌨️ Риск для пользователя: при переходе клавишей Tab поле никак не подсвечивается — незрячие и моторные пользователи теряют курсор на странице.';
+        case 'FOCUS_OBSCURED_FULL':
+          return '🧱 Риск для пользователя: элемент получает фокус клавиатуры, но на 100% спрятан под прилипшей шапкой — пользователь не видит, куда нажимает Enter.';
+        case 'AUTH_PASTE_BLOCKED':
+          return '🔐 Риск для пользователя: заблокирована вставка пароля из менеджера паролей — прямое нарушение когнитивной доступности EAA.';
+        case 'CONSISTENT_HELP_MISMATCH':
+          return '🧭 Риск для пользователя: блок помощи прыгает в разные места макета на разных страницах сайта.';
+        default:
+          return '⚠️ Нарушение доступности интерфейса по стандарту EN 301 549 / WCAG 2.2 Level AA.';
+      }
+    },
     issueTitle(iss) {
       const p = iss.params || {};
       switch (iss.code) {
@@ -91,7 +117,7 @@ const I18N = {
         case 'FOCUS_OBSCURED_PARTIAL':
           return `Частично перекрыт слоем ${p.blocker} (${p.coveredPts}/9 точек)`;
         case 'FOCUS_RING_SUPPRESSED':
-          return 'При фокусировке с клавиатуры отсутствуют контур outline, тень box-shadow и изменение границы';
+          return `Поле «${iss.elementLabel}»: отсутствуют контур outline, тень box-shadow и изменение границы при фокусе`;
         case 'FOCUS_APPEARANCE_LOW':
           return `Контраст контура фокуса ${p.ratio}:1 (толщина ${p.outlineW}px)`;
         case 'TABINDEX_POSITIVE':
@@ -114,11 +140,11 @@ const I18N = {
     }
   },
   en: {
-    toolbarTitle: 'White-Label Client Report',
-    toolbarSub: 'Clean A4 PDF without browser headers or extension URLs',
+    toolbarTitle: 'White-Label Visual Client Report',
+    toolbarSub: 'Spotlight-annotated visual proof & clean A4 PDF without browser headers',
     btnPrint: 'Save Client PDF',
     eyebrow: 'European Accessibility Act (EN 301 549 V4.1.1) · WCAG 2.2 Level AA',
-    title: 'Accessibility & EAA Compliance Audit Report',
+    title: 'Accessibility & EAA Visual Audit Report',
     defaultAgency: 'Prepared by Accessibility QA Team',
     preparedBy: 'Prepared by',
     lblClient: 'Client / Project',
@@ -131,8 +157,8 @@ const I18N = {
     kpiNodes: 'Evaluated DOM Controls',
     verdictFail: n => `Action Required (${n} AA Fails)`,
     verdictPass: 'Passed Automated WCAG 2.2 AA',
-    scope: '<strong>Scope & Methodology (v0.4.1 Zero-FP Engine):</strong> Deterministic browser geometry, focus-indicator contrast, and cross-page consistency inspection against W3C WCAG 2.2 Level AA criteria under EN 301 549 V4.1.1 (SC 2.5.8 Target Size Minimum 24×24 CSS px with Equivalent & fixed/sticky stacking-layer exemptions, SC 2.4.7 / 2.4.11 / 2.4.13 Focus Visibility, Contrast & Non-Obscuration, SC 3.2.6 Cross-Page Consistent Help, SC 3.3.7 / 3.3.8 Accessible Authentication & Redundant Entry, SC 2.5.7 Dragging Alternatives, and EU Accessibility Overlay detection). Pair with assistive screen-reader testing prior to formal EAA sign-off.',
-    secFails: '1. Level AA Violations (Remediation Required)',
+    scope: '<strong>Scope & Visual Evidence (v0.5.0 Visual X-Ray):</strong> Deterministic DOM geometry, focus-indicator contrast, and cross-page consistency inspection under EN 301 549 V4.1.1 / W3C WCAG 2.2 AA with automated Spotlight screenshot annotations.',
+    secFails: '1. Level AA Violations — Visual Proof & Developer Remediation',
     zeroFails: 'Zero automated WCAG 2.2 Level AA violations detected on this viewport.',
     secWarns: '2. Compact Advisory, Focus Contrast & Spacing Digest',
     thWCrit: 'Criterion',
@@ -147,20 +173,44 @@ const I18N = {
     fail: 'Fail',
     na: 'N/A',
     tagFail: 'AA FAIL',
-    lblSelector: 'Selector:',
-    lblFix: 'Developer Fix:',
+    lblSelector: 'DOM Selector:',
+    lblFix: 'Ready-to-Apply Fix:',
+    cropHint: 'Click screenshot to zoom full size ↗',
     m326: 'Global layout — verify help/contact link or widget appears in consistent relative order across pages.',
     m326AutoPass: n => `Automatically verified across ${n} audited pages on this domain.`,
     m337: 'Multi-step forms — verify previously entered user data is auto-populated or selectable without re-typing.',
+    pillars: {
+      target: '1. Pointer & Touch Targets (SC 2.5.8)',
+      focus: '2. Focus Ring & Sticky Layers (SC 2.4.7 / 2.4.11)',
+      auth: '3. Frictionless Login & Forms (SC 3.3.7 / 3.3.8)',
+      nav: '4. Tab Order, Help & EAA Risk (SC 2.4.3 / 3.2.6)',
+      ok: 'Passed',
+      warn: n => `Warnings (${n})`,
+      fail: n => `AA Fails (${n})`
+    },
+    humanImpact(iss) {
+      switch (iss.code) {
+        case 'TARGET_COLLISION':
+          return '👆 User Impact: Undersized hit box collides with adjacent control — causes misclicks for mobile & motor-impaired users.';
+        case 'FOCUS_RING_SUPPRESSED':
+          return '⌨️ User Impact: Focus indicator disappears when pressing Tab — keyboard-only users cannot see where they are.';
+        case 'FOCUS_OBSCURED_FULL':
+          return '🧱 User Impact: Focused control is 100% trapped behind a sticky bar — keyboard users press Enter blindly.';
+        case 'AUTH_PASTE_BLOCKED':
+          return '🔐 User Impact: Password manager paste is blocked — fails EAA cognitive accessibility mandate.';
+        default:
+          return '⚠️ Violates mandatory EN 301 549 / WCAG 2.2 Level AA accessibility requirements.';
+      }
+    },
     issueTitle: iss => iss.title,
     issueObs: iss => `${iss.elementLabel ? `"${iss.elementLabel}" — ` : ''}${iss.actual}`
   },
   de: {
     toolbarTitle: 'White-Label-Prüfbericht (BFSG / EAA)',
-    toolbarSub: 'Sauberer A4-PDF-Export ohne Browser-Fußzeilen',
+    toolbarSub: 'Visuelle Fehlerbelege & sauberer A4-PDF-Export',
     btnPrint: 'Kunden-PDF speichern',
     eyebrow: 'Barrierefreiheitsstärkungsgesetz (BFSG · EN 301 549 V4.1.1) · WCAG 2.2 Stufe AA',
-    title: 'Prüfbericht zur digitalen Barrierefreiheit (WCAG 2.2 & EAA)',
+    title: 'Visueller Prüfbericht zur Barrierefreiheit (WCAG 2.2 & EAA)',
     defaultAgency: 'Erstellt vom Accessibility-QA-Team',
     preparedBy: 'Prüfstelle:',
     lblClient: 'Kunde / Projekt',
@@ -173,8 +223,8 @@ const I18N = {
     kpiNodes: 'Geprüfte DOM-Elemente',
     verdictFail: n => `Handlungsbedarf (${n} AA-Verstöße)`,
     verdictPass: 'Automatische WCAG-2.2-Prüfung bestanden',
-    scope: '<strong>Methodik & Prüfumfang (v0.4.1 Zero-FP Engine):</strong> Deterministische DOM-Geometrie-, Fokus-Kontrast- und Konsistenzprüfung gemäß W3C WCAG 2.2 Stufe AA im Rahmen der EN 301 549 V4.1.1 / BFSG (SC 2.5.8 Mindestzielgröße 24×24 CSS px inkl. Äquivalenz- und Ebenen-Ausnahmen, SC 2.4.7 / 2.4.11 / 2.4.13 Fokus-Sichtbarkeit, SC 3.2.6 Konsistente Hilfe, SC 3.3.7 / 3.3.8 Authentifizierung & Redundante Eingabe, SC 2.5.7 Ziehvorgänge sowie Overlay-Risikoerkennung).',
-    secFails: '1. Kritische Verstöße der Stufe AA (Korrektur erforderlich)',
+    scope: '<strong>Methodik & Visuelle Belege (v0.5.0 Visual X-Ray):</strong> Deterministische DOM-Geometrie- und Fokus-Prüfung gemäß EN 301 549 V4.1.1 / BFSG mit automatischer Spotlight-Screenshot-Markierung.',
+    secFails: '1. Kritische Verstöße der Stufe AA — Visuelle Belege & Korrekturcode',
     zeroFails: 'Keine automatisierten Verstöße der Stufe WCAG 2.2 AA im aktuellen Viewport festgestellt.',
     secWarns: '2. Kompakte Übersicht der Warnungen, Fokuskontraste & Abstände',
     thWCrit: 'Kriterium',
@@ -191,39 +241,26 @@ const I18N = {
     tagFail: 'AA-VERSTOSS',
     lblSelector: 'Selektor:',
     lblFix: 'Entwickler-Korrektur:',
+    cropHint: 'Zum Vergrößern anklicken ↗',
     m326: 'Seitenlayout — Hilfe-/Kontaktoptionen erscheinen auf allen Unterseiten an derselben relativen Position.',
     m326AutoPass: n => `Automatisch über ${n} geprüfte Unterseiten dieser Domain bestätigt.`,
     m337: 'Mehrstufige Formulare — bereits eingegebene Daten werden ohne erneutes Eintippen übernommen.',
-    issueTitle(iss) {
-      const p = iss.params || {};
-      switch (iss.code) {
-        case 'TARGET_COLLISION':
-          return 'Klickfläche kleiner als 24×24 CSS px mit Abstands-Kollision';
-        case 'TARGET_SPACING_PASS':
-          return 'Klickfläche unter 24×24 px (besteht nur über Abstandsregel)';
-        case 'FOCUS_OBSCURED_FULL':
-          return 'Fokussiertes Element zu 100 % durch fixierten Header/Banner verdeckt (F110)';
-        case 'FOCUS_RING_SUPPRESSED':
-          return 'Tastatur-Fokusindikator unterdrückt (outline: none ohne Ersatz)';
-        case 'CONSISTENT_HELP_MISMATCH':
-          return `Hilfe-Element (${p.kind}) wechselt die Layout-Position zwischen Unterseiten`;
-        case 'AUTH_PASTE_BLOCKED':
-          return 'Passwortfeld blockiert Einfügen aus der Zwischenablage';
-        case 'EAA_OVERLAY_DETECTED':
-          return `Drittanbieter-Overlay (${p.vendor}) erkannt — kein gültiger BFSG/EAA-Nachweis`;
-        default:
-          return iss.title;
-      }
+    pillars: {
+      target: '1. Klickflächen & Motorik (SC 2.5.8)',
+      focus: '2. Fokus-Sichtbarkeit & Layer (SC 2.4.7 / 2.4.11)',
+      auth: '3. Barrierefreier Login & Formulare (SC 3.3.7 / 3.3.8)',
+      nav: '4. Tab-Reihenfolge, Hilfe & BFSG (SC 2.4.3 / 3.2.6)',
+      ok: 'Bestanden',
+      warn: n => `Warnungen (${n})`,
+      fail: n => `AA-Fehler (${n})`
     },
-    issueObs(iss) {
-      const p = iss.params || {};
-      if (iss.code === 'TARGET_COLLISION') return `„${iss.elementLabel}“: ${p.w} × ${p.h} px — kollidiert mit ${p.neighbor}`;
-      if (iss.code === 'TARGET_SPACING_PASS') return `${p.w} × ${p.h} px (24px-Kreis frei)`;
-      if (iss.code === 'FOCUS_OBSCURED_FULL') return `100 % verdeckt durch ${p.blocker} (${p.blockerH}px)`;
-      if (iss.code === 'AUTH_PASTE_BLOCKED') return 'Einfügen (paste) im Passwortfeld per Skript blockiert';
-      if (iss.code === 'AUTH_AUTOCOMPLETE_OFF') return 'Attribut autocomplete="off" verhindert Passwort-Manager-Autofill';
-      return iss.actual;
-    }
+    humanImpact(iss) {
+      if (iss.code === 'FOCUS_RING_SUPPRESSED') return '⌨️ Nutzer-Auswirkung: Unsichtbarer Tastaturfokus — Tastaturnutzer verlieren die Orientierung.';
+      if (iss.code === 'FOCUS_OBSCURED_FULL') return '🧱 Nutzer-Auswirkung: Fokussiertes Element komplett hinter fixiertem Header verborgen.';
+      return '⚠️ Verstoß gegen verbindliche BFSG / EN 301 549 Barrierefreiheits-Anforderungen.';
+    },
+    issueTitle: iss => iss.title,
+    issueObs: iss => iss.actual
   }
 };
 
@@ -329,6 +366,100 @@ function formatRepeatedLabels(items) {
   return `${countBadge}${sampleLabels}${moreSuffix}`;
 }
 
+function renderPillarDashboard(audit, t) {
+  const grid = document.getElementById('pillars-grid');
+  if (!grid) return;
+  grid.replaceChildren();
+
+  const defs = [
+    { key: 'target', match: i => i.criterion === '2.5.8' },
+    { key: 'focus', match: i => ['2.4.7', '2.4.11', '2.4.13'].includes(i.criterion) },
+    { key: 'auth', match: i => ['3.3.7', '3.3.8'].includes(i.criterion) },
+    { key: 'nav', match: i => ['2.4.3', '2.5.7', '3.2.6', 'EN 301 549'].includes(i.criterion) }
+  ];
+
+  for (const d of defs) {
+    const subset = audit.issues.filter(d.match);
+    const fCnt = subset.filter(i => i.severity === 'fail').length;
+    const wCnt = subset.filter(i => i.severity !== 'fail').length;
+
+    let state = 'pass';
+    let pct = 100;
+    let statusText = t.pillars.ok;
+    if (fCnt > 0) {
+      state = 'fail';
+      pct = Math.max(18, 100 - fCnt * 28 - Math.min(20, wCnt * 4));
+      statusText = t.pillars.fail(fCnt);
+    } else if (wCnt > 0) {
+      state = 'warn';
+      pct = Math.max(58, 95 - Math.min(35, wCnt * 3));
+      statusText = t.pillars.warn(wCnt);
+    }
+
+    const card = document.createElement('div');
+    card.className = 'pillar-card';
+    card.innerHTML = `
+      <div class="pillar-top">
+        <span class="pillar-name">${t.pillars[d.key]}</span>
+        <span class="pillar-status is-${state}">${statusText}</span>
+      </div>
+      <div class="pillar-bar">
+        <div class="pillar-fill is-${state}" style="width:${pct}%"></div>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function openLightbox(src, caption) {
+  const lb = document.getElementById('img-lightbox');
+  const img = document.getElementById('lightbox-img');
+  const cap = document.getElementById('lightbox-caption');
+  if (!lb || !img) return;
+  img.src = src;
+  if (cap) cap.textContent = caption || '';
+  lb.hidden = false;
+}
+
+document.getElementById('lightbox-close')?.addEventListener('click', () => {
+  document.getElementById('img-lightbox').hidden = true;
+});
+document.getElementById('img-lightbox')?.addEventListener('click', e => {
+  if (e.target.id === 'img-lightbox') document.getElementById('img-lightbox').hidden = true;
+});
+
+function updateInlineTeaserVisibility() {
+  const gate = document.getElementById('inline-teaser-gate');
+  if (!gate) return;
+  if (reportProUnlocked || !auditData) {
+    gate.hidden = true;
+    return;
+  }
+  const hasLockedContent = auditData.issues.length > 0;
+  gate.hidden = !hasLockedContent;
+
+  const titleEl = document.getElementById('ui-teaser-title');
+  const descEl = document.getElementById('ui-teaser-desc');
+  const btnEl = document.getElementById('btn-inline-unlock');
+
+  const remCount = Math.max(0, auditData.issues.length - 1);
+  if (currentLang === 'ru') {
+    titleEl.textContent = auditData.counts.fail > 0
+      ? 'Вы видите реальный визуальный разбор дефекта №1 на вашем сайте'
+      : 'Предварительный срез готов — откройте полную таблицу рекомендаций и экспорт PDF';
+    descEl.textContent = `В полном Pro-отчете доступны еще ${remCount} проверенных элементов, крупные Spotlight-скриншоты всех ошибок, логотип вашего агентства и печать чистого A4 PDF без водяных знаков.`;
+    btnEl.textContent = 'Разблокировать весь отчет и PDF — $10/мес';
+  } else if (currentLang === 'de') {
+    titleEl.textContent = 'Oben sehen Sie den vollständigen visuellen Beleg #1 Ihrer Seite';
+    descEl.textContent = `Schalten Sie ${remCount} weitere Prüfpunkte, alle Spotlight-Screenshots, Agentur-Branding und den sauberen A4-PDF-Export frei.`;
+    btnEl.textContent = 'Vollständigen Bericht & PDF freischalten — $10/Monat';
+  } else {
+    titleEl.textContent = 'Above is live visual evidence #1 captured directly on your site';
+    descEl.textContent = `Unlock ${remCount} additional findings with Spotlight screenshots, custom agency White-Label branding, Jira CSV export, and clean A4 PDF printing.`;
+    btnEl.textContent = 'Unlock Full Visual Report & PDF — $10/mo';
+  }
+}
+
 function renderReport() {
   if (!auditData) return;
   const t = I18N[currentLang];
@@ -374,7 +505,7 @@ function renderReport() {
     : t.defaultAgency;
 
   document.getElementById('rep-client').textContent = brandData.clientName || auditData.pageTitle || 'Web Property';
-  document.getElementById('rep-url').textContent = auditData.url;
+  const rawUrl = String(auditData.url || ''); const urlEl = document.getElementById('rep-url'); urlEl.textContent = rawUrl.length > 96 ? rawUrl.slice(0, 93) + '…' : rawUrl; urlEl.title = rawUrl;
   document.getElementById('rep-date').textContent = new Date(auditData.scannedAt).toLocaleString(currentLang);
   document.getElementById('rep-vp').textContent = auditData.viewport;
 
@@ -382,6 +513,8 @@ function renderReport() {
   document.getElementById('sum-warn').textContent = String(auditData.counts.warning);
   document.getElementById('sum-score').textContent = `${auditData.readinessScore ?? 100}%`;
   document.getElementById('sum-nodes').textContent = String(auditData.counts.checkedNodes);
+
+  renderPillarDashboard(auditData, t);
 
   const verdict = document.getElementById('rep-verdict');
   if (auditData.counts.fail > 0) {
@@ -392,7 +525,7 @@ function renderReport() {
     verdict.className = 'verdict-pill verdict-pass';
   }
 
-  // 1. Render Critical AA Fails (grouped by component signature so repeated cards stay crisp)
+  // 1. Render Critical AA Fails — Card #1 is ALWAYS unblurred (Show-First visual proof!), Cards #2+ get .is-locked-finding when unpaid
   const failsContainer = document.getElementById('fails-container');
   failsContainer.replaceChildren();
   const fails = auditData.issues.filter(i => i.severity === 'fail');
@@ -407,7 +540,8 @@ function renderReport() {
     failGroups.forEach((items, i) => {
       const iss = items.find(x => x.cropDataUrl) || items[0];
       const card = document.createElement('div');
-      card.className = 'finding';
+      // Card index 0 stays completely unblurred in Free mode so client sees full visual value!
+      card.className = i === 0 ? 'finding is-sample-unlocked' : 'finding is-locked-finding';
 
       const top = document.createElement('div');
       top.className = 'finding-top';
@@ -419,8 +553,12 @@ function renderReport() {
       tag.textContent = `SC ${iss.criterion} · ${t.tagFail}`;
       top.append(strong, tag);
 
+      const impact = document.createElement('div');
+      impact.className = 'impact-callout';
+      impact.textContent = t.humanImpact(iss);
+
       const body = document.createElement('div');
-      body.className = 'finding-body';
+      body.className = iss.cropDataUrl ? 'finding-body' : 'finding-body no-crop';
 
       const details = document.createElement('div');
       const obs = document.createElement('div');
@@ -440,19 +578,36 @@ function renderReport() {
       body.appendChild(details);
 
       if (iss.cropDataUrl) {
+        const fig = document.createElement('figure');
+        fig.className = 'crop-figure';
         const img = document.createElement('img');
         img.className = 'crop-img';
         img.src = iss.cropDataUrl;
         img.alt = iss.selector;
-        body.appendChild(img);
+        const cap = document.createElement('figcaption');
+        cap.className = 'crop-caption no-print';
+        cap.textContent = t.cropHint;
+        fig.append(img, cap);
+        fig.addEventListener('click', () => {
+          if (i === 0 || reportProUnlocked) {
+            openLightbox(iss.cropDataUrl, `${i + 1}. ${t.issueTitle(iss)}`);
+          } else {
+            triggerPaywallModal();
+          }
+        });
+        body.appendChild(fig);
       }
 
-      card.append(top, body);
+      card.append(top, impact, body);
       failsContainer.appendChild(card);
+      if (i === 0 && failGroups.length > 1) {
+        const gateEl = document.getElementById("inline-teaser-gate");
+        if (gateEl) failsContainer.appendChild(gateEl);
+      }
     });
   }
 
-  // 2. Render Warnings in a compact component-grouped table (normalizes numeric IDs like #gl-link-241650 -> #gl-link-#)
+  // 2. Warnings Digest
   const warns = auditData.issues.filter(i => i.severity === 'warning');
   const warnSection = document.getElementById('warnings-section');
   const warnTbody = document.getElementById('warnings-tbody');
@@ -501,7 +656,7 @@ function renderReport() {
     }
   }
 
-  // 3. Guided Manual QA table (with automatic SC 3.2.6 cross-page status when >= 2 pages scanned!)
+  // 3. Manual QA table
   const manualTbody = document.getElementById('manual-tbody');
   manualTbody.replaceChildren();
 
@@ -547,18 +702,20 @@ function renderReport() {
     tr.append(tdC, tdS, tdCheck);
     manualTbody.appendChild(tr);
   });
+
+  updateInlineTeaserVisibility();
 }
 
 const PAYWALL_I18N = {
   ru: {
-    btnUnlockToolbar: 'Разблокировать Pro',
+    btnUnlockToolbar: 'Разблокировать Pro ($10/мес)',
     btnAccountToolbar: 'Аккаунт Pro',
-    btnOpenBanner: 'Оплатить / Восстановить Pro',
-    lockTitle: 'White-Label экспорт заблокирован (Paywall #926)',
-    lockSub: 'Перейдите сразу к оплате картой в Stripe без писем подтверждения и кодов, чтобы разблокировать A4 PDF, Markdown и Jira CSV.',
+    btnOpenBanner: 'Открыть полный отчет ($10/мес)',
+    lockTitle: 'Демо-режим: карточка №1 открыта со скриншотом и готовым CSS-кодом!',
+    lockSub: 'Убедитесь в наглядности разбора на вашем сайте ниже. Оплатите Pro в 1 клик через Stripe, чтобы открыть остальные карточки, логотип агентства и чистый A4 PDF.',
     noAuditYet: 'Сначала запустите аудит на любой веб-странице через иконку расширения (или активируйте Pro кнопкой выше).',
     modalTitle: 'Express Client Auditor Pro',
-    modalSub: 'Прямая активация через Stripe без регистрации и писем подтверждения: клиентские A4 PDF без водяных знаков, логотип агентства и экспорт в Markdown / Jira CSV.',
+    modalSub: 'Прямая активация через Stripe без регистрации и писем подтверждения: все визуальные карточки со скриншотами, логотип вашего агентства и экспорт A4 PDF / Jira CSV.',
     lblPlan: 'Тарифный план (Paywall #926)',
     lblEmail: 'Email для квитанции Stripe и привязки лицензии',
     phEmail: 'you@agency.com',
@@ -573,19 +730,19 @@ const PAYWALL_I18N = {
     btnReopenUrl: 'Открыть оплату снова',
     loadingPlans: 'Загрузка тарифа с appbox.space...',
     noPlans: 'У Paywall #926 пока нет активных тарифов во вкладке «Цены».',
-    unlockedSuccess: 'Оплата подтверждена! White-Label Pro экспорт разблокирован.',
+    unlockedSuccess: 'Оплата подтверждена! Все скриншоты и White-Label PDF экспорт разблокированы.',
     notPaidYet: 'Активная оплата для этого Email пока не найдена — завершите платеж во вкладке Stripe и нажмите кнопку еще раз.',
     trialDays: n => `Пробный период: ${n} дн.`
   },
   en: {
-    btnUnlockToolbar: 'Unlock Pro',
+    btnUnlockToolbar: 'Unlock Pro ($10/mo)',
     btnAccountToolbar: 'Pro Account',
-    btnOpenBanner: 'Upgrade / Restore Pro',
-    lockTitle: 'White-Label Export Locked (Paywall #926)',
-    lockSub: 'Proceed directly to Stripe Checkout in one click (no verification emails or OTP codes) to unlock clean A4 PDF, Markdown, and Jira CSV exports.',
+    btnOpenBanner: 'Unlock Full Report ($10/mo)',
+    lockTitle: 'Live Preview: Finding #1 is unlocked in full HD below!',
+    lockSub: 'Inspect the Spotlight screenshot and remediation code on your site below, then unlock all remaining cards, White-Label A4 PDF printing, and Jira CSV in 1 click.',
     noAuditYet: 'Run an audit on any webpage from the extension popup first (or unlock Pro above).',
     modalTitle: 'Express Client Auditor Pro',
-    modalSub: 'Instant 1-click Stripe Checkout with zero confirmation emails: unlock White-Label A4 PDF reports, custom agency branding, and Markdown / Jira CSV exports.',
+    modalSub: 'Instant 1-click Stripe Checkout with zero confirmation emails: unlock all Spotlight visual cards, custom agency branding, and clean A4 PDF / Jira CSV exports.',
     lblPlan: 'Select Plan (Paywall #926)',
     lblEmail: 'Work Email (for Stripe receipt & license lookup)',
     phEmail: 'you@agency.com',
@@ -600,19 +757,19 @@ const PAYWALL_I18N = {
     btnReopenUrl: 'Reopen Checkout Tab',
     loadingPlans: 'Loading plan from appbox.space...',
     noPlans: 'Paywall #926 has 0 attached prices in the Offers tab.',
-    unlockedSuccess: 'Payment verified! White-Label Pro exports unlocked.',
+    unlockedSuccess: 'Payment verified! Full visual report & PDF exports unlocked.',
     notPaidYet: 'No active subscription found for this email yet — complete Stripe Checkout and check again.',
     trialDays: n => `${n}-day free trial included`
   },
   de: {
-    btnUnlockToolbar: 'Pro freischalten',
+    btnUnlockToolbar: 'Pro freischalten ($10/Monat)',
     btnAccountToolbar: 'Pro-Konto',
-    btnOpenBanner: 'Pro kaufen / Wiederherstellen',
-    lockTitle: 'White-Label-Export gesperrt (Paywall #926)',
-    lockSub: 'Direkt zu Stripe Checkout ohne Bestätigungs-E-Mails — schaltet sauberen A4-PDF-, Markdown- und Jira-CSV-Export sofort frei.',
+    btnOpenBanner: 'Vollbericht freischalten',
+    lockTitle: 'Vorschau-Modus: Prüfpunkt #1 ist unten vollständig sichtbar!',
+    lockSub: 'Prüfen Sie den markierten Screenshot Ihrer Seite unten und schalten Sie alle weiteren Karten sowie den sauberen A4-PDF-Export via Stripe frei.',
     noAuditYet: 'Starten Sie zuerst eine Prüfung über das Erweiterungs-Popup.',
     modalTitle: 'Express Client Auditor Pro',
-    modalSub: 'Direkte Zahlung via Stripe ohne OTP-Codes: White-Label-A4-PDF-Berichte, Agentur-Branding sowie Markdown- und Jira-CSV-Export.',
+    modalSub: 'Direkte Zahlung via Stripe ohne OTP-Codes: Alle visuellen Fehlerkarten, Agentur-Branding sowie A4-PDF- und Jira-CSV-Export.',
     lblPlan: 'Tarif (Paywall #926)',
     lblEmail: 'E-Mail-Adresse (für Stripe-Beleg & Lizenz)',
     phEmail: 'name@agentur.de',
@@ -797,6 +954,7 @@ function renderChromeStrings() {
     renderPlanCards();
   }
   syncModalView();
+  updateInlineTeaserVisibility();
 }
 
 async function openPaywallDialog() {
@@ -966,17 +1124,21 @@ function applyLockUI(unlocked, devOverride = reportDevOverride) {
   if (btnUnlock) btnUnlock.hidden = reportProUnlocked;
   if (btnAccount) btnAccount.hidden = !reportProUnlocked;
   if (banner) banner.hidden = reportProUnlocked;
-  if (btnPrint) btnPrint.style.display = reportProUnlocked ? '' : 'none';
-  if (btnMd) btnMd.style.display = reportProUnlocked ? '' : 'none';
-  if (btnCsv) btnCsv.style.display = reportProUnlocked ? '' : 'none';
 
-  const manifest = chrome.runtime.getManifest();
+  // Keep Print / MD / CSV buttons visible even in Free mode (clicking them triggers the Stripe modal!)
+  // so Free users clearly see the export capabilities they are unlocking!
+  if (btnPrint) btnPrint.style.opacity = reportProUnlocked ? '1' : '0.88';
+  if (btnMd) btnMd.style.opacity = reportProUnlocked ? '1' : '0.88';
+  if (btnCsv) btnCsv.style.opacity = reportProUnlocked ? '1' : '0.88';
+
+  const manifest = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : {};
   const devBtn = document.getElementById('btn-dev-report-toggle');
   if (!manifest.update_url && devBtn) {
     devBtn.hidden = false;
     devBtn.textContent = reportDevOverride ? 'Dev Override: ON (Lock)' : 'Dev: Test Unlock';
   }
   syncModalView();
+  updateInlineTeaserVisibility();
 }
 
 function triggerPaywallModal() {
@@ -1003,6 +1165,7 @@ document.getElementById('btn-dl-csv').addEventListener('click', () => {
 document.getElementById('btn-unlock-pro')?.addEventListener('click', triggerPaywallModal);
 document.getElementById('btn-account-pro')?.addEventListener('click', triggerPaywallModal);
 document.getElementById('btn-banner-paywall')?.addEventListener('click', triggerPaywallModal);
+document.getElementById('btn-inline-unlock')?.addEventListener('click', triggerPaywallModal);
 
 document.getElementById('pw-close')?.addEventListener('click', closePaywallDialog);
 document.getElementById('paywall-modal')?.addEventListener('click', e => {
@@ -1078,7 +1241,10 @@ async function initPaywallGate() {
   if (access.email) currentBillingEmail = access.email;
   applyLockUI(access.granted, access.devOverride);
 
-  if (explicitPaywallOpen || !access.granted) {
+  // ONLY auto-open the modal when user explicitly clicked "Upgrade / Account" (?paywall=1),
+  // OR if there is no audit report loaded yet. When opening a report in Free mode (?mode=pdf),
+  // let the user admire Finding #1's full HD visual proof first before clicking Unlock!
+  if (explicitPaywallOpen || (!access.granted && !auditData)) {
     openPaywallDialog();
   }
 }

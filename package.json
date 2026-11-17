@@ -1,11 +1,11 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
-  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with Zero-FP Geometry Engine, Tab-Stop Visualizer, and Direct Stripe Checkout",
+  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with Visual X-Ray HUD, Before/After Fix Simulator, Spotlight Evidence Cards, and Direct Stripe Checkout",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "package": "npm run build && python3 scripts/package_store.py",
+    "package": "node scripts/build.mjs && python3 scripts/package_store.py",
     "start:proxy": "node paywall-worker/local-dev-server.mjs",
     "deploy:worker": "npx wrangler deploy --config paywall-worker/wrangler.toml",
     "set-worker": "node scripts/set_worker_url.mjs"

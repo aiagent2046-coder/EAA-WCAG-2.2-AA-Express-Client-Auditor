@@ -13,12 +13,12 @@
       <div class="brand-wrap">
         <img src="../../assets/icon-48.png" class="brand-logo" width="20" height="20" alt="">
         <span class="brand">WCAG 2.2 AA Auditor</span>
-        <span class="ver">v0.4.1</span>
+        <span class="ver">v0.5.0</span>
       </div>
       <button id="btn-plan-pill" type="button" class="plan-pill">FREE</button>
     </div>
     <div class="top-row-sub">
-      <span class="sub-badge">EN 301 549 V4.1.1 · Zero-FP</span>
+      <span class="sub-badge">EN 301 549 · Visual X-Ray</span>
       <div class="hud-controls">
         <label class="hud-switch" title="Show/Hide visual overlay on page">
           <input type="checkbox" id="chk-hud" checked>
@@ -37,12 +37,12 @@
   </header>
 
   <main class="container">
-    <button id="btn-scan" class="btn-primary" type="button">Run WCAG 2.2 AA &amp; EAA Audit</button>
+    <button id="btn-scan" class="btn-primary" type="button">Run Visual WCAG 2.2 &amp; EAA Audit</button>
 
     <div id="promo-banner" class="promo-banner">
       <div class="promo-copy">
-        <strong>Pro Agency License · $10/mo</strong>
-        <span>Unlock clean White-Label A4 PDF, custom logo &amp; Jira CSV</span>
+        <strong>Pro Visual Client Report · $10/mo</strong>
+        <span>Annotated screenshots, agency White-Label A4 PDF &amp; Jira CSV</span>
       </div>
       <button id="btn-promo-upgrade" type="button" class="btn-promo">Upgrade</button>
     </div>
@@ -50,6 +50,17 @@
     <div id="status-msg" class="status-msg" hidden></div>
 
     <section id="results-panel" hidden>
+      <!-- Visual Readiness Meter -->
+      <div class="score-meter-card">
+        <div class="score-meter-top">
+          <span class="score-meter-lbl">EAA Compliance Readiness</span>
+          <strong id="score-meter-val" class="score-meter-val">100%</strong>
+        </div>
+        <div class="score-track">
+          <div id="score-fill" class="score-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+
       <div class="kpi-grid">
         <div class="kpi kpi-fail">
           <span class="kpi-num" id="cnt-fail">0</span>
@@ -63,11 +74,17 @@
           <span class="kpi-num" id="cnt-manual">0</span>
           <span class="kpi-lbl">Manual QA</span>
         </div>
-        <div class="kpi kpi-score">
-          <span class="kpi-num" id="cnt-score">100%</span>
-          <span class="kpi-lbl">EAA Score</span>
+        <div class="kpi">
+          <span class="kpi-num" id="cnt-nodes">0</span>
+          <span class="kpi-lbl">Controls</span>
         </div>
       </div>
+
+      <!-- 1-Click Live "Before / After" CSS Fix Simulator on the Page! -->
+      <button id="btn-sim-fix" type="button" class="btn-sim" hidden>
+        <span id="sim-icon">✨</span>
+        <span id="sim-text">Preview Fixes Live on Page (Before → After)</span>
+      </button>
 
       <div id="help-consistency-bar" class="help-bar" hidden></div>
 
@@ -97,7 +114,7 @@
       </details>
 
       <div class="export-bar">
-        <button id="btn-export-pdf" type="button" class="btn-accent">Export Client PDF Report</button>
+        <button id="btn-export-pdf" type="button" class="btn-accent">Open Visual Report &amp; PDF</button>
         <button id="btn-export-md" type="button" class="btn-secondary">MD / CSV</button>
       </div>
     </section>
