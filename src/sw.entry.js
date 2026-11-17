@@ -20,5 +20,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'OPEN_REPORT_FROM_PAGE') {
+    const mode = msg.mode || 'pdf';
+    const savePromise = msg.audit
+      ? chrome.storage.local.set({ latestAuditReport: msg.audit, reportAutoAction: mode })
+      : Promise.resolve();
+    savePromise.then(() => {
+      const targetUrl = mode === 'paywall'
+        ? chrome.runtime.getURL('src/report/report.html?paywall=1')
+        : chrome.runtime.getURL(`src/report/report.html?mode=${encodeURIComponent(mode)}`);
+      chrome.tabs.create({ url: targetUrl });
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
   return false;
 });

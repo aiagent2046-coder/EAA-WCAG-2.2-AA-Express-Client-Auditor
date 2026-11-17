@@ -1,8 +1,8 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with Visual X-Ray HUD, Before/After Fix Simulator, Spotlight Evidence Cards, and Direct Stripe Checkout",
+  "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with On-Page Interactive Before/After Studio Dock, Spotlight Evidence Cards, and Direct Stripe Checkout",
   "scripts": {
     "build": "node scripts/build.mjs",
     "package": "node scripts/build.mjs && python3 scripts/package_store.py",

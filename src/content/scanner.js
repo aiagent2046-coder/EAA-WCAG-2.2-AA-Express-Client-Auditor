@@ -29,9 +29,12 @@
     '[tabindex]:not([tabindex="-1"])'
   ].join(',');
 
-  function clearLiveSimulation() {
+  function clearLiveSimulationArtifacts() {
     const prevStyle = document.getElementById(SIM_STYLE_ID);
     if (prevStyle) prevStyle.remove();
+    document.querySelectorAll('[data-wcag22-sim]').forEach(el => {
+      el.removeAttribute('data-wcag22-sim');
+    });
     window.__wcag22SimActive = false;
   }
 
@@ -278,7 +281,7 @@
           criterion: '2.5.8',
           level: 'AA-spacing',
           severity: 'warning',
-          hudCallout: `${w}×${h}px (24px zone)`,
+          hudCallout: `${w}×${h}px (риск < 24px)`,
           title: 'Undersized target (< 24x24 px) relies on spacing exception',
           elementLabel: getSnippetText(t.el),
           selector: getReadableSelector(t.el),
@@ -448,7 +451,7 @@
             criterion: '2.4.7',
             level: 'AA',
             severity: 'fail',
-            hudCallout: 'NO FOCUS RING (Tab)',
+            hudCallout: 'НЕТ РАМКИ ФОКУСА (Tab)',
             title: 'Keyboard focus indicator suppressed (outline: none without replacement)',
             elementLabel: getSnippetText(el),
             selector: getReadableSelector(el),
@@ -471,7 +474,7 @@
               criterion: '2.4.13',
               level: 'AAA-warn',
               severity: 'warning',
-              hudCallout: `Focus ${ratio}:1 < 3:1`,
+              hudCallout: `Контраст фокуса ${ratio}:1`,
               title: `Low focus outline contrast (${ratio}:1 < 3:1 recommended)`,
               elementLabel: getSnippetText(el),
               selector: getReadableSelector(el),
@@ -532,7 +535,7 @@
           criterion: '2.4.11',
           level: 'AA',
           severity: 'fail',
-          hudCallout: `HIDDEN UNDER STICKY (${blockerH}px)`,
+          hudCallout: `СКРЫТО ПОД ШАПКОЙ (${blockerH}px)`,
           title: 'Focused element is 100% obscured by sticky/fixed overlay (F110)',
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
@@ -551,7 +554,7 @@
           criterion: '2.4.11',
           level: 'AAA-warn',
           severity: 'warning',
-          hudCallout: `Overlap ${coveredPts}/9 pts`,
+          hudCallout: `Перекрытие ${coveredPts}/9 тчк`,
           title: `Focused element is partially obscured (${coveredPts}/9 points covered)`,
           elementLabel: getSnippetText(el),
           selector: getReadableSelector(el),
@@ -598,7 +601,7 @@
           criterion: '3.3.8',
           level: 'AA',
           severity: 'fail',
-          hudCallout: 'PASTE BLOCKED',
+          hudCallout: 'ВСТАВКА ПАРОЛЯ БЛОКИРОВАНА',
           title: 'Credential field blocks clipboard paste (breaks password managers)',
           elementLabel: getSnippetText(input),
           selector: getReadableSelector(input),
@@ -647,7 +650,7 @@
               criterion: '3.3.8',
               level: 'AA',
               severity: 'warning',
-              hudCallout: 'Split OTP (no paste)',
+              hudCallout: 'OTP без вставки кода',
               title: `Split ${singleCharInputs.length}-digit verification inputs lack autocomplete="one-time-code"`,
               elementLabel: getSnippetText(singleCharInputs[0]),
               selector: getReadableSelector(singleCharInputs[0]),
@@ -708,7 +711,7 @@
           criterion: '3.3.7',
           level: 'A',
           severity: 'warning',
-          hudCallout: 'Duplicate Entry',
+          hudCallout: 'Дубль ввода адреса',
           title: 'Separate Shipping & Billing inputs detected without a "Same as shipping" toggle',
           elementLabel: getSnippetText(billInput),
           selector: getReadableSelector(billInput),
@@ -749,7 +752,7 @@
         criterion: '2.5.7',
         level: 'AA',
         severity: 'manual',
-        hudCallout: 'Drag-Only Risk',
+        hudCallout: 'Drag без кнопок',
         title: 'Draggable / slider widget has no detected single-pointer buttons nearby',
         elementLabel: getSnippetText(el),
         selector: getReadableSelector(el),
@@ -783,7 +786,7 @@
           criterion: 'EN 301 549',
           level: 'EAA-Risk',
           severity: 'warning',
-          hudCallout: `Overlay: ${sig.name}`,
+          hudCallout: `Оверлей ${sig.name}`,
           title: `Third-party overlay widget (${sig.name}) detected — insufficient for EAA compliance`,
           elementLabel: sig.name,
           selector: getReadableSelector(node),
@@ -848,8 +851,318 @@
     };
   }
 
-  // Visual X-Ray HUD with 24px Target-Radius Rings, Sticky Hazard Stripes & Live "Before / After Fix" Mode!
-  function renderShadowHud(issues, tabStops, showWarnings = false, showTabMap = false) {
+  function getVisualBeforeAfterSpec(iss) {
+    const p = iss.params || {};
+    switch (iss.code) {
+      case 'FOCUS_RING_SUPPRESSED':
+      case 'FOCUS_APPEARANCE_LOW':
+        return {
+          title: 'Отсутствует видимая рамка фокуса (Tab)',
+          beforeCap: 'Контур 0px — курсор пропадает',
+          afterCap: 'Четкий контур 3px #2563eb',
+          kind: 'focus'
+        };
+      case 'TARGET_COLLISION':
+      case 'TARGET_SPACING_PASS':
+        return {
+          title: `Мелкая зона клика (${p.w || 18}×${p.h || 18} px)`,
+          beforeCap: `Высота ${p.h || 18}px — риск промаха`,
+          afterCap: 'Безопасная зона ≥ 24×24 px',
+          kind: 'target'
+        };
+      case 'FOCUS_OBSCURED_FULL':
+      case 'FOCUS_OBSCURED_PARTIAL':
+        return {
+          title: 'Перекрытие элемента липкой шапкой',
+          beforeCap: `Скрыт под шапкой (${p.blockerH || 96}px)`,
+          afterCap: 'Отступ scroll-padding сверху',
+          kind: 'sticky'
+        };
+      default:
+        return {
+          title: iss.title,
+          beforeCap: 'Текущее состояние с риском EAA',
+          afterCap: 'Исправлено по WCAG 2.2 AA',
+          kind: 'generic'
+        };
+    }
+  }
+
+  function syncHudBoxesToLiveDom() {
+    const host = document.getElementById(HUD_ID);
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    if (!root || !window.__wcag22IssueElements) return;
+
+    root.querySelectorAll('.box').forEach(box => {
+      const idx = Number(box.dataset.idx);
+      const liveEl = window.__wcag22IssueElements[idx];
+      if (liveEl && liveEl.isConnected && isElementRendered(liveEl)) {
+        const nr = liveEl.getBoundingClientRect();
+        box.style.left = `${Math.max(0, nr.left + window.scrollX - 3)}px`;
+        box.style.top = `${Math.max(0, nr.top + window.scrollY - 3)}px`;
+        box.style.width = `${Math.max(18, nr.width + 6)}px`;
+        box.style.height = `${Math.max(18, nr.height + 6)}px`;
+        const badge = box.querySelector('.badge');
+        if (badge) {
+          badge.classList.toggle('badge-below', nr.top < 26);
+        }
+      }
+    });
+  }
+
+  function setLiveFixSimulation(enabled) {
+    clearLiveSimulationArtifacts();
+    const host = document.getElementById(HUD_ID);
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    const audit = window.__wcag22LastAudit;
+
+    if (!enabled || !audit) {
+      if (root) {
+        root.classList.remove('sim-fixed');
+        root.querySelectorAll('.box .badge').forEach(b => {
+          if (b.dataset.beforeText) b.textContent = b.dataset.beforeText;
+        });
+        const btnBefore = root.querySelector('#dock-btn-before');
+        const btnAfter = root.querySelector('#dock-btn-after');
+        if (btnBefore) btnBefore.classList.add('is-active');
+        if (btnAfter) btnAfter.classList.remove('is-active');
+        const cardSimBtn = root.querySelector('#insp-toggle-sim');
+        if (cardSimBtn) {
+          cardSimBtn.textContent = '✨ Применить «ПОСЛЕ» прямо на сайте';
+          cardSimBtn.classList.remove('is-after');
+        }
+      }
+      setTimeout(syncHudBoxesToLiveDom, 40);
+      return { ok: true, active: false };
+    }
+
+    let maxScrollPad = 96;
+    const includeWarnings = Boolean(window.__wcag22ShowWarnings);
+    const activeInspIdx = typeof window.__wcag22ActiveIdx === 'number' ? window.__wcag22ActiveIdx : -1;
+
+    audit.issues.forEach((iss, idx) => {
+      const shouldMorph = iss.severity === 'fail' || includeWarnings || idx === activeInspIdx;
+      if (!shouldMorph) return;
+
+      const liveEl = window.__wcag22IssueElements?.[idx];
+      if (!liveEl || !liveEl.isConnected) return;
+
+      if (iss.code === 'FOCUS_RING_SUPPRESSED' || iss.code === 'FOCUS_APPEARANCE_LOW') {
+        liveEl.setAttribute('data-wcag22-sim', 'focus');
+      } else if (iss.code === 'TARGET_COLLISION' || iss.code === 'TARGET_SPACING_PASS') {
+        liveEl.setAttribute('data-wcag22-sim', 'target');
+      } else if (iss.code === 'FOCUS_OBSCURED_FULL' || iss.code === 'FOCUS_OBSCURED_PARTIAL') {
+        liveEl.setAttribute('data-wcag22-sim', 'scroll');
+        maxScrollPad = Math.max(maxScrollPad, (iss.params?.blockerH || 96) + 24);
+      }
+    });
+
+    const styleEl = document.createElement('style');
+    styleEl.id = SIM_STYLE_ID;
+    styleEl.textContent = `
+      html {
+        scroll-padding-top: ${maxScrollPad}px !important;
+      }
+      [data-wcag22-sim="focus"] {
+        outline: 3px solid #2563eb !important;
+        outline-offset: 2px !important;
+        box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.28) !important;
+        border-radius: 4px !important;
+        transition: outline 0.2s ease, box-shadow 0.2s ease !important;
+      }
+      [data-wcag22-sim="target"] {
+        min-width: 24px !important;
+        min-height: 24px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: rgba(16, 185, 129, 0.12) !important;
+        border-radius: 4px !important;
+        transition: all 0.22s ease !important;
+      }
+      [data-wcag22-sim="scroll"] {
+        scroll-margin-top: ${maxScrollPad}px !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+    window.__wcag22SimActive = true;
+
+    if (root) {
+      root.classList.add('sim-fixed');
+      root.querySelectorAll('.box .badge').forEach(b => {
+        const idx = Number(b.parentElement?.dataset?.idx);
+        const liveEl = window.__wcag22IssueElements?.[idx];
+        if (liveEl && liveEl.hasAttribute('data-wcag22-sim') && b.dataset.afterText) {
+          b.textContent = b.dataset.afterText;
+        }
+      });
+      const btnBefore = root.querySelector('#dock-btn-before');
+      const btnAfter = root.querySelector('#dock-btn-after');
+      if (btnBefore) btnBefore.classList.remove('is-active');
+      if (btnAfter) btnAfter.classList.add('is-active');
+      const cardSimBtn = root.querySelector('#insp-toggle-sim');
+      if (cardSimBtn) {
+        cardSimBtn.textContent = '↩ Вернуть «ДО» (показать исходную ошибку)';
+        cardSimBtn.classList.add('is-after');
+      }
+    }
+
+    // Re-scroll active obscured element so user sees it jump cleanly out from behind sticky header!
+    if (activeInspIdx >= 0) {
+      const activeEl = window.__wcag22IssueElements?.[activeInspIdx];
+      const activeIss = audit.issues[activeInspIdx];
+      if (activeEl && activeEl.isConnected && activeIss?.criterion === '2.4.11') {
+        activeEl.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+    }
+
+    setTimeout(syncHudBoxesToLiveDom, 60);
+    return { ok: true, active: true };
+  }
+
+  function openInspectorForIndex(idx, shouldScroll = true) {
+    const audit = window.__wcag22LastAudit;
+    const host = document.getElementById(HUD_ID);
+    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
+    if (!audit || !root || !audit.issues[idx]) return;
+
+    window.__wcag22ActiveIdx = idx;
+    const iss = audit.issues[idx];
+    const liveEl = window.__wcag22IssueElements?.[idx];
+
+    if (shouldScroll) {
+      if (liveEl && liveEl.isConnected) {
+        const layer = getLayerRoot(liveEl);
+        if (layer !== document.body) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          liveEl.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        }
+      } else if (iss.bbox) {
+        window.scrollTo({ top: Math.max(0, iss.bbox.y - window.innerHeight / 3), behavior: 'smooth' });
+      }
+    }
+
+    root.querySelectorAll('.box').forEach(b => b.classList.remove('pulse', 'force-show'));
+    const targetBox = root.querySelector(`.box[data-idx="${idx}"]`);
+    if (targetBox) {
+      targetBox.classList.add('force-show', 'pulse');
+      setTimeout(() => targetBox.classList.remove('pulse'), 1300);
+    }
+
+    // Update stepper counter in Dock
+    const visIndices = getVisibleIssueIndices();
+    const posInVis = visIndices.indexOf(idx);
+    const stepLbl = root.querySelector('#dock-step-lbl');
+    if (stepLbl) {
+      stepLbl.textContent = `${posInVis >= 0 ? posInVis + 1 : idx + 1} / ${Math.max(1, visIndices.length)}`;
+    }
+
+    // Render / position the On-Page Before/After Visual Inspector Card
+    const card = root.querySelector('#wcag22-inspector-card');
+    if (!card) return;
+
+    const spec = getVisualBeforeAfterSpec(iss);
+    const isUnlocked = idx === 0 || Boolean(window.__wcag22ProUnlocked);
+
+    let beforeArt = '';
+    let afterArt = '';
+    if (spec.kind === 'focus') {
+      beforeArt = `<div class="mini-input mini-no-ring">Поиск...</div>`;
+      afterArt = `<div class="mini-input mini-has-ring">Поиск...</div>`;
+    } else if (spec.kind === 'target') {
+      beforeArt = `<div class="mini-ring-bad"><span class="mini-btn-tiny">Кнопка</span></div>`;
+      afterArt = `<div class="mini-btn-good">Кнопка ≥ 24px</div>`;
+    } else if (spec.kind === 'sticky') {
+      beforeArt = `<div class="mini-sticky-wrap"><div class="mini-sticky-bar">ШАПКА</div><div class="mini-hidden-link">Ссылка скрыта</div></div>`;
+      afterArt = `<div class="mini-sticky-wrap"><div class="mini-sticky-bar">ШАПКА</div><div class="mini-clear-link">Ссылка видна ✓</div></div>`;
+    } else {
+      beforeArt = `<div class="mini-generic-bad">Дефект SC ${iss.criterion}</div>`;
+      afterArt = `<div class="mini-generic-good">Норма WCAG 2.2 ✓</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="insp-head">
+        <span class="insp-pill sev-${iss.severity}">#${idx + 1} · SC ${iss.criterion} · ${iss.severity === 'fail' ? 'ОШИБКА AA' : 'РИСК'}</span>
+        <button type="button" class="insp-close" id="insp-close-btn" title="Закрыть карточку">&times;</button>
+      </div>
+      <div class="insp-title">${spec.title}</div>
+      <div class="insp-el-name">${iss.elementLabel ? `Элемент: «${iss.elementLabel}»` : iss.selector}</div>
+
+      <div class="insp-compare">
+        <div class="insp-col insp-col-before">
+          <div class="insp-col-tag tag-b">🔴 ДО (Сейчас)</div>
+          <div class="insp-stage">${beforeArt}</div>
+          <div class="insp-cap">${spec.beforeCap}</div>
+        </div>
+        <div class="insp-col insp-col-after">
+          <div class="insp-col-tag tag-a">🟢 ПОСЛЕ (Фикс)</div>
+          <div class="insp-stage">${afterArt}</div>
+          <div class="insp-cap">${spec.afterCap}</div>
+        </div>
+      </div>
+
+      <button type="button" id="insp-toggle-sim" class="insp-sim-btn ${window.__wcag22SimActive ? 'is-after' : ''}">
+        ${window.__wcag22SimActive ? '↩ Вернуть «ДО» (показать исходную ошибку)' : '✨ Применить «ПОСЛЕ» прямо на сайте'}
+      </button>
+
+      ${isUnlocked
+        ? `<div class="insp-code">${iss.fixCode}</div>`
+        : `<button type="button" id="insp-unlock-cta" class="insp-unlock-btn">🔒 Открыть CSS-код и полный PDF-отчет ($10/мес) →</button>`
+      }
+    `;
+
+    card.hidden = false;
+
+    // Position card near target element (clamped cleanly inside viewport, above the bottom dock!)
+    setTimeout(() => {
+      const r = (liveEl && liveEl.isConnected)
+        ? liveEl.getBoundingClientRect()
+        : { left: 24, top: 80, bottom: 110, width: 120, height: 30 };
+
+      const cardW = 348;
+      const cardH = card.offsetHeight || 270;
+      const left = Math.max(14, Math.min(window.innerWidth - cardW - 14, r.left));
+      let top = r.bottom + (r.top < 26 ? 32 : 16);
+      if (top + cardH > window.innerHeight - 78) {
+        top = Math.max(14, r.top - cardH - 14);
+      }
+      card.style.left = `${Math.round(left)}px`;
+      card.style.top = `${Math.round(top)}px`;
+    }, 30);
+
+    card.querySelector('#insp-close-btn')?.addEventListener('click', () => {
+      card.hidden = true;
+    });
+    card.querySelector('#insp-toggle-sim')?.addEventListener('click', () => {
+      setLiveFixSimulation(!window.__wcag22SimActive);
+    });
+    card.querySelector('#insp-unlock-cta')?.addEventListener('click', () => {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'OPEN_REPORT_FROM_PAGE', mode: 'pdf', audit: window.__wcag22LastAudit });
+      }
+    });
+
+    // If simulation is already active, ensure newly selected item also morphs!
+    if (window.__wcag22SimActive) {
+      setLiveFixSimulation(true);
+    }
+  }
+
+  function getVisibleIssueIndices() {
+    const audit = window.__wcag22LastAudit;
+    if (!audit) return [];
+    const showWarn = Boolean(window.__wcag22ShowWarnings);
+    const out = [];
+    audit.issues.forEach((iss, i) => {
+      if (iss.severity === 'fail' || showWarn) out.push(i);
+    });
+    return out;
+  }
+
+  function renderShadowHud(issues, tabStops, showWarnings = false, showTabMap = false, counts = {}) {
     let host = document.getElementById(HUD_ID);
     if (host) host.remove();
 
@@ -867,9 +1180,9 @@
 
     const style = document.createElement('style');
     style.textContent = `
+      * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
       .box {
         position: absolute;
-        box-sizing: border-box;
         pointer-events: none;
         border-radius: 5px;
         transition: all 0.22s ease;
@@ -886,8 +1199,8 @@
       }
       .box-fail {
         border: 2.5px solid #ef4444;
-        background: rgba(239, 68, 68, 0.14);
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22), 0 4px 14px rgba(15, 23, 42, 0.28);
+        background: rgba(239, 68, 68, 0.13);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.20), 0 4px 14px rgba(15, 23, 42, 0.24);
       }
       .box-obscured {
         background: repeating-linear-gradient(
@@ -901,7 +1214,6 @@
       .box-warning { border: 2px dashed #f59e0b; background: rgba(245, 158, 11, 0.10); }
       .box-manual { border: 2px dotted #3b82f6; background: rgba(59, 130, 246, 0.10); }
 
-      /* Visual 24x24 CSS px Minimum Touch/Pointer Circle */
       .target-ring-24 {
         position: absolute;
         left: 50%;
@@ -917,70 +1229,341 @@
 
       .badge {
         position: absolute;
-        top: -22px;
+        top: -23px;
         left: -2px;
+        pointer-events: auto;
+        cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        font: 700 10.5px/15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-weight: 700;
+        font-size: 10.5px;
+        line-height: 15px;
         color: #ffffff;
-        padding: 2px 7px;
+        padding: 2px 8px;
         border-radius: 999px;
         white-space: nowrap;
         box-shadow: 0 3px 8px rgba(15, 23, 42, 0.35);
+        transition: transform 0.15s ease, background 0.2s ease;
       }
-      .badge.badge-below {
-        top: auto;
-        bottom: -22px;
-      }
+      .badge:hover { transform: scale(1.06); }
+      .badge.badge-below { top: auto; bottom: -23px; }
       .box-fail .badge { background: #dc2626; }
       .box-warning .badge { background: #d97706; }
       .box-manual .badge { background: #2563eb; }
 
-      /* Live Fix Simulation State ("AFTER" Green Mode) */
-      #hud-root.sim-fixed .box-fail {
+      /* Live Fix Simulation State ("ПОСЛЕ") */
+      #hud-root.sim-fixed .box-fail,
+      #hud-root.sim-fixed .box-warning {
         border: 2.5px solid #10b981 !important;
-        background: rgba(16, 185, 129, 0.14) !important;
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
+        background: rgba(16, 185, 129, 0.12) !important;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22) !important;
       }
-      #hud-root.sim-fixed .box-fail .badge {
+      #hud-root.sim-fixed .box-fail .badge,
+      #hud-root.sim-fixed .box-warning .badge {
         background: #059669 !important;
       }
       #hud-root.sim-fixed .target-ring-24 {
         border-color: #10b981 !important;
-        background: rgba(16, 185, 129, 0.15) !important;
-      }
-
-      .sim-toast {
-        position: fixed;
-        bottom: 18px;
-        right: 18px;
-        display: none;
-        align-items: center;
-        gap: 8px;
-        background: #064e3b;
-        color: #ecfdf5;
-        border: 1.5px solid #10b981;
-        padding: 10px 16px;
-        border-radius: 999px;
-        font: 700 12.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-      }
-      #hud-root.sim-fixed .sim-toast {
-        display: inline-flex;
+        background: rgba(16, 185, 129, 0.16) !important;
       }
 
       .pulse {
-        transform: scale(1.06);
-        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.45) !important;
+        transform: scale(1.04);
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.45) !important;
       }
-      .tabmap-svg {
-        position: absolute;
-        top: 0;
-        left: 0;
-        overflow: visible;
-        pointer-events: none;
+
+      /* Floating On-Page Interactive Before/After Studio Dock */
+      .auditor-dock {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2147483647;
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1.5px solid #334155;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.50);
+        color: #f8fafc;
+        width: max-content;
+        max-width: calc(100vw - 24px);
+        flex-wrap: wrap;
+        justify-content: center;
       }
+      .dock-score {
+        font-size: 11.5px;
+        font-weight: 800;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #1e293b;
+        color: #cbd5e1;
+        white-space: nowrap;
+      }
+      .dock-seg {
+        display: inline-flex;
+        background: #0b1120;
+        border: 1px solid #334155;
+        border-radius: 999px;
+        padding: 2px;
+      }
+      .seg-btn {
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 5px 11px;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+      }
+      .seg-btn.seg-before.is-active {
+        background: #dc2626;
+        color: #ffffff;
+      }
+      .seg-btn.seg-after.is-active {
+        background: #10b981;
+        color: #052e16;
+      }
+      .dock-stepper {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 999px;
+        padding: 2px 6px;
+      }
+      .step-arrow {
+        border: none;
+        background: transparent;
+        color: #f8fafc;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 6px;
+        cursor: pointer;
+        border-radius: 999px;
+      }
+      .step-arrow:hover { background: #334155; }
+      #dock-step-lbl { font-size: 11px; font-weight: 700; color: #cbd5e1; min-width: 36px; text-align: center; }
+
+      .dock-chip {
+        border: 1px solid #475569;
+        background: #1e293b;
+        color: #cbd5e1;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 5px 9px;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .dock-chip.is-on {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.18);
+        color: #fde68a;
+      }
+      .dock-chip-tab.is-on {
+        border-color: #8b5cf6;
+        background: rgba(139, 92, 246, 0.22);
+        color: #ddd6fe;
+      }
+      .dock-report-btn {
+        border: none;
+        background: #3b82f6;
+        color: #ffffff;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .dock-report-btn:hover { background: #2563eb; }
+      .dock-close {
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 16px;
+        line-height: 1;
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+      .dock-close:hover { color: #ffffff; }
+
+      /* Floating On-Page Visual Inspector Card ("ДО vs ПОСЛЕ") */
+      .inspector-card[hidden] { display: none !important; }
+      .inspector-card {
+        position: fixed;
+        z-index: 2147483647;
+        pointer-events: auto;
+        width: 348px;
+        background: rgba(15, 23, 42, 0.97);
+        backdrop-filter: blur(12px);
+        color: #f8fafc;
+        border: 1.5px solid #475569;
+        border-radius: 14px;
+        padding: 13px 14px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+      }
+      .insp-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+      .insp-pill {
+        font-size: 10.5px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+      .insp-pill.sev-fail { background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
+      .insp-pill.sev-warning, .insp-pill.sev-manual { background: rgba(245, 158, 11, 0.22); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.45); }
+      .insp-close {
+        border: none;
+        background: #1e293b;
+        color: #cbd5e1;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .insp-title { font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 3px; }
+      .insp-el-name {
+        font-size: 11px;
+        color: #93c5fd;
+        margin-bottom: 9px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .insp-compare {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 9px;
+      }
+      .insp-col {
+        border-radius: 9px;
+        padding: 8px;
+        text-align: center;
+      }
+      .insp-col-before {
+        background: rgba(239, 68, 68, 0.09);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+      }
+      .insp-col-after {
+        background: rgba(16, 185, 129, 0.09);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+      }
+      .insp-col-tag { font-size: 10px; font-weight: 800; margin-bottom: 6px; }
+      .tag-b { color: #fca5a5; }
+      .tag-a { color: #6ee7b7; }
+      .insp-stage {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 5px;
+      }
+      .insp-cap { font-size: 10px; color: #cbd5e1; line-height: 1.25; }
+
+      /* Schematic Visual Miniatures inside Inspector Card */
+      .mini-input {
+        background: #ffffff;
+        color: #334155;
+        font-size: 10px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: 1px solid #cbd5e1;
+      }
+      .mini-has-ring {
+        outline: 2.5px solid #2563eb;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+      }
+      .mini-ring-bad {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        border: 1.5px dashed #ef4444;
+        background: rgba(239, 68, 68, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .mini-btn-tiny {
+        font-size: 8.5px;
+        background: #334155;
+        color: #fff;
+        padding: 1px 4px;
+        line-height: 11px;
+        border-radius: 2px;
+      }
+      .mini-btn-good {
+        font-size: 10px;
+        font-weight: 700;
+        background: rgba(16, 185, 129, 0.25);
+        border: 1.5px dashed #10b981;
+        color: #ecfdf5;
+        padding: 5px 10px;
+        border-radius: 5px;
+      }
+      .mini-sticky-wrap { width: 100%; font-size: 9px; }
+      .mini-sticky-bar { background: #475569; color: #fff; padding: 2px 4px; border-radius: 3px; font-weight: 700; }
+      .mini-hidden-link { background: rgba(239,68,68,0.3); color: #fecaca; margin-top: -4px; padding: 2px 4px; border-radius: 3px; }
+      .mini-clear-link { background: rgba(16,185,129,0.25); color: #a7f3d0; margin-top: 4px; padding: 2px 4px; border-radius: 3px; }
+      .mini-generic-bad { font-size: 10px; color: #fca5a5; font-weight: 700; }
+      .mini-generic-good { font-size: 10px; color: #6ee7b7; font-weight: 700; }
+
+      .insp-sim-btn {
+        width: 100%;
+        border: 1px solid #10b981;
+        background: rgba(16, 185, 129, 0.18);
+        color: #a7f3d0;
+        font-weight: 700;
+        font-size: 11.5px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-bottom: 7px;
+      }
+      .insp-sim-btn.is-after {
+        background: #059669;
+        color: #ffffff;
+      }
+      .insp-code {
+        background: #0b1120;
+        border: 1px solid #334155;
+        color: #a7f3d0;
+        font: 600 10.5px/1.35 ui-monospace, monospace;
+        padding: 6px 8px;
+        border-radius: 6px;
+        overflow-wrap: anywhere;
+      }
+      .insp-unlock-btn {
+        width: 100%;
+        border: 1px solid rgba(59, 130, 246, 0.55);
+        background: rgba(59, 130, 246, 0.18);
+        color: #bfdbfe;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .insp-unlock-btn:hover { background: #2563eb; color: #ffffff; }
+
+      .tabmap-svg { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
       .tab-stop-dot {
         position: absolute;
         width: 19px;
@@ -1009,7 +1592,7 @@
       box.style.width = `${Math.max(18, issue.bbox.w + 6)}px`;
       box.style.height = `${Math.max(18, issue.bbox.h + 6)}px`;
 
-      if (issue.criterion === '2.5.8' && issue.severity === 'fail') {
+      if (issue.criterion === '2.5.8') {
         const ring = document.createElement('span');
         ring.className = 'target-ring-24';
         box.appendChild(ring);
@@ -1019,16 +1602,16 @@
       badge.className = issue.bbox.y < 26 ? 'badge badge-below' : 'badge';
       const defaultLabel = `#${idx + 1} · ${issue.hudCallout || `SC ${issue.criterion}`}`;
       badge.dataset.beforeText = defaultLabel;
-      badge.dataset.afterText = `#${idx + 1} · ИСПРАВЛЕНО (SC ${issue.criterion})`;
+      badge.dataset.afterText = `#${idx + 1} ✓ ИСПРАВЛЕНО (SC ${issue.criterion})`;
       badge.textContent = defaultLabel;
+      badge.title = 'Нажмите для сравнения ДО / ПОСЛЕ';
+      badge.addEventListener('click', e => {
+        e.stopPropagation();
+        openInspectorForIndex(idx, false);
+      });
       box.appendChild(badge);
       wrapper.appendChild(box);
     });
-
-    const toast = document.createElement('div');
-    toast.className = 'sim-toast';
-    toast.textContent = '✨ Режим «ПОСЛЕ»: CSS-исправления WCAG 2.2 применены на странице';
-    wrapper.appendChild(toast);
 
     if (Array.isArray(tabStops) && tabStops.length > 0) {
       const tabLayer = document.createElement('div');
@@ -1065,71 +1648,99 @@
       wrapper.appendChild(tabLayer);
     }
 
+    // Inspector Popover Container
+    const inspCard = document.createElement('div');
+    inspCard.id = 'wcag22-inspector-card';
+    inspCard.className = 'inspector-card';
+    inspCard.hidden = true;
+    wrapper.appendChild(inspCard);
+
+    // Floating On-Page Before/After Studio Dock
+    const dock = document.createElement('div');
+    dock.id = 'wcag22-auditor-dock';
+    dock.className = 'auditor-dock';
+
+    const initVisCount = showWarnings ? issues.length : issues.filter(i => i.severity === 'fail').length;
+    dock.innerHTML = `
+      <span class="dock-score">EAA ${counts.score ?? 100}% · 🔴 ${counts.fail ?? 0}</span>
+      <div class="dock-seg" role="group" aria-label="Before and After Simulation">
+        <button type="button" id="dock-btn-before" class="seg-btn seg-before is-active">🔴 ДО (Ошибки)</button>
+        <button type="button" id="dock-btn-after" class="seg-btn seg-after">🟢 ПОСЛЕ (Как исправить)</button>
+      </div>
+      <div class="dock-stepper">
+        <button type="button" id="dock-prev" class="step-arrow" title="Предыдущий элемент">◀</button>
+        <span id="dock-step-lbl">${initVisCount > 0 ? `1 / ${initVisCount}` : '0 / 0'}</span>
+        <button type="button" id="dock-next" class="step-arrow" title="Следующий элемент">▶</button>
+      </div>
+      <button type="button" id="dock-warn-chip" class="dock-chip ${showWarnings ? 'is-on' : ''}">+Риски (${counts.warning ?? 0})</button>
+      <button type="button" id="dock-tab-chip" class="dock-chip dock-chip-tab ${showTabMap ? 'is-on' : ''}">Tab#</button>
+      <button type="button" id="dock-open-report" class="dock-report-btn">📄 Отчет / PDF</button>
+      <button type="button" id="dock-close-hud" class="dock-close" title="Скрыть панель">&times;</button>
+    `;
+    wrapper.appendChild(dock);
+
     shadow.appendChild(wrapper);
     document.documentElement.appendChild(host);
-  }
 
-  // Toggle live non-destructive CSS fix simulation directly on the client page!
-  function setLiveFixSimulation(enabled) {
-    clearLiveSimulation();
-    const host = document.getElementById(HUD_ID);
-    const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
-    const audit = window.__wcag22LastAudit;
-
-    if (!enabled || !audit) {
-      if (root) {
-        root.classList.remove('sim-fixed');
-        root.querySelectorAll('.box-fail .badge').forEach(b => {
-          if (b.dataset.beforeText) b.textContent = b.dataset.beforeText;
-        });
+    // Wire up On-Page Dock interactions
+    dock.querySelector('#dock-btn-before')?.addEventListener('click', () => {
+      setLiveFixSimulation(false);
+    });
+    dock.querySelector('#dock-btn-after')?.addEventListener('click', () => {
+      // If page has 0 AA fails but has warnings, auto-enable +Риски so user immediately sees warnings morph!
+      if ((counts.fail || 0) === 0 && (counts.warning || 0) > 0 && !window.__wcag22ShowWarnings) {
+        window.__wcag22ShowWarnings = true;
+        wrapper.classList.remove('fails-only');
+        dock.querySelector('#dock-warn-chip')?.classList.add('is-on');
       }
-      return { ok: true, active: false };
-    }
-
-    const cssRules = [];
-    let maxScrollPad = 0;
-
-    audit.issues.forEach((iss, idx) => {
-      if (iss.severity !== 'fail') return;
-      if (iss.code === 'TARGET_COLLISION' && iss.selector && iss.selector !== 'unknown') {
-        cssRules.push(`${iss.selector} { min-width: 24px !important; min-height: 24px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }`);
-      } else if (iss.code === 'FOCUS_RING_SUPPRESSED' && iss.selector && iss.selector !== 'unknown') {
-        cssRules.push(`${iss.selector}, ${iss.selector}:focus, ${iss.selector}:focus-visible { outline: 3px solid #2563eb !important; outline-offset: 2px !important; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25) !important; }`);
-        const liveEl = window.__wcag22IssueElements?.[idx];
-        if (liveEl && liveEl.isConnected) {
-          try { liveEl.focus({ preventScroll: true }); } catch (_) {}
-        }
-      } else if (iss.code === 'FOCUS_OBSCURED_FULL') {
-        maxScrollPad = Math.max(maxScrollPad, (iss.params?.blockerH || 96) + 20);
+      setLiveFixSimulation(true);
+      const vis = getVisibleIssueIndices();
+      if (vis.length > 0 && (typeof window.__wcag22ActiveIdx !== 'number' || window.__wcag22ActiveIdx < 0)) {
+        openInspectorForIndex(vis[0], false);
       }
     });
 
-    if (maxScrollPad > 0) {
-      cssRules.push(`html { scroll-padding-top: ${maxScrollPad}px !important; }`);
-    }
+    dock.querySelector('#dock-prev')?.addEventListener('click', () => {
+      const vis = getVisibleIssueIndices();
+      if (!vis.length) return;
+      const curPos = vis.indexOf(window.__wcag22ActiveIdx ?? vis[0]);
+      const nextPos = (curPos - 1 + vis.length) % vis.length;
+      openInspectorForIndex(vis[nextPos], true);
+    });
+    dock.querySelector('#dock-next')?.addEventListener('click', () => {
+      const vis = getVisibleIssueIndices();
+      if (!vis.length) return;
+      const curPos = vis.indexOf(window.__wcag22ActiveIdx ?? -1);
+      const nextPos = (curPos + 1) % vis.length;
+      openInspectorForIndex(vis[nextPos], true);
+    });
 
-    const styleEl = document.createElement('style');
-    styleEl.id = SIM_STYLE_ID;
-    styleEl.textContent = cssRules.join('\n');
-    document.head.appendChild(styleEl);
-    window.__wcag22SimActive = true;
+    dock.querySelector('#dock-warn-chip')?.addEventListener('click', e => {
+      window.__wcag22ShowWarnings = !window.__wcag22ShowWarnings;
+      wrapper.classList.toggle('fails-only', !window.__wcag22ShowWarnings);
+      e.currentTarget.classList.toggle('is-on', window.__wcag22ShowWarnings);
+      const vis = getVisibleIssueIndices();
+      const stepLbl = dock.querySelector('#dock-step-lbl');
+      if (stepLbl) stepLbl.textContent = vis.length ? `1 / ${vis.length}` : '0 / 0';
+      if (window.__wcag22SimActive) setLiveFixSimulation(true);
+    });
 
-    if (root) {
-      root.classList.add('sim-fixed');
-      root.querySelectorAll('.box-fail .badge').forEach((b, i) => {
-        if (b.dataset.afterText) b.textContent = b.dataset.afterText;
-        const liveEl = window.__wcag22IssueElements?.[Number(b.parentElement?.dataset?.idx)];
-        if (liveEl && liveEl.isConnected) {
-          const nr = liveEl.getBoundingClientRect();
-          b.parentElement.style.left = `${Math.max(0, nr.left + window.scrollX - 3)}px`;
-          b.parentElement.style.top = `${Math.max(0, nr.top + window.scrollY - 3)}px`;
-          b.parentElement.style.width = `${Math.max(18, nr.width + 6)}px`;
-          b.parentElement.style.height = `${Math.max(18, nr.height + 6)}px`;
-        }
-      });
-    }
+    dock.querySelector('#dock-tab-chip')?.addEventListener('click', e => {
+      window.__wcag22ShowTabMap = !window.__wcag22ShowTabMap;
+      wrapper.classList.toggle('hide-tabmap', !window.__wcag22ShowTabMap);
+      e.currentTarget.classList.toggle('is-on', window.__wcag22ShowTabMap);
+    });
 
-    return { ok: true, active: true, rulesApplied: cssRules.length };
+    dock.querySelector('#dock-open-report')?.addEventListener('click', () => {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'OPEN_REPORT_FROM_PAGE', mode: 'pdf', audit: window.__wcag22LastAudit });
+      }
+    });
+
+    dock.querySelector('#dock-close-hud')?.addEventListener('click', () => {
+      clearLiveSimulationArtifacts();
+      host.style.display = 'none';
+    });
   }
 
   function computeReadinessScore(failCount, warnCount, checkedNodes) {
@@ -1138,8 +1749,21 @@
     return Math.max(5, Math.min(100, Math.round(100 - penalty)));
   }
 
+  function refreshProCacheFlag() {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        chrome.storage.local.get(['monetize_paid_verified', 'dev_pro_override_v23'], res => {
+          window.__wcag22ProUnlocked = Boolean(res?.monetize_paid_verified || res?.dev_pro_override_v23);
+        });
+      }
+    } catch (_) {}
+  }
+
   function runFullAudit() {
-    clearLiveSimulation();
+    clearLiveSimulationArtifacts();
+    window.__wcag22ActiveIdx = -1;
+    refreshProCacheFlag();
+
     const startedAt = performance.now();
     const r258 = auditTargetSize258();
     const rFocus = auditFocusAndTabOrder();
@@ -1160,26 +1784,20 @@
     window.__wcag22IssueElements = sortedWithRefs.map(item => item._el || null);
     const allIssues = sortedWithRefs.map(({ _el, ...serializable }) => serializable);
 
-    renderShadowHud(
-      allIssues,
-      rFocus.tabStops,
-      Boolean(window.__wcag22ShowWarnings),
-      Boolean(window.__wcag22ShowTabMap)
-    );
-
     const failCount = allIssues.filter(i => i.severity === 'fail').length;
     const warnCount = allIssues.filter(i => i.severity === 'warning').length;
     const manualCount = allIssues.filter(i => i.severity === 'manual').length;
     const checkedNodes = r258.checkedCount + rFocus.checkedCount;
+    const readinessScore = computeReadinessScore(failCount, warnCount, checkedNodes);
 
     const result = {
-      auditorVersion: '0.5.0',
+      auditorVersion: '0.6.0',
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,
       scannedAt: new Date().toISOString(),
       durationMs: Math.round(performance.now() - startedAt),
       viewport: `${window.innerWidth}x${window.innerHeight}`,
-      readinessScore: computeReadinessScore(failCount, warnCount, checkedNodes),
+      readinessScore,
       counts: {
         fail: failCount,
         warning: warnCount,
@@ -1193,6 +1811,20 @@
     };
 
     window.__wcag22LastAudit = result;
+
+    renderShadowHud(
+      allIssues,
+      rFocus.tabStops,
+      Boolean(window.__wcag22ShowWarnings),
+      Boolean(window.__wcag22ShowTabMap),
+      { fail: failCount, warning: warnCount, score: readinessScore }
+    );
+
+    // Auto-open the visual "ДО vs ПОСЛЕ" inspector card on Finding #1 if an AA fail exists!
+    if (failCount > 0) {
+      openInspectorForIndex(0, false);
+    }
+
     return result;
   }
 
@@ -1205,51 +1837,36 @@
         const root = host && host.shadowRoot && host.shadowRoot.getElementById('hud-root');
 
         if (msg.type === 'HIGHLIGHT_ISSUE') {
-          const audit = window.__wcag22LastAudit;
-          const item = audit && audit.issues[msg.index];
-          const liveEl = window.__wcag22IssueElements && window.__wcag22IssueElements[msg.index];
-          if (liveEl && liveEl.isConnected) {
-            const layer = getLayerRoot(liveEl);
-            if (layer !== document.body) {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-              liveEl.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
-            }
-          } else if (item && item.bbox) {
-            window.scrollTo({
-              top: Math.max(0, item.bbox.y - window.innerHeight / 3),
-              behavior: 'smooth'
-            });
-          }
-          const box = root && root.querySelector(`[data-idx="${msg.index}"]`);
-          if (box) {
-            box.classList.add('force-show', 'pulse');
-            setTimeout(() => box.classList.remove('pulse'), 1400);
-          }
+          if (host) host.style.display = 'block';
+          openInspectorForIndex(msg.index, true);
           sendResponse({ ok: true });
         } else if (msg.type === 'SIMULATE_FIXES') {
+          if (host) host.style.display = 'block';
           sendResponse(setLiveFixSimulation(Boolean(msg.enabled)));
         } else if (msg.type === 'TOGGLE_HUD') {
+          if (!msg.visible) clearLiveSimulationArtifacts();
           if (host) host.style.display = msg.visible ? 'block' : 'none';
           sendResponse({ ok: true });
         } else if (msg.type === 'SET_HUD_WARNINGS') {
           window.__wcag22ShowWarnings = Boolean(msg.showWarnings);
           if (root) {
             root.classList.toggle('fails-only', !window.__wcag22ShowWarnings);
+            root.querySelector('#dock-warn-chip')?.classList.toggle('is-on', window.__wcag22ShowWarnings);
           }
+          if (window.__wcag22SimActive) setLiveFixSimulation(true);
           sendResponse({ ok: true });
         } else if (msg.type === 'SET_HUD_TABMAP') {
           window.__wcag22ShowTabMap = Boolean(msg.showTabMap);
           if (root) {
             root.classList.toggle('hide-tabmap', !window.__wcag22ShowTabMap);
+            root.querySelector('#dock-tab-chip')?.classList.toggle('is-on', window.__wcag22ShowTabMap);
           }
           sendResponse({ ok: true });
         } else if (msg.type === 'SCROLL_FOR_CROP') {
-          clearLiveSimulation();
+          clearLiveSimulationArtifacts();
           const item = window.__wcag22LastAudit && window.__wcag22LastAudit.issues[msg.index];
           const liveEl = window.__wcag22IssueElements && window.__wcag22IssueElements[msg.index];
           if (item && item.bbox) {
-            // Hide HUD boxes during raw screenshot capture because popup.js draws ultra-crisp vector Spotlight + Callout annotations directly onto the canvas!
             if (host) host.style.display = 'none';
 
             if (liveEl && liveEl.isConnected) {
