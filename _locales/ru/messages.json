@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "WCAG 2.2 AA & EAA Express Client Auditor"
+  },
+  "extDescription": {
+    "message": "Локальный аудитор доступности WCAG 2.2 AA и EAA: проверка таргетов 24px, перекрытия фокуса и экспорт клиентских PDF-отчетов."
+  }
+}

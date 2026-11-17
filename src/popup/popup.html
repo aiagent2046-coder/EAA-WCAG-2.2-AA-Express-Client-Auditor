@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EAA & WCAG 2.2 AA Auditor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top-bar">
+    <div>
+      <div class="brand">WCAG 2.2 AA Auditor</div>
+      <div class="sub-badge">EN 301 549 V4.1.1 · Local-Only</div>
+    </div>
+    <label class="hud-switch" title="Show/Hide visual overlay on page">
+      <input type="checkbox" id="chk-hud" checked>
+      <span>HUD</span>
+    </label>
+  </header>
+
+  <main class="container">
+    <button id="btn-scan" class="btn-primary" type="button">Run WCAG 2.2 AA Audit</button>
+
+    <div id="status-msg" class="status-msg" hidden></div>
+
+    <section id="results-panel" hidden>
+      <div class="kpi-grid">
+        <div class="kpi kpi-fail">
+          <span class="kpi-num" id="cnt-fail">0</span>
+          <span class="kpi-lbl">AA Fails</span>
+        </div>
+        <div class="kpi kpi-warn">
+          <span class="kpi-num" id="cnt-warn">0</span>
+          <span class="kpi-lbl">Warnings</span>
+        </div>
+        <div class="kpi kpi-manual">
+          <span class="kpi-num" id="cnt-manual">0</span>
+          <span class="kpi-lbl">Manual QA</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-num" id="cnt-nodes">0</span>
+          <span class="kpi-lbl">Checked</span>
+        </div>
+      </div>
+
+      <div class="filter-bar" role="tablist">
+        <button type="button" class="chip is-active" data-filter="all">All</button>
+        <button type="button" class="chip" data-filter="2.5.8">2.5.8 Target</button>
+        <button type="button" class="chip" data-filter="2.4.11">2.4.11 Focus</button>
+        <button type="button" class="chip" data-filter="3.3.8">3.3.8 Auth</button>
+        <button type="button" class="chip" data-filter="2.5.7">2.5.7 Drag</button>
+      </div>
+
+      <div id="issues-list" class="issues-list"></div>
+
+      <details class="branding-drawer">
+        <summary>Agency White-Label Settings (Pro)</summary>
+        <div class="form-grid">
+          <input id="in-agency" type="text" placeholder="Agency / Studio Name">
+          <input id="in-auditor" type="text" placeholder="Auditor Contact / URL">
+          <input id="in-client" type="text" placeholder="Client / Project Name">
+          <label class="file-lbl">
+            <span>Agency Logo (PNG/SVG):</span>
+            <input id="in-logo" type="file" accept="image/*">
+          </label>
+          <button id="btn-save-brand" type="button" class="btn-secondary">Save Branding Profile</button>
+        </div>
+      </details>
+
+      <div class="export-bar">
+        <button id="btn-export-pdf" type="button" class="btn-accent">Export Client PDF Report</button>
+        <button id="btn-export-md" type="button" class="btn-secondary">MD / CSV</button>
+      </div>
+    </section>
+
+    <section id="paywall-card" class="paywall-card" hidden>
+      <div class="paywall-title">Unlock White-Label Client Reports</div>
+      <p class="paywall-copy">
+        Export branded A4 PDF compliance briefs with cropped visual evidence, CSS fix snippets, and Jira CSV / GitHub Markdown tickets.
+      </p>
+      <div class="paywall-actions">
+        <button id="btn-buy-monthly" type="button" class="btn-primary">Agency Pro — $24/mo</button>
+        <button id="btn-buy-ltd" type="button" class="btn-secondary">Solo QA Pass — $49 once</button>
+      </div>
+      <div class="paywall-links">
+        <button id="btn-restore" type="button" class="link-btn">Restore License</button>
+        <button id="btn-dev-unlock" type="button" class="link-btn" hidden>Dev Toggle Pro</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

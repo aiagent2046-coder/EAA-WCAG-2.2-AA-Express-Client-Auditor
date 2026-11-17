@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WCAG 2.2 AA & EAA Client Compliance Report</title>
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+  <div class="toolbar no-print">
+    <div class="toolbar-left">
+      <strong>White-Label Client Report Preview</strong>
+      <span id="toolbar-sub">Ready for PDF export or developer ticket handoff</span>
+    </div>
+    <div class="toolbar-actions">
+      <button id="btn-dl-md" type="button" class="btn-outline">Download Markdown (.md)</button>
+      <button id="btn-dl-csv" type="button" class="btn-outline">Download Jira CSV (.csv)</button>
+      <button id="btn-print" type="button" class="btn-solid">Print / Save Client PDF</button>
+    </div>
+  </div>
+
+  <article class="sheet">
+    <header class="report-header">
+      <div class="brand-col">
+        <img id="rep-logo" class="agency-logo" alt="Agency Logo" hidden>
+        <div>
+          <div class="eyebrow">European Accessibility Act (EN 301 549 V4.1.1) · WCAG 2.2 Level AA</div>
+          <h1 class="report-title">Accessibility Delta Audit Report</h1>
+          <div id="rep-agency" class="agency-meta">Prepared by Accessibility QA Team</div>
+        </div>
+      </div>
+      <div class="verdict-pill" id="rep-verdict">Audit Pending</div>
+    </header>
+
+    <section class="meta-strip">
+      <div><span class="meta-lbl">Client / Project</span><strong id="rep-client">—</strong></div>
+      <div><span class="meta-lbl">Audited URL</span><strong id="rep-url">—</strong></div>
+      <div><span class="meta-lbl">Timestamp</span><strong id="rep-date">—</strong></div>
+      <div><span class="meta-lbl">Viewport</span><strong id="rep-vp">—</strong></div>
+    </section>
+
+    <section class="summary-cards">
+      <div class="s-card s-fail">
+        <div class="s-num" id="sum-fail">0</div>
+        <div class="s-lbl">Level AA Violations</div>
+      </div>
+      <div class="s-card s-warn">
+        <div class="s-num" id="sum-warn">0</div>
+        <div class="s-lbl">Advisory / Spacing Warnings</div>
+      </div>
+      <div class="s-card s-manual">
+        <div class="s-num" id="sum-manual">0</div>
+        <div class="s-lbl">Guided Manual QA Items</div>
+      </div>
+      <div class="s-card">
+        <div class="s-num" id="sum-nodes">0</div>
+        <div class="s-lbl">Evaluated DOM Controls</div>
+      </div>
+    </section>
+
+    <section class="scope-note">
+      <strong>Scope & Methodology:</strong> Deterministic browser geometry and behavioral inspection against W3C WCAG 2.2 Level AA delta criteria required under EN 301 549 V4.1.1 (SC 2.5.8 Target Size Minimum 24x24 CSS px, SC 2.4.11 Focus Not Obscured Minimum, SC 3.3.8 Accessible Authentication, and SC 2.5.7 Dragging Movements). Pair automated findings with assistive screen-reader traversal prior to formal EAA legal sign-off.
+    </section>
+
+    <section>
+      <h2>1. Automated Violations & Advisory Warnings</h2>
+      <div id="findings-container" class="findings-list"></div>
+    </section>
+
+    <section>
+      <h2>2. Guided 10-Second Manual QA Sign-Off (SC 2.5.7 / 3.2.6 / 3.3.7)</h2>
+      <table class="qa-table">
+        <thead>
+          <tr>
+            <th>Criterion</th>
+            <th>Selector / Check</th>
+            <th>Auditor Sign-Off</th>
+          </tr>
+        </thead>
+        <tbody id="manual-tbody"></tbody>
+      </table>
+    </section>
+  </article>
+
+  <script src="report.js"></script>
+</body>
+</html>

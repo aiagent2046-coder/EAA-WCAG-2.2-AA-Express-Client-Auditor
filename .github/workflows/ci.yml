@@ -1,0 +1,31 @@
+name: Validate & Package Extension
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check JS syntax
+        run: |
+          node --check vendor/ExtPay.js
+          node --check src/background.js
+          node --check src/content/scanner.js
+          node --check src/popup/popup.js
+          node --check src/report/report.js
+
+      - name: Build Chrome, Edge, and Firefox store packages
+        run: python3 scripts/package_store.py
+
+      - name: Upload store zip artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-packages
+          path: dist/*.zip
