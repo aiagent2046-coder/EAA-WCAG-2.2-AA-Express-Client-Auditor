@@ -589,12 +589,47 @@
       }
     });
 
+    const probedTextGroups = new Set();
+    const prevActiveEl = document.activeElement;
+
+    function probeCrossOriginTextFocusSuppressed(el) {
+      if (el.ownerDocument !== document) return false;
+      const isTextEntry = (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'file', 'color'].includes((el.type || '').toLowerCase())) || el.tagName === 'TEXTAREA';
+      if (!isTextEntry) return false;
+      if (el.hasAttribute('onblur') || el.hasAttribute('onfocus')) return false;
+      const gKey = getComponentGroupKey(el);
+      if (probedTextGroups.has(gKey) || probedTextGroups.size >= 10) return false;
+      probedTextGroups.add(gKey);
+
+      const stBefore = window.getComputedStyle(el);
+      const beforeSig = {
+        boxShadow: stBefore.boxShadow,
+        borderTopColor: stBefore.borderTopColor,
+        borderTopWidth: stBefore.borderTopWidth,
+        bg: stBefore.backgroundColor
+      };
+      try {
+        el.focus({ preventScroll: true });
+        const stAfter = window.getComputedStyle(el);
+        const ow = parseFloat(stAfter.outlineWidth) || 0;
+        const hasOut = stAfter.outlineStyle !== 'none' && ow > 0;
+        if (!hasOut &&
+            stAfter.boxShadow === beforeSig.boxShadow &&
+            stAfter.borderTopColor === beforeSig.borderTopColor &&
+            stAfter.borderTopWidth === beforeSig.borderTopWidth &&
+            stAfter.backgroundColor === beforeSig.bg) {
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
     for (const el of focusables) {
       const r = getGlobalViewportRect(el);
       const win = getElementWin(el);
       const st = win.getComputedStyle(el);
 
-      if (elementHasSuppressedFocusRing(el, ruleCacheMap)) {
+      if (elementHasSuppressedFocusRing(el, ruleCacheMap) || probeCrossOriginTextFocusSuppressed(el)) {
         issues.push({
           _el: el,
           code: 'FOCUS_RING_SUPPRESSED',
@@ -719,6 +754,9 @@
       }
     }
 
+    if (prevActiveEl && prevActiveEl !== document.activeElement && typeof prevActiveEl.focus === 'function') {
+      try { prevActiveEl.focus({ preventScroll: true }); } catch (_) {}
+    }
     if (hudEl) hudEl.style.display = prevHudDisplay;
     return { issues, checkedCount: focusables.length, tabStops };
   }
@@ -2405,9 +2443,147 @@
       e.currentTarget.classList.toggle("is-on", window.__wcag22ShowTabMap);
     });
 
-    dock.querySelector("#dock-open-report")?.addEventListener("click", () => {
-      if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
-        chrome.runtime.sendMessage({ type: "OPEN_REPORT_FROM_PAGE", mode: "pdf", audit: window.__wcag22LastAudit });
+    function renderInPageSpotlightCrop(dataUrl, rect, issue, badgeNum) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const dpr = rect.dpr || 1;
+          const ctxW = Math.max(440, rect.w + 180);
+          const ctxH = Math.max(230, rect.h + 130);
+          const centerX = rect.x + rect.w / 2;
+          const centerY = rect.y + rect.h / 2;
+          const maxCssW = img.width / dpr;
+          const maxCssH = img.height / dpr;
+          const cropCssX = Math.max(0, Math.min(maxCssW - ctxW, centerX - ctxW / 2));
+          const cropCssY = Math.max(0, Math.min(maxCssH - ctxH, centerY - ctxH / 2));
+          const actualCssW = Math.max(80, Math.min(maxCssW - cropCssX, ctxW));
+          const actualCssH = Math.max(60, Math.min(maxCssH - cropCssY, ctxH));
+          const outW = 640;
+          const scale = outW / actualCssW;
+          const outH = Math.round(actualCssH * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = outW;
+          canvas.height = outH;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, Math.round(cropCssX * dpr), Math.round(cropCssY * dpr), Math.round(actualCssW * dpr), Math.round(actualCssH * dpr), 0, 0, outW, outH);
+          const ex = (rect.x - cropCssX) * scale;
+          const ey = (rect.y - cropCssY) * scale;
+          const ew = Math.max(16, rect.w * scale);
+          const eh = Math.max(16, rect.h * scale);
+          ctx.save();
+          ctx.fillStyle = "rgba(15, 23, 42, 0.34)";
+          ctx.beginPath();
+          ctx.rect(0, 0, outW, outH);
+          ctx.rect(Math.max(0, ex - 10), Math.max(0, ey - 10), Math.min(outW, ew + 20), Math.min(outH, eh + 20));
+          ctx.fill("evenodd");
+          ctx.restore();
+          if (issue.criterion === "2.5.8") {
+            const r24 = 12 * scale;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(ex + ew / 2, ey + eh / 2, r24, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = "#ef4444";
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.save();
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 3;
+          ctx.shadowColor = "rgba(239, 68, 68, 0.65)";
+          ctx.shadowBlur = 10;
+          ctx.strokeRect(ex - 4, ey - 4, ew + 8, eh + 8);
+          ctx.restore();
+          const pillText = `#${badgeNum} · SC ${issue.criterion} · ${issue.hudCallout || "VIOLATION"}`;
+          ctx.save();
+          ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          const pw = ctx.measureText(pillText).width + 20;
+          const ph = 26;
+          const px = Math.max(8, Math.min(outW - pw - 8, ex - 4));
+          const py = (ey - ph - 10 >= 6) ? (ey - ph - 10) : Math.min(outH - ph - 6, ey + eh + 10);
+          ctx.fillStyle = "#dc2626";
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 6);
+          else ctx.rect(px, py, pw, ph);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.textBaseline = "middle";
+          ctx.fillText(pillText, px + 10, py + ph / 2 + 0.5);
+          ctx.restore();
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      });
+    }
+
+    async function captureAuditCropsFromDock(rawAudit) {
+      if (!rawAudit || !Array.isArray(rawAudit.issues)) return rawAudit;
+      const enriched = JSON.parse(JSON.stringify(rawAudit));
+      const wasSim = Boolean(window.__wcag22SimActive);
+      if (wasSim) clearLiveSimulationArtifacts();
+      const prevScrollX = window.scrollX;
+      const prevScrollY = window.scrollY;
+      host.style.display = "none";
+
+      const seenGroups = new Set();
+      const targets = [];
+      let gOrder = 0;
+      enriched.issues.forEach((iss, idx) => {
+        if (iss.severity !== "fail" || !iss.bbox || iss.code === "HTML_LANG_MISSING") return;
+        const gk = `${iss.criterion}|${iss.code || ''}|${iss.componentGroupKey || iss.selector}`;
+        if (seenGroups.has(gk)) return;
+        seenGroups.add(gk);
+        gOrder += 1;
+        if (targets.length < 10) targets.push({ iss, idx, badgeNum: gOrder });
+      });
+
+      for (const { iss, idx, badgeNum } of targets) {
+        try {
+          const liveEl = window.__wcag22IssueElements?.[idx];
+          if (liveEl && liveEl.isConnected) {
+            const layer = getLayerRoot(liveEl);
+            if (layer !== document.body || iss.bbox.y < window.innerHeight * 0.42) {
+              window.scrollTo(0, 0);
+            } else {
+              liveEl.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+            }
+          }
+          await new Promise(r => setTimeout(r, 150));
+          const rNow = (liveEl && liveEl.isConnected)
+            ? getGlobalViewportRect(liveEl)
+            : { left: iss.bbox.x - window.scrollX, top: iss.bbox.y - window.scrollY, width: iss.bbox.w, height: iss.bbox.h };
+          const shot = await new Promise(res => chrome.runtime.sendMessage({ type: "CAPTURE_VISIBLE_TAB" }, res));
+          if (shot && shot.dataUrl) {
+            iss.cropDataUrl = await renderInPageSpotlightCrop(shot.dataUrl, {
+              x: rNow.left, y: rNow.top, w: rNow.width, h: rNow.height, dpr: window.devicePixelRatio || 1
+            }, iss, badgeNum);
+          }
+        } catch (_) {}
+      }
+
+      window.scrollTo(prevScrollX, prevScrollY);
+      host.style.display = "block";
+      if (wasSim) setLiveFixSimulation(true);
+      return enriched;
+    }
+
+    dock.querySelector("#dock-open-report")?.addEventListener("click", async e => {
+      if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) return;
+      const btn = e.currentTarget;
+      const origTxt = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "⏳ Снимки...";
+      try {
+        const enriched = await captureAuditCropsFromDock(window.__wcag22LastAudit);
+        window.__wcag22LastAudit = enriched;
+        chrome.runtime.sendMessage({ type: "OPEN_REPORT_FROM_PAGE", mode: "pdf", audit: enriched });
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origTxt;
       }
     });
 
@@ -2480,7 +2656,7 @@
     const readinessScore = computeReadinessScore(failCount, warnCount, checkedNodes);
 
     const result = {
-      auditorVersion: "1.1.0",
+      auditorVersion: "1.1.1",
       normativeVersion: globalThis.WCAG22_NORMATIVE_DB?.data?.registryVersion || "2026.11.1",
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,

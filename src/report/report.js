@@ -21,7 +21,7 @@ const I18N = {
     kpiNodes: 'Проверено контролов DOM',
     verdictFail: n => `Требуются правки (ошибок AA: ${n})`,
     verdictPass: 'Автопроверки WCAG 2.2 AA пройдены',
-    scope: '<strong>Методология и визуальная верификация (v1.1.0 Normative Legal Engine):</strong> автоматический замер геометрии, видимости фокуса и кросс-страничной навигации по стандарту EN 301 549 V4.1.1 / W3C WCAG 2.2 AA с автоматической Spotlight-разметкой снимков экрана.',
+    scope: '<strong>Методология и визуальная верификация (v1.1.1 Normative Legal Engine):</strong> автоматический замер геометрии, видимости фокуса и кросс-страничной навигации по стандарту EN 301 549 V4.1.1 / W3C WCAG 2.2 AA с автоматической Spotlight-разметкой снимков экрана.',
     secFails: '1. Критические нарушения уровня AA — визуальные доказательства и код исправления',
     zeroFails: 'Критических нарушений уровня WCAG 2.2 AA на текущем экране не обнаружено.',
     secWarns: '2. Сводная таблица предупреждений, контраста фокуса и отступов',
@@ -191,7 +191,7 @@ const I18N = {
     kpiNodes: 'Evaluated DOM Controls',
     verdictFail: n => `Action Required (${n} AA Fails)`,
     verdictPass: 'Passed Automated WCAG 2.2 AA',
-    scope: '<strong>Scope & Visual Evidence (v1.1.0 Normative Legal Engine):</strong> Deterministic DOM geometry, focus-indicator contrast, and cross-page consistency inspection under EN 301 549 V4.1.1 / W3C WCAG 2.2 AA with automated Spotlight screenshot annotations.',
+    scope: '<strong>Scope & Visual Evidence (v1.1.1 Normative Legal Engine):</strong> Deterministic DOM geometry, focus-indicator contrast, and cross-page consistency inspection under EN 301 549 V4.1.1 / W3C WCAG 2.2 AA with automated Spotlight screenshot annotations.',
     secFails: '1. Level AA Violations — Visual Proof & Developer Remediation',
     zeroFails: 'Zero automated WCAG 2.2 Level AA violations detected on this viewport.',
     secWarns: '2. Compact Advisory, Focus Contrast & Spacing Digest',
@@ -267,7 +267,7 @@ const I18N = {
     kpiNodes: 'Geprüfte DOM-Elemente',
     verdictFail: n => `Handlungsbedarf (${n} AA-Verstöße)`,
     verdictPass: 'Automatische WCAG-2.2-Prüfung bestanden',
-    scope: '<strong>Methodik & Visuelle Belege (v1.1.0 Normative Legal Engine):</strong> Deterministische DOM-Geometrie- und Fokus-Prüfung gemäß EN 301 549 V4.1.1 / BFSG mit automatischer Spotlight-Screenshot-Markierung.',
+    scope: '<strong>Methodik & Visuelle Belege (v1.1.1 Normative Legal Engine):</strong> Deterministische DOM-Geometrie- und Fokus-Prüfung gemäß EN 301 549 V4.1.1 / BFSG mit automatischer Spotlight-Screenshot-Markierung.',
     secFails: '1. Kritische Verstöße der Stufe AA — Visuelle Belege & Korrekturcode',
     zeroFails: 'Keine automatisierten Verstöße der Stufe WCAG 2.2 AA im aktuellen Viewport festgestellt.',
     secWarns: '2. Kompakte Übersicht der Warnungen, Fokuskontraste & Abstände',
@@ -478,6 +478,37 @@ document.getElementById('img-lightbox')?.addEventListener('click', e => {
 });
 
 
+
+function formatLevelFailTag(iss, lang) {
+  const isLevelA = String(iss.level || '').toUpperCase() === 'A';
+  if (lang === 'ru') return isLevelA ? 'НАРУШЕНИЕ A (ОБЯЗАТЕЛЬНО ДЛЯ AA)' : 'НАРУШЕНИЕ AA';
+  if (lang === 'de') return isLevelA ? 'STUFE-A-VERSTOSS (PFLICHT FÜR AA)' : 'AA-VERSTOSS';
+  return isLevelA ? 'LEVEL A FAIL (REQUIRED FOR AA)' : 'AA FAIL';
+}
+
+function localizedFixCode(iss, lang) {
+  const p = iss.params || {};
+  if (iss.code === 'HEADING_ORDER_SKIP') {
+    const nextH = (p.fromLevel || 2) + 1;
+    if (lang === 'ru') return `Используйте <h${nextH}> последовательно, а нужный размер шрифта задайте через CSS.`;
+    if (lang === 'de') return `<h${nextH}> in logischer Reihenfolge nutzen und Schriftgröße per CSS steuern.`;
+  }
+  if (iss.code === 'FORM_LABEL_MISSING') {
+    if (lang === 'ru') return '<label for="field-id">Название поля</label>\n<input id="field-id" ...> /* или aria-label="..." */';
+    if (lang === 'de') return '<label for="field-id">Feldname</label>\n<input id="field-id" ...> /* oder aria-label="..." */';
+  }
+  if (iss.code === 'IMG_ALT_MISSING') {
+    if (lang === 'ru') return '<img src="..." alt="Описание изображения"> <!-- или alt="" для декора -->';
+    if (lang === 'de') return '<img src="..." alt="Bildbeschreibung"> <!-- oder alt="" falls dekorativ -->';
+  }
+  if (iss.code === 'EMPTY_INTERACTIVE_NAME') {
+    const tag = p.kind === 'link' ? 'a' : 'button';
+    if (lang === 'ru') return `<${tag} aria-label="Понятное название действия">...</${tag}>`;
+    if (lang === 'de') return `<${tag} aria-label="Sprechende Bezeichnung">...</${tag}>`;
+  }
+  return iss.fixCode;
+}
+
 function getStatutoryCitation(criterion, lang) {
   if (window.WCAG22_NORMATIVE_DB && window.WCAG22_NORMATIVE_DB.lookupClause) {
     return window.WCAG22_NORMATIVE_DB.lookupClause(criterion, lang);
@@ -651,7 +682,7 @@ function renderConformityCertificate() {
       <div class="cert-sign-row">
         <div class="cert-sign-box">
           <div><strong>${L.issuedBy}</strong> ${agencyTitle}${brandData.auditorContact ? ` (${brandData.auditorContact})` : ''}</div>
-          <div style="color:#475569;margin-top:3px;"><strong>URL:</strong> ${auditData.url} · <strong>${L.dateLbl}</strong> ${dateFmt}</div>
+          <div style="color:#475569;margin-top:3px;"><strong>URL:</strong> ${String(auditData.url || '').length > 78 ? String(auditData.url).slice(0, 75) + '…' : auditData.url} · <strong>${L.dateLbl}</strong> ${dateFmt}</div>
         </div>
         <div class="cert-sign-line">${L.signLine}</div>
       </div>
@@ -809,6 +840,8 @@ function renderReport() {
   }
 
   // 1. Render Critical AA Fails — Card #1 is ALWAYS unblurred (Show-First visual proof!), Cards #2+ get .is-locked-finding when unpaid
+  const firstFailSlot = document.getElementById('first-fail-slot');
+  if (firstFailSlot) firstFailSlot.replaceChildren();
   const failsContainer = document.getElementById('fails-container');
   failsContainer.replaceChildren();
   const fails = auditData.issues.filter(i => i.severity === 'fail');
@@ -817,7 +850,8 @@ function renderReport() {
     const banner = document.createElement('div');
     banner.className = 'pass-banner';
     banner.textContent = t.zeroFails;
-    failsContainer.appendChild(banner);
+    if (firstFailSlot) firstFailSlot.appendChild(banner);
+    else failsContainer.appendChild(banner);
   } else {
     const failGroups = groupByComponent(fails);
     failGroups.forEach((items, i) => {
@@ -833,7 +867,7 @@ function renderReport() {
       strong.textContent = `${i + 1}. ${t.issueTitle(iss)}${multSuffix}`;
       const tag = document.createElement('span');
       tag.className = 'tag tag-fail';
-      tag.textContent = `SC ${iss.criterion} · ${t.tagFail}`;
+      tag.textContent = `SC ${iss.criterion} · ${formatLevelFailTag(iss, currentLang)}`;
       top.append(strong, tag);
 
       const lawInfo = getStatutoryCitation(iss.criterion, currentLang);
@@ -862,7 +896,7 @@ function renderReport() {
       const fix = document.createElement('div');
       fix.className = 'fix-box notranslate';
       fix.setAttribute('translate', 'no');
-      fix.textContent = `${t.lblFix} ${iss.fixCode}`;
+      fix.textContent = `${t.lblFix} ${localizedFixCode(iss, currentLang)}`;
       details.append(obs, sel, fix);
       body.appendChild(details);
 
@@ -888,7 +922,8 @@ function renderReport() {
       }
 
       card.append(top, lawBox, impact, body);
-      failsContainer.appendChild(card);
+      if (i === 0 && firstFailSlot) firstFailSlot.appendChild(card);
+      else failsContainer.appendChild(card);
       if (i === 0 && failGroups.length > 1) {
         const gateEl = document.getElementById("inline-teaser-gate");
         if (gateEl) failsContainer.appendChild(gateEl);
@@ -939,7 +974,7 @@ function renderReport() {
       const tdFix = document.createElement('td');
       tdFix.className = 'compact-code notranslate';
       tdFix.setAttribute('translate', 'no');
-      tdFix.textContent = first.fixCode;
+      tdFix.textContent = localizedFixCode(first, currentLang);
 
       tr.append(tdCrit, tdSel, tdObs, tdFix);
       warnTbody.appendChild(tr);

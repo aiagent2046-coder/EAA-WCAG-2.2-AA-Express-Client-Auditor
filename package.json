@@ -1,6 +1,6 @@
 {
   "name": "eaa-wcag22-express-auditor",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Local-first WCAG 2.2 AA & EAA Express Client Auditor with On-Page Interactive Before/After Studio Dock, Spotlight Evidence Cards, and Direct Stripe Checkout",
   "scripts": {

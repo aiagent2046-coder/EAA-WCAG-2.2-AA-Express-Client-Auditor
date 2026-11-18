@@ -401,7 +401,7 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
   let groupOrder = 0;
   enriched.issues.forEach((issue, idx) => {
     if (issue.severity !== 'fail' || !issue.bbox) return;
-    const gKey = issue.componentGroupKey || issue.selector;
+    const gKey = `${issue.criterion}|${issue.code || ''}|${issue.componentGroupKey || issue.selector}`;
     if (seenGroupKeys.has(gKey)) return;
     seenGroupKeys.add(gKey);
     groupOrder += 1;
