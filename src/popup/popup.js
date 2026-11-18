@@ -3,7 +3,6 @@ let currentWindowId = null;
 let lastAudit = null;
 let activeFilter = 'all';
 let isPro = false;
-let isDevOverride = false;
 let billingEmail = '';
 let simFixActive = false;
 
@@ -29,6 +28,16 @@ function showStatus(text) {
 function getHumanSummary(iss) {
   const p = iss.params || {};
   switch (iss.code) {
+    case 'TEXT_CONTRAST_LOW':
+      return `Text contrast is ${p.ratio}:1 (needs ${p.required}:1 under EN 301 549 Cl. 9.1.4.3) — hard to read for low-vision users.`;
+    case 'IMG_ALT_MISSING':
+      return 'Image lacks alt attribute (Cl. 9.1.1.1) — screen readers announce raw filename or skip link action.';
+    case 'EMPTY_INTERACTIVE_NAME':
+      return 'Button or link has zero accessible name (Cl. 9.4.1.2) — announced as blank control by VoiceOver/NVDA.';
+    case 'FORM_LABEL_MISSING':
+      return 'Input lacks programmatic <label> or aria-label (Cl. 9.3.3.2) — fails EAA form accessibility.';
+    case 'HTML_LANG_MISSING':
+      return 'Missing <html lang> attribute (Cl. 9.3.1.1) — screen readers use wrong pronunciation engine.';
     case 'TARGET_COLLISION':
       return `Hit area is only ${p.w}×${p.h}px (needs 24×24px) — users with motor tremor or touch screens misclick adjacent controls.`;
     case 'FOCUS_RING_SUPPRESSED':
@@ -59,14 +68,7 @@ function updateProBadges() {
   }
 
   if (btnSignOutPro) {
-    btnSignOutPro.hidden = !(isPro && !isDevOverride);
-  }
-
-  const manifest = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : {};
-  const devBtn = document.getElementById('btn-dev-unlock');
-  if (!manifest.update_url && devBtn) {
-    devBtn.hidden = false;
-    devBtn.textContent = isDevOverride ? 'Dev: ON (Reset)' : 'Dev: Test Pro';
+    btnSignOutPro.hidden = !isPro;
   }
 }
 
@@ -75,7 +77,6 @@ async function refreshProStatus() {
     if (window.MonetizeBridge) {
       const res = await window.MonetizeBridge.checkAccess();
       isPro = Boolean(res && res.granted);
-      isDevOverride = Boolean(res && res.devOverride);
       billingEmail = (res && res.email) || '';
     }
   } catch (_) {
@@ -87,7 +88,6 @@ async function refreshProStatus() {
 if (window.MonetizeBridge) {
   window.MonetizeBridge.onAccessChange((granted, detail) => {
     isPro = Boolean(granted);
-    if (detail && typeof detail.devOverride === 'boolean') isDevOverride = detail.devOverride;
     if (detail && typeof detail.email === 'string') billingEmail = detail.email;
     updateProBadges();
     renderIssues();
@@ -206,6 +206,7 @@ function renderIssues() {
     .filter(({ item }) => {
       if (activeFilter === 'all') return true;
       if (activeFilter === 'fail') return item.severity === 'fail';
+      if (activeFilter === 'a11y-name') return ['1.1.1', '2.4.4', '3.1.1', '3.3.2', '4.1.2', '1.3.1'].includes(item.criterion);
       return item.criterion.startsWith(activeFilter);
     });
 
@@ -236,11 +237,16 @@ function renderIssues() {
     elBadge.className = 'issue-el-badge';
     elBadge.textContent = item.elementLabel ? `"${item.elementLabel}"` : item.selector;
 
+    const lawLine = document.createElement('div');
+    lawLine.className = 'issue-law';
+    const lawInfo = window.WCAG22_NORMATIVE_DB?.lookupClause?.(item.criterion, 'en');
+    lawLine.textContent = `⚖ ${item.enClause || lawInfo?.enClause || `EN 301 549 Cl. 9.${item.criterion}`} · ${item.eaaLaw || 'EU 2019/882 Annex I'}`;
+
     const impact = document.createElement('div');
     impact.className = 'issue-impact';
     impact.textContent = getHumanSummary(item);
 
-    card.append(head, elBadge, impact);
+    card.append(head, elBadge, lawLine, impact);
 
     if (isPro || cardPos < 1) {
       const fix = document.createElement('div');
@@ -453,6 +459,10 @@ btnScan.addEventListener('click', async () => {
   currentWindowId = tab.windowId;
 
   try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['src/rules/normative-db.js']
+    }).catch(() => {});
     const injected = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['src/content/scanner.js']
@@ -568,14 +578,38 @@ btnSignOutPro?.addEventListener('click', async () => {
   showStatus('Signed out of Pro license — Free tier & Visual Teaser enabled.');
 });
 
-document.getElementById('btn-dev-unlock').addEventListener('click', async () => {
-  const nextDev = !isDevOverride;
-  await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: nextDev });
-  await refreshProStatus();
-  updateProBadges();
-  renderIssues();
-  showStatus(isPro ? 'Dev Mode: Pro unlocked locally.' : 'Dev Mode: Switched back to Free tier.');
-});
-
 refreshProStatus();
 loadBrandingInputs();
+
+async function initNormativeBar() {
+  const txtEl = document.getElementById('norm-bar-text');
+  const btn = document.getElementById('btn-sync-norms');
+  if (!txtEl) return;
+
+  const renderState = st => {
+    const ver = st?.registryVersion || window.WCAG22_NORMATIVE_DB?.data?.registryVersion || '2026.11.1';
+    const dt = st?.lastCheckedAt ? new Date(st.lastCheckedAt).toLocaleDateString() : 'v1.1';
+    txtEl.textContent = `⚖ EN 301 549 V4.1.1 · EU 2019/882 (${ver} · ✓ ${dt})`;
+    if (st && window.WCAG22_NORMATIVE_DB) {
+      window.WCAG22_NORMATIVE_DB.applyRegistryOverrides(st);
+    }
+  };
+
+  try {
+    const { normativeRegistryState } = await chrome.storage.local.get('normativeRegistryState');
+    renderState(normativeRegistryState);
+  } catch (_) {}
+
+  btn?.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = '↻ ...';
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'CHECK_NORMATIVE_UPDATES', force: true });
+      if (res?.state) renderState(res.state);
+      showStatus('Нормативная база стандартов WCAG 2.2 & EN 301 549 проверена и актуальна.');
+    } catch (_) {}
+    btn.disabled = false;
+    btn.textContent = '↻ Нормы';
+  });
+}
+initNormativeBar();

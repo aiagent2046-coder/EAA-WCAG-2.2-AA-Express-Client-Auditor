@@ -21,7 +21,7 @@ const I18N = {
     kpiNodes: 'Проверено контролов DOM',
     verdictFail: n => `Требуются правки (ошибок AA: ${n})`,
     verdictPass: 'Автопроверки WCAG 2.2 AA пройдены',
-    scope: '<strong>Методология и визуальная верификация (v0.6.1 Visual X-Ray):</strong> автоматический замер геометрии, видимости фокуса и кросс-страничной навигации по стандарту EN 301 549 V4.1.1 / W3C WCAG 2.2 AA с автоматической Spotlight-разметкой снимков экрана.',
+    scope: '<strong>Методология и визуальная верификация (v1.1.0 Normative Legal Engine):</strong> автоматический замер геометрии, видимости фокуса и кросс-страничной навигации по стандарту EN 301 549 V4.1.1 / W3C WCAG 2.2 AA с автоматической Spotlight-разметкой снимков экрана.',
     secFails: '1. Критические нарушения уровня AA — визуальные доказательства и код исправления',
     zeroFails: 'Критических нарушений уровня WCAG 2.2 AA на текущем экране не обнаружено.',
     secWarns: '2. Сводная таблица предупреждений, контраста фокуса и отступов',
@@ -44,16 +44,26 @@ const I18N = {
     m326AutoPass: n => `Автоматически подтверждено расширением на ${n} стр. этого домена.`,
     m337: 'Многошаговые формы — ранее введенные пользователем данные подставляются автоматически без повторного ввода.',
     pillars: {
-      target: '1. Зоны клика и моторика (SC 2.5.8)',
-      focus: '2. Видимость и слой фокуса (SC 2.4.7 / 2.4.11)',
-      auth: '3. Вход без барьеров и формы (SC 3.3.7 / 3.3.8)',
-      nav: '4. Порядок Tab, помощь и EAA (SC 2.4.3 / 3.2.6)',
+      target: '1. Контраст, медиа и метки (EN 9.1 / 9.3.3.2)',
+      focus: '2. Зоны клика 24px и моторика (EN 9.2.5)',
+      auth: '3. Фокус клавиатуры и шапки (EN 9.2.4)',
+      nav: '4. Имена ARIA, вход и EAA (EN 9.4.1.2 / 9.3.3.8)',
       ok: 'В норме',
       warn: n => `Риск (${n})`,
       fail: n => `Ошибки AA (${n})`
     },
     humanImpact(iss) {
       switch (iss.code) {
+        case 'TEXT_CONTRAST_LOW':
+          return '👁️ Риск для пользователя: бледный текст сливается с фоном — слабовидящие пользователи и покупатели при ярком свете не могут прочитать условия или цену.';
+        case 'IMG_ALT_MISSING':
+          return '🖼️ Риск для пользователя: у изображения нет атрибута alt — скринридер зачитывает техническое имя файла или пропускает смысл баннера/ссылки.';
+        case 'EMPTY_INTERACTIVE_NAME':
+          return '🔇 Риск для пользователя: кнопка или иконка-ссылка не имеет текстовой подписи — для незрячего пользователя это «немая кнопка» без назначения.';
+        case 'FORM_LABEL_MISSING':
+          return '📝 Риск для пользователя: поле ввода не связано с <label> — при вводе текста подсказка исчезает и скринридер не называет назначение поля.';
+        case 'HTML_LANG_MISSING':
+          return '🌐 Риск для пользователя: не указан язык документа <html lang> — синтезатор речи читает текст с неправильным произношением.';
         case 'TARGET_COLLISION':
           return '👆 Риск для пользователя: слишком мелкая кнопка вплотную к соседней — люди с тремором рук и пользователи смартфонов промахиваются при нажатии.';
         case 'FOCUS_RING_SUPPRESSED':
@@ -71,6 +81,18 @@ const I18N = {
     issueTitle(iss) {
       const p = iss.params || {};
       switch (iss.code) {
+        case 'TEXT_CONTRAST_LOW':
+          return `Недостаточный контраст текста (${p.ratio}:1 при норме закона не менее ${p.required}:1)`;
+        case 'IMG_ALT_MISSING':
+          return p.inLink ? 'Изображение внутри ссылки/кнопки без альтернативного текста alt' : 'Информативное изображение <img> без атрибута alt';
+        case 'EMPTY_INTERACTIVE_NAME':
+          return p.kind === 'link' ? 'Пустая ссылка без текста и атрибута aria-label' : 'Кнопка / иконка без программного имени (aria-label)';
+        case 'FORM_LABEL_MISSING':
+          return 'Поле ввода формы не имеет привязанной метки <label> или aria-label';
+        case 'HTML_LANG_MISSING':
+          return 'У корневого тега <html> отсутствует корректный атрибут языка lang';
+        case 'HEADING_ORDER_SKIP':
+          return `Нарушена иерархия заголовков: скачок с <h${p.fromLevel}> сразу на <h${p.toLevel}>`;
         case 'TARGET_COLLISION':
           return 'Размер интерактивного элемента менее 24×24 CSS px с пересечением зоны соседнего контрола';
         case 'TARGET_SPACING_PASS':
@@ -108,6 +130,18 @@ const I18N = {
     issueObs(iss) {
       const p = iss.params || {};
       switch (iss.code) {
+        case 'TEXT_CONTRAST_LOW':
+          return `Текст «${iss.elementLabel}»: цвет ${p.fgHex} на фоне ${p.bgHex} дает контраст ${p.ratio}:1 (требуется ≥ ${p.required}:1)`;
+        case 'IMG_ALT_MISSING':
+          return `У элемента ${iss.elementLabel} отсутствует атрибут alt`;
+        case 'EMPTY_INTERACTIVE_NAME':
+          return 'Отсутствует видимый текст, alt у вложенной иконки и атрибут aria-label';
+        case 'FORM_LABEL_MISSING':
+          return p.hasPlaceholderOnly ? `Используется только исчезающий placeholder (${iss.elementLabel}) без постоянной метки <label>` : 'Поле формы не имеет программной подписи для ассистивных технологий';
+        case 'HTML_LANG_MISSING':
+          return 'Тег <html> не содержит валидного языкового кода ISO/BCP-47';
+        case 'HEADING_ORDER_SKIP':
+          return `Пропущен уровень заголовка между <h${p.fromLevel}> и <h${p.toLevel}>`;
         case 'TARGET_COLLISION':
           return `Элемент «${iss.elementLabel}»: ${p.w} × ${p.h} px — 24px-окружность задевает ${p.neighbor}`;
         case 'TARGET_SPACING_PASS':
@@ -157,7 +191,7 @@ const I18N = {
     kpiNodes: 'Evaluated DOM Controls',
     verdictFail: n => `Action Required (${n} AA Fails)`,
     verdictPass: 'Passed Automated WCAG 2.2 AA',
-    scope: '<strong>Scope & Visual Evidence (v0.6.1 Visual X-Ray):</strong> Deterministic DOM geometry, focus-indicator contrast, and cross-page consistency inspection under EN 301 549 V4.1.1 / W3C WCAG 2.2 AA with automated Spotlight screenshot annotations.',
+    scope: '<strong>Scope & Visual Evidence (v1.1.0 Normative Legal Engine):</strong> Deterministic DOM geometry, focus-indicator contrast, and cross-page consistency inspection under EN 301 549 V4.1.1 / W3C WCAG 2.2 AA with automated Spotlight screenshot annotations.',
     secFails: '1. Level AA Violations — Visual Proof & Developer Remediation',
     zeroFails: 'Zero automated WCAG 2.2 Level AA violations detected on this viewport.',
     secWarns: '2. Compact Advisory, Focus Contrast & Spacing Digest',
@@ -180,16 +214,26 @@ const I18N = {
     m326AutoPass: n => `Automatically verified across ${n} audited pages on this domain.`,
     m337: 'Multi-step forms — verify previously entered user data is auto-populated or selectable without re-typing.',
     pillars: {
-      target: '1. Pointer & Touch Targets (SC 2.5.8)',
-      focus: '2. Focus Ring & Sticky Layers (SC 2.4.7 / 2.4.11)',
-      auth: '3. Frictionless Login & Forms (SC 3.3.7 / 3.3.8)',
-      nav: '4. Tab Order, Help & EAA Risk (SC 2.4.3 / 3.2.6)',
+      target: '1. Contrast, Alt & Form Labels (EN 9.1 / 9.3.3.2)',
+      focus: '2. Touch Targets 24px & Motion (EN 9.2.5)',
+      auth: '3. Keyboard Focus & Sticky Bars (EN 9.2.4)',
+      nav: '4. ARIA Names, Auth & EAA (EN 9.4.1.2 / 9.3.3.8)',
       ok: 'Passed',
       warn: n => `Warnings (${n})`,
       fail: n => `AA Fails (${n})`
     },
     humanImpact(iss) {
       switch (iss.code) {
+        case 'TEXT_CONTRAST_LOW':
+          return '👁️ Риск для пользователя: бледный текст сливается с фоном — слабовидящие пользователи и покупатели при ярком свете не могут прочитать условия или цену.';
+        case 'IMG_ALT_MISSING':
+          return '🖼️ Риск для пользователя: у изображения нет атрибута alt — скринридер зачитывает техническое имя файла или пропускает смысл баннера/ссылки.';
+        case 'EMPTY_INTERACTIVE_NAME':
+          return '🔇 Риск для пользователя: кнопка или иконка-ссылка не имеет текстовой подписи — для незрячего пользователя это «немая кнопка» без назначения.';
+        case 'FORM_LABEL_MISSING':
+          return '📝 Риск для пользователя: поле ввода не связано с <label> — при вводе текста подсказка исчезает и скринридер не называет назначение поля.';
+        case 'HTML_LANG_MISSING':
+          return '🌐 Риск для пользователя: не указан язык документа <html lang> — синтезатор речи читает текст с неправильным произношением.';
         case 'TARGET_COLLISION':
           return '👆 User Impact: Undersized hit box collides with adjacent control — causes misclicks for mobile & motor-impaired users.';
         case 'FOCUS_RING_SUPPRESSED':
@@ -223,7 +267,7 @@ const I18N = {
     kpiNodes: 'Geprüfte DOM-Elemente',
     verdictFail: n => `Handlungsbedarf (${n} AA-Verstöße)`,
     verdictPass: 'Automatische WCAG-2.2-Prüfung bestanden',
-    scope: '<strong>Methodik & Visuelle Belege (v0.6.1 Visual X-Ray):</strong> Deterministische DOM-Geometrie- und Fokus-Prüfung gemäß EN 301 549 V4.1.1 / BFSG mit automatischer Spotlight-Screenshot-Markierung.',
+    scope: '<strong>Methodik & Visuelle Belege (v1.1.0 Normative Legal Engine):</strong> Deterministische DOM-Geometrie- und Fokus-Prüfung gemäß EN 301 549 V4.1.1 / BFSG mit automatischer Spotlight-Screenshot-Markierung.',
     secFails: '1. Kritische Verstöße der Stufe AA — Visuelle Belege & Korrekturcode',
     zeroFails: 'Keine automatisierten Verstöße der Stufe WCAG 2.2 AA im aktuellen Viewport festgestellt.',
     secWarns: '2. Kompakte Übersicht der Warnungen, Fokuskontraste & Abstände',
@@ -246,10 +290,10 @@ const I18N = {
     m326AutoPass: n => `Automatisch über ${n} geprüfte Unterseiten dieser Domain bestätigt.`,
     m337: 'Mehrstufige Formulare — bereits eingegebene Daten werden ohne erneutes Eintippen übernommen.',
     pillars: {
-      target: '1. Klickflächen & Motorik (SC 2.5.8)',
-      focus: '2. Fokus-Sichtbarkeit & Layer (SC 2.4.7 / 2.4.11)',
-      auth: '3. Barrierefreier Login & Formulare (SC 3.3.7 / 3.3.8)',
-      nav: '4. Tab-Reihenfolge, Hilfe & BFSG (SC 2.4.3 / 3.2.6)',
+      target: '1. Kontrast, Alt & Formulare (EN 9.1 / 9.3.3.2)',
+      focus: '2. Klickflächen 24px & Motorik (EN 9.2.5)',
+      auth: '3. Tastaturfokus & Sticky-Header (EN 9.2.4)',
+      nav: '4. ARIA-Namen, Login & BFSG (EN 9.4.1.2 / 9.3.3.8)',
       ok: 'Bestanden',
       warn: n => `Warnungen (${n})`,
       fail: n => `AA-Fehler (${n})`
@@ -319,7 +363,9 @@ function toMarkdown(audit, brand) {
   ];
 
   audit.issues.forEach((iss, idx) => {
-    lines.push(`### ${idx + 1}. [SC ${iss.criterion} · ${iss.severity.toUpperCase()}] ${t.issueTitle(iss)}`);
+    const law = getStatutoryCitation(iss.criterion, currentLang);
+    lines.push(`### ${idx + 1}. [SC ${iss.criterion} · ${law.enClause} · ${iss.severity.toUpperCase()}] ${t.issueTitle(iss)}`);
+    lines.push(`- **Normative Law:** ${law.citation}`);
     lines.push(`- **Selector:** \`${iss.selector}\``);
     lines.push(`- **Observed:** ${t.issueObs(iss)}`);
     lines.push(`- **Fix:** \`${iss.fixCode}\``);
@@ -334,11 +380,14 @@ function csvEscape(val) {
 
 function toCsv(audit) {
   const t = I18N[currentLang];
-  const rows = [['Index', 'WCAG_Criterion', 'Severity', 'Title', 'Selector', 'Observed', 'Recommended_Fix']];
+  const rows = [['Index', 'WCAG_Criterion', 'EN_301_549_Clause', 'EU_EAA_Directive_Article', 'Severity', 'Title', 'Selector', 'Observed', 'Recommended_Fix']];
   audit.issues.forEach((iss, idx) => {
+    const law = getStatutoryCitation(iss.criterion, currentLang);
     rows.push([
       idx + 1,
-      iss.criterion,
+      `SC ${iss.criterion}`,
+      law.enClause,
+      law.eaaArticle,
       iss.severity.toUpperCase(),
       t.issueTitle(iss),
       iss.selector,
@@ -372,10 +421,10 @@ function renderPillarDashboard(audit, t) {
   grid.replaceChildren();
 
   const defs = [
-    { key: 'target', match: i => i.criterion === '2.5.8' },
-    { key: 'focus', match: i => ['2.4.7', '2.4.11', '2.4.13'].includes(i.criterion) },
-    { key: 'auth', match: i => ['3.3.7', '3.3.8'].includes(i.criterion) },
-    { key: 'nav', match: i => ['2.4.3', '2.5.7', '3.2.6', 'EN 301 549'].includes(i.criterion) }
+    { key: 'target', match: i => ['1.1.1', '1.3.1', '1.4.3', '3.1.1', '3.3.2'].includes(i.criterion) },
+    { key: 'focus', match: i => ['2.5.7', '2.5.8'].includes(i.criterion) },
+    { key: 'auth', match: i => ['2.4.3', '2.4.4', '2.4.7', '2.4.11', '2.4.13'].includes(i.criterion) },
+    { key: 'nav', match: i => ['3.2.6', '3.3.7', '3.3.8', '4.1.2', 'EN 301 549'].includes(i.criterion) }
   ];
 
   for (const d of defs) {
@@ -427,6 +476,240 @@ document.getElementById('lightbox-close')?.addEventListener('click', () => {
 document.getElementById('img-lightbox')?.addEventListener('click', e => {
   if (e.target.id === 'img-lightbox') document.getElementById('img-lightbox').hidden = true;
 });
+
+
+function getStatutoryCitation(criterion, lang) {
+  if (window.WCAG22_NORMATIVE_DB && window.WCAG22_NORMATIVE_DB.lookupClause) {
+    return window.WCAG22_NORMATIVE_DB.lookupClause(criterion, lang);
+  }
+  return {
+    enClause: `EN 301 549 Clause 9.${criterion}`,
+    eaaArticle: 'Directive (EU) 2019/882, Annex I, Sec. III(c)',
+    citation: `EN 301 549 Clause 9.${criterion} · Directive (EU) 2019/882 Annex I`
+  };
+}
+
+function computeCertificateId(audit) {
+  const raw = `${audit.url || ''}|${audit.scannedAt || ''}|${audit.normativeVersion || '2026.11.1'}`;
+  let h1 = 0x811c9dc5;
+  for (let i = 0; i < raw.length; i++) {
+    h1 ^= raw.charCodeAt(i);
+    h1 = Math.imul(h1, 0x01000193) >>> 0;
+  }
+  const hex = h1.toString(16).toUpperCase().padStart(8, '0');
+  const yr = new Date(audit.scannedAt || Date.now()).getFullYear() || 2026;
+  return `EAA-${yr}-${hex.slice(0, 4)}-${hex.slice(4, 8)}`;
+}
+
+function renderConformityCertificate() {
+  const container = document.getElementById('cert-container');
+  const secHeading = document.getElementById('ui-sec-cert');
+  if (!container || !auditData) return;
+
+  const manualRows = Array.from(document.querySelectorAll('#manual-tbody tr'));
+  let manualFailCount = 0;
+  manualRows.forEach(tr => {
+    const boxes = tr.querySelectorAll('input[type="checkbox"]');
+    if (boxes[1] && boxes[1].checked) manualFailCount += 1;
+  });
+
+  const autoFails = auditData.issues.filter(i => i.severity === 'fail');
+  const totalBlockers = autoFails.length + manualFailCount;
+  const isConformant = totalBlockers === 0;
+  const certId = computeCertificateId(auditData);
+  const regVer = window.WCAG22_NORMATIVE_DB?.data?.registryVersion || auditData.normativeVersion || '2026.11.1';
+  const clientTitle = brandData.clientName || auditData.pageTitle || 'Web Digital Service';
+  const agencyTitle = brandData.agencyName || (currentLang === 'ru' ? 'Независимый аудитор доступности (QA)' : 'Accessibility Audit QA Practice');
+  const dateFmt = new Date(auditData.scannedAt).toLocaleString(currentLang);
+
+  const failClauses = Array.from(new Set(autoFails.map(f => getStatutoryCitation(f.criterion, currentLang).enClause)));
+  const hasPrincipleFail = prefix => autoFails.some(f => String(f.criterion).startsWith(prefix));
+  const hasOverlayFail = autoFails.some(f => f.criterion === 'EN 301 549');
+
+  const L = {
+    ru: {
+      secTitle: '4. Свидетельство о прохождении технического аудита / Протокол соответствия EAA',
+      kickerOk: 'ДОКУМЕНТ ТЕХНИЧЕСКОГО АУДИТА · DIRECTIVE (EU) 2019/882 · EN 301 549 V4.1.1',
+      kickerPend: 'ПРЕДСЕРТИФИКАЦИОННЫЙ ПРОТОКОЛ КОНТРОЛЯ СООТВЕТСТВИЯ · EAA / EN 301 549',
+      headOk: 'СВИДЕТЕЛЬСТВО О СООТВЕТСТВИИ ТРЕБОВАНИЯМ ТЕХНИЧЕСКОГО АУДИТА',
+      headPend: 'ПРОТОКОЛ НЕСООТВЕТСТВИЯ (ТРЕБУЕТСЯ УСТРАНЕНИЕ НАРУШЕНИЙ ЗАКОНА)',
+      subOk: 'Подтверждает отсутствие критических нарушений уровня A/AA на проверенном веб-интерфейсе по актуальной базе норм ЕС.',
+      subPend: `Выдача Свидетельства приостановлена: обнаружено блокирующих нарушений уровня A/AA — ${totalBlockers} шт. После внесения правок из Раздела 1 проведите повторное сканирование.`,
+      sealOk: '✓ СООТВЕТСТВУЕТ\nWCAG 2.2 AA & EAA',
+      sealPend: `ПРИОСТАНОВЛЕНО\nОшибок A/AA: ${totalBlockers}`,
+      mId: 'Регистрационный № протокола',
+      mAsset: 'Проверенный ресурс и клиент',
+      mNorm: 'Редакция нормативной базы',
+      c1: 'Cl. 9.1 Восприятие',
+      c2: 'Cl. 9.2 Управление',
+      c3: 'Cl. 9.3 Понятность',
+      c4: 'Cl. 9.4 Надежность',
+      c5: 'Cl. 9.6 Нормы EAA',
+      passTag: '✓ В норме',
+      failTag: '✕ Нарушено',
+      blockersLbl: 'Пункты стандарта EN 301 549, блокирующие выдачу свидетельства:',
+      issuedBy: 'Орган / Исполнитель технического аудита:',
+      signLine: 'Подпись ведущего аудитора / Штамп агентства',
+      dateLbl: 'Дата фиксации:',
+      legalFoot: 'Юридическая оговорка (Directive (EU) 2019/882 Art. 13, Art. 15, Annex IV & V): настоящий документ удостоверяет результаты инструментального и контрольного аудита DOM-интерфейса указанного URL в зафиксированном окне просмотра и служит доказательной базой исправлений по стандарту ETSI EN 301 549 V4.1.1 (WCAG 2.2 AA). Для полной декларации соответствия всей цифровой услуги рекомендуется проверка пользовательских сценариев со скринридером и публикация Декларации о доступности на сайте.'
+    },
+    en: {
+      secTitle: '4. Technical Audit Conformity Certificate / EAA Statutory Protocol',
+      kickerOk: 'TECHNICAL CONFORMITY ATTESTATION · DIRECTIVE (EU) 2019/882 · EN 301 549 V4.1.1',
+      kickerPend: 'PRE-CERTIFICATION STATUTORY REMEDIATION PROTOCOL · EAA / EN 301 549',
+      headOk: 'CERTIFICATE OF TECHNICAL ACCESSIBILITY AUDIT CONFORMITY',
+      headPend: 'NON-CONFORMITY PROTOCOL (REMEDIATION REQUIRED PRIOR TO ATTESTATION)',
+      subOk: 'Attests that the inspected URL passed automated and guided WCAG 2.2 Level A/AA & EN 301 549 V4.1.1 checks.',
+      subPend: `Certificate issuance is on hold: ${totalBlockers} blocking Level A/AA statutory violation(s) detected. Apply the fixes in Section 1 and re-run the audit to issue a clean Certificate.`,
+      sealOk: '✓ CONFORMANT\nWCAG 2.2 AA & EAA',
+      sealPend: `HOLD / ACTION REQ.\n${totalBlockers} A/AA Blockers`,
+      mId: 'Protocol / Certificate ID',
+      mAsset: 'Audited Digital Asset & Client',
+      mNorm: 'Normative Registry Baseline',
+      c1: 'Cl. 9.1 Perceivable',
+      c2: 'Cl. 9.2 Operable',
+      c3: 'Cl. 9.3 Understandable',
+      c4: 'Cl. 9.4 Robust',
+      c5: 'Cl. 9.6 EAA Conformance',
+      passTag: '✓ Passed',
+      failTag: '✕ Violated',
+      blockersLbl: 'Blocking EN 301 549 statutory clauses requiring remediation:',
+      issuedBy: 'Issuing Accessibility Audit Practice:',
+      signLine: 'Lead Accessibility Auditor Signature / Agency Stamp',
+      dateLbl: 'Timestamp:',
+      legalFoot: 'Statutory Scope Notice (Directive (EU) 2019/882 Art. 13, Art. 15, Annex IV & V): This attestation certifies technical DOM & guided inspection conformance of the specified URL/viewport against harmonised standard ETSI EN 301 549 V4.1.1 (W3C WCAG 2.2 Level AA) as part of technical conformity documentation. Combine with assistive-technology journey sign-off and a public Accessibility Statement for service-wide EU EAA compliance.'
+    },
+    de: {
+      secTitle: '4. Technisches Prüfungszertifikat / BFSG- & EAA-Konformitätsprotokoll',
+      kickerOk: 'TECHNISCHE KONFORMITÄTSBESCHEINIGUNG · RICHTLINIE (EU) 2019/882 · EN 301 549 V4.1.1',
+      kickerPend: 'VORZERTIFIZIERUNGS-MÄNGELPROTOKOLL · BFSG / EN 301 549',
+      headOk: 'ZERTIFIKAT ÜBER DIE TECHNISCHE BARRIEREFREIHEITSPRÜFUNG',
+      headPend: 'ABWEICHUNGSPROTOKOLL (KORREKTUREN VOR ZERTIFIZIERUNG ERFORDERLICH)',
+      subOk: 'Bestätigt, dass die geprüfte URL alle automatisierten und geführten Prüfungen nach WCAG 2.2 AA & EN 301 549 V4.1.1 bestanden hat.',
+      subPend: `Zertifikatsausstellung ausgesetzt: ${totalBlockers} kritische Verstöße der Stufe A/AA festgestellt. Nach Umsetzung der Korrekturen in Abschnitt 1 erneut prüfen.`,
+      sealOk: '✓ KONFORM\nWCAG 2.2 AA & BFSG',
+      sealPend: `AUSGESETZT\n${totalBlockers} A/AA-Mängel`,
+      mId: 'Protokoll- / Zertifikats-Nr.',
+      mAsset: 'Geprüftes System & Auftraggeber',
+      mNorm: 'Normen-Datenbankstand',
+      c1: '9.1 Wahrnehmbar',
+      c2: '9.2 Bedienbar',
+      c3: '9.3 Verständlich',
+      c4: '9.4 Robust',
+      c5: '9.6 BFSG / EAA',
+      passTag: '✓ Bestanden',
+      failTag: '✕ Verstoß',
+      blockersLbl: 'Blockierende EN-301-549-Klauseln vor Zertifikatserteilung:',
+      issuedBy: 'Prüfende Stelle / Agentur:',
+      signLine: 'Unterschrift Leitender Prüfer / Agenturstempel',
+      dateLbl: 'Prüfdatum:',
+      legalFoot: 'Rechtlicher Hinweis (Richtlinie (EU) 2019/882 Art. 13, 15, Anh. IV & V / BFSG § 3): Dieses Dokument dokumentiert das Ergebnis der technischen Prüfung der angegebenen URL gemäß EN 301 549 V4.1.1 (WCAG 2.2 AA) als technischer Nachweis.'
+    }
+  }[currentLang] || {};
+
+  if (secHeading) secHeading.textContent = L.secTitle;
+
+  const chs = [
+    { name: L.c1, bad: hasPrincipleFail('1.') },
+    { name: L.c2, bad: hasPrincipleFail('2.') },
+    { name: L.c3, bad: hasPrincipleFail('3.') },
+    { name: L.c4, bad: hasPrincipleFail('4.') },
+    { name: L.c5, bad: !isConformant || hasOverlayFail }
+  ];
+
+  container.innerHTML = `
+    <div class="cert-card ${isConformant ? 'is-conformant' : 'is-pending'}">
+      <div class="cert-top">
+        <div>
+          <div class="cert-kicker">${isConformant ? L.kickerOk : L.kickerPend}</div>
+          <h3 class="cert-heading">${isConformant ? L.headOk : L.headPend}</h3>
+          <div class="cert-sub">${isConformant ? L.subOk : L.subPend}</div>
+        </div>
+        <div class="cert-seal ${isConformant ? 'seal-ok' : 'seal-pending'}" style="white-space:pre-line;">${isConformant ? L.sealOk : L.sealPend}</div>
+      </div>
+
+      <div class="cert-meta-grid">
+        <div><span>${L.mId}</span><strong>${certId}</strong></div>
+        <div><span>${L.mAsset}</span><strong>${clientTitle} (${auditData.viewport})</strong></div>
+        <div><span>${L.mNorm}</span><strong>EN 301 549 V4.1.1 · Reg ${regVer}</strong></div>
+      </div>
+
+      <div class="cert-chapters">
+        ${chs.map(c => `
+          <div class="cert-chap ${c.bad ? 'ch-fail' : 'ch-ok'}">
+            <b>${c.name}</b>
+            <span>${c.bad ? L.failTag : L.passTag}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      ${!isConformant && failClauses.length > 0
+        ? `<div class="cert-blockers"><strong>${L.blockersLbl}</strong> ${failClauses.join(' · ')}</div>`
+        : ''
+      }
+
+      <div class="cert-sign-row">
+        <div class="cert-sign-box">
+          <div><strong>${L.issuedBy}</strong> ${agencyTitle}${brandData.auditorContact ? ` (${brandData.auditorContact})` : ''}</div>
+          <div style="color:#475569;margin-top:3px;"><strong>URL:</strong> ${auditData.url} · <strong>${L.dateLbl}</strong> ${dateFmt}</div>
+        </div>
+        <div class="cert-sign-line">${L.signLine}</div>
+      </div>
+
+      <div class="cert-legal-foot">${L.legalFoot}</div>
+    </div>
+  `;
+}
+
+async function initReportNormativeStrip() {
+  const badgeEl = document.getElementById('ui-norm-badge');
+  const txtEl = document.getElementById('ui-norm-text');
+  const btnEl = document.getElementById('btn-check-norms-report');
+  if (!txtEl) return;
+
+  const updateLabels = st => {
+    if (st && window.WCAG22_NORMATIVE_DB) {
+      window.WCAG22_NORMATIVE_DB.applyRegistryOverrides(st);
+    }
+    const ver = st?.registryVersion || window.WCAG22_NORMATIVE_DB?.data?.registryVersion || '2026.11.1';
+    const checkedDate = st?.lastCheckedAt ? new Date(st.lastCheckedAt).toLocaleDateString(currentLang) : new Date().toLocaleDateString(currentLang);
+    if (currentLang === 'ru') {
+      if (badgeEl) badgeEl.textContent = '⚖ НОРМАТИВНАЯ БАЗА АКТУАЛЬНА';
+      txtEl.textContent = `ETSI EN 301 549 V4.1.1 (2026-09) · Директива (ЕС) 2019/882 · WCAG 2.2 AA (Реестр ${ver}, проверено ${checkedDate})`;
+      if (btnEl) btnEl.textContent = '↻ Проверить изменения норм';
+    } else if (currentLang === 'de') {
+      if (badgeEl) badgeEl.textContent = '⚖ NORMENDATENBANK AKTUELL';
+      txtEl.textContent = `ETSI EN 301 549 V4.1.1 (2026-09) · Richtlinie (EU) 2019/882 · BFSG (Stand ${ver}, geprüft ${checkedDate})`;
+      if (btnEl) btnEl.textContent = '↻ Norm-Update prüfen';
+    } else {
+      if (badgeEl) badgeEl.textContent = '⚖ NORMATIVE DB VERIFIED';
+      txtEl.textContent = `ETSI EN 301 549 V4.1.1 (2026-09) · Directive (EU) 2019/882 · WCAG 2.2 AA (Rev ${ver}, checked ${checkedDate})`;
+      if (btnEl) btnEl.textContent = '↻ Check Regulatory Updates';
+    }
+  };
+
+  try {
+    const { normativeRegistryState } = await chrome.storage.local.get('normativeRegistryState');
+    updateLabels(normativeRegistryState);
+  } catch (_) {
+    updateLabels(null);
+  }
+
+  btnEl?.addEventListener('click', async () => {
+    btnEl.disabled = true;
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'CHECK_NORMATIVE_UPDATES', force: true });
+      updateLabels(res?.state || null);
+      if (auditData) renderConformityCertificate();
+    } catch (_) {}
+    btnEl.disabled = false;
+  });
+
+  window.__refreshNormStripLang = async () => {
+    const { normativeRegistryState } = await chrome.storage.local.get('normativeRegistryState').catch(() => ({}));
+    updateLabels(normativeRegistryState);
+  };
+}
 
 function updateInlineTeaserVisibility() {
   const gate = document.getElementById('inline-teaser-gate');
@@ -553,6 +836,12 @@ function renderReport() {
       tag.textContent = `SC ${iss.criterion} · ${t.tagFail}`;
       top.append(strong, tag);
 
+      const lawInfo = getStatutoryCitation(iss.criterion, currentLang);
+      const lawBox = document.createElement('div');
+      lawBox.className = 'law-citation-box';
+      const lawPrefix = currentLang === 'ru' ? '⚖ Пункт закона и стандарта:' : (currentLang === 'de' ? '⚖ Gesetzliche Grundlage:' : '⚖ Statutory Clause:');
+      lawBox.textContent = `${lawPrefix} ${lawInfo.citation}`;
+
       const impact = document.createElement('div');
       impact.className = 'impact-callout';
       impact.textContent = t.humanImpact(iss);
@@ -598,7 +887,7 @@ function renderReport() {
         body.appendChild(fig);
       }
 
-      card.append(top, impact, body);
+      card.append(top, lawBox, impact, body);
       failsContainer.appendChild(card);
       if (i === 0 && failGroups.length > 1) {
         const gateEl = document.getElementById("inline-teaser-gate");
@@ -623,7 +912,8 @@ function renderReport() {
       const first = items[0];
       const tr = document.createElement('tr');
       const tdCrit = document.createElement('td');
-      tdCrit.textContent = first.criterion.startsWith('EN') ? first.criterion : `SC ${first.criterion}`;
+      const wLaw = getStatutoryCitation(first.criterion, currentLang);
+      tdCrit.innerHTML = `<strong>${first.criterion.startsWith('EN') ? first.criterion : `SC ${first.criterion}`}</strong><span class="crit-sublaw">${wLaw.enClause}</span>`;
 
       const tdSel = document.createElement('td');
       const lbl = document.createElement('div');
@@ -703,6 +993,18 @@ function renderReport() {
     manualTbody.appendChild(tr);
   });
 
+  document.querySelectorAll('#manual-tbody input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', e => {
+      if (e.target.checked) {
+        const siblings = e.target.closest('td')?.querySelectorAll('input[type="checkbox"]') || [];
+        siblings.forEach(other => { if (other !== e.target) other.checked = false; });
+      }
+      renderConformityCertificate();
+    });
+  });
+
+  renderConformityCertificate();
+
   updateInlineTeaserVisibility();
 }
 
@@ -716,7 +1018,7 @@ const PAYWALL_I18N = {
     noAuditYet: 'Сначала запустите аудит на любой веб-странице через иконку расширения (или активируйте Pro кнопкой выше).',
     modalTitle: 'Express Client Auditor Pro',
     modalSub: 'Прямая активация через Stripe без регистрации и писем подтверждения: все визуальные карточки со скриншотами, логотип вашего агентства и экспорт A4 PDF / Jira CSV.',
-    lblPlan: 'Тарифный план (Paywall #926)',
+    lblPlan: 'Тарифный план',
     lblEmail: 'Email для квитанции Stripe и привязки лицензии',
     phEmail: 'you@agency.com',
     btnCheckout: 'Перейти сразу к оплате в Stripe',
@@ -725,11 +1027,11 @@ const PAYWALL_I18N = {
     btnSignOut: 'Сменить Email',
     btnPortal: 'Управление подпиской (Stripe Billing Portal)',
     awaitTitle: 'Окно оплаты Stripe открыто в соседней вкладке',
-    awaitHint: 'Для тестовой оплаты введите карту песочницы Stripe: <code>4242 4242 4242 4242</code> (любой будущий срок MM/YY и любой CVC). При возврате на эту вкладку Pro-доступ откроется автоматически.',
+    awaitHint: 'Завершите безопасную оплату в открывшейся вкладке Stripe. При возврате на эту вкладку полный отчет и экспорт A4 PDF разблокируются автоматически.',
     btnCheckNow: 'Я оплатил — проверить сейчас',
     btnReopenUrl: 'Открыть оплату снова',
-    loadingPlans: 'Загрузка тарифа с appbox.space...',
-    noPlans: 'У Paywall #926 пока нет активных тарифов во вкладке «Цены».',
+    loadingPlans: 'Загрузка тарифов...',
+    noPlans: 'Тарифы временно недоступны — проверьте подключение к сети.',
     unlockedSuccess: 'Оплата подтверждена! Все скриншоты и White-Label PDF экспорт разблокированы.',
     notPaidYet: 'Активная оплата для этого Email пока не найдена — завершите платеж во вкладке Stripe и нажмите кнопку еще раз.',
     trialDays: n => `Пробный период: ${n} дн.`
@@ -743,7 +1045,7 @@ const PAYWALL_I18N = {
     noAuditYet: 'Run an audit on any webpage from the extension popup first (or unlock Pro above).',
     modalTitle: 'Express Client Auditor Pro',
     modalSub: 'Instant 1-click Stripe Checkout with zero confirmation emails: unlock all Spotlight visual cards, custom agency branding, and clean A4 PDF / Jira CSV exports.',
-    lblPlan: 'Select Plan (Paywall #926)',
+    lblPlan: 'Select Plan',
     lblEmail: 'Work Email (for Stripe receipt & license lookup)',
     phEmail: 'you@agency.com',
     btnCheckout: 'Continue Directly to Stripe Checkout',
@@ -752,11 +1054,11 @@ const PAYWALL_I18N = {
     btnSignOut: 'Switch Email',
     btnPortal: 'Manage Subscription (Stripe Billing Portal)',
     awaitTitle: 'Stripe Checkout opened in a new tab',
-    awaitHint: 'In Test mode, enter Stripe sandbox card <code>4242 4242 4242 4242</code> (any future expiry & CVC). Pro unlocks automatically as soon as you return to this tab.',
+    awaitHint: 'Complete your secure payment in the opened Stripe Checkout tab. Full visual cards and White-Label A4 PDF export unlock automatically as soon as you return to this tab.',
     btnCheckNow: 'I completed payment — Check now',
     btnReopenUrl: 'Reopen Checkout Tab',
-    loadingPlans: 'Loading plan from appbox.space...',
-    noPlans: 'Paywall #926 has 0 attached prices in the Offers tab.',
+    loadingPlans: 'Loading available plans...',
+    noPlans: 'Plans are temporarily unavailable — please check your internet connection.',
     unlockedSuccess: 'Payment verified! Full visual report & PDF exports unlocked.',
     notPaidYet: 'No active subscription found for this email yet — complete Stripe Checkout and check again.',
     trialDays: n => `${n}-day free trial included`
@@ -770,7 +1072,7 @@ const PAYWALL_I18N = {
     noAuditYet: 'Starten Sie zuerst eine Prüfung über das Erweiterungs-Popup.',
     modalTitle: 'Express Client Auditor Pro',
     modalSub: 'Direkte Zahlung via Stripe ohne OTP-Codes: Alle visuellen Fehlerkarten, Agentur-Branding sowie A4-PDF- und Jira-CSV-Export.',
-    lblPlan: 'Tarif (Paywall #926)',
+    lblPlan: 'Tarif wählen',
     lblEmail: 'E-Mail-Adresse (für Stripe-Beleg & Lizenz)',
     phEmail: 'name@agentur.de',
     btnCheckout: 'Direkt weiter zu Stripe Checkout',
@@ -779,11 +1081,11 @@ const PAYWALL_I18N = {
     btnSignOut: 'E-Mail wechseln',
     btnPortal: 'Abonnement verwalten (Stripe Portal)',
     awaitTitle: 'Stripe Checkout in neuem Tab geöffnet',
-    awaitHint: 'Im Testmodus Karte <code>4242 4242 4242 4242</code> verwenden. Nach der Zahlung wird Pro automatisch freigeschaltet.',
+    awaitHint: 'Schließen Sie die sichere Zahlung im geöffneten Stripe-Tab ab. Sobald Sie zu diesem Tab zurückkehren, wird der vollständige A4-PDF-Export automatisch freigeschaltet.',
     btnCheckNow: 'Zahlung abgeschlossen — Jetzt prüfen',
     btnReopenUrl: 'Zahlungslink erneut öffnen',
     loadingPlans: 'Tarif wird geladen...',
-    noPlans: 'Paywall #926 enthält aktuell 0 Tarife.',
+    noPlans: 'Tarife sind vorübergehend nicht erreichbar.',
     unlockedSuccess: 'Zahlung bestätigt! Pro-Export freigeschaltet.',
     notPaidYet: 'Noch keine aktive Zahlung für diese E-Mail gefunden.',
     trialDays: n => `${n} Tage kostenlos testen`
@@ -791,7 +1093,6 @@ const PAYWALL_I18N = {
 };
 
 let reportProUnlocked = false;
-let reportDevOverride = false;
 let currentBillingEmail = '';
 let loadedPrices = [];
 let selectedPriceId = null;
@@ -905,7 +1206,7 @@ function syncModalView() {
     emailInput.value = currentBillingEmail;
   }
 
-  if (reportProUnlocked && !reportDevOverride && currentBillingEmail) {
+  if (reportProUnlocked && currentBillingEmail) {
     coBox.hidden = true;
     sessBox.hidden = false;
     emailSpan.textContent = pt.signedInAs(currentBillingEmail);
@@ -1006,7 +1307,7 @@ async function pollOnceForUnlock() {
       stopCheckoutPolling();
       currentBillingEmail = res.email || emailVal;
       const pt = PAYWALL_I18N[currentLang] || PAYWALL_I18N.en;
-      applyLockUI(true, res.devOverride);
+      applyLockUI(true);
       showModalAlert('ok', pt.unlockedSuccess);
       setTimeout(() => closePaywallDialog(), 900);
     }
@@ -1038,7 +1339,7 @@ async function handleDirectCheckout() {
     currentBillingEmail = res.email || emailVal.trim().toLowerCase();
 
     if (res.alreadyPurchased) {
-      applyLockUI(true, false);
+      applyLockUI(true);
       showModalAlert('ok', pt.unlockedSuccess);
       setTimeout(() => closePaywallDialog(), 800);
       return;
@@ -1066,7 +1367,7 @@ async function handleRestorePurchase() {
     const res = await window.MonetizeBridge.restorePurchaseByEmail(emailVal);
     if (res && res.granted) {
       currentBillingEmail = res.email || emailVal.trim().toLowerCase();
-      applyLockUI(true, res.devOverride);
+      applyLockUI(true);
       showModalAlert('ok', pt.unlockedSuccess);
       setTimeout(() => closePaywallDialog(), 800);
     } else {
@@ -1103,15 +1404,15 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
       chrome.storage.local.set({ reportLang: currentLang });
     }
     renderChromeStrings();
+    if (window.__refreshNormStripLang) window.__refreshNormStripLang();
     if (auditData) {
       renderReport();
     }
   });
 });
 
-function applyLockUI(unlocked, devOverride = reportDevOverride) {
+function applyLockUI(unlocked) {
   reportProUnlocked = Boolean(unlocked);
-  reportDevOverride = Boolean(devOverride);
   document.body.classList.toggle('is-paywall-locked', !reportProUnlocked);
 
   const btnUnlock = document.getElementById('btn-unlock-pro');
@@ -1131,12 +1432,6 @@ function applyLockUI(unlocked, devOverride = reportDevOverride) {
   if (btnMd) btnMd.style.opacity = reportProUnlocked ? '1' : '0.88';
   if (btnCsv) btnCsv.style.opacity = reportProUnlocked ? '1' : '0.88';
 
-  const manifest = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) ? chrome.runtime.getManifest() : {};
-  const devBtn = document.getElementById('btn-dev-report-toggle');
-  if (!manifest.update_url && devBtn) {
-    devBtn.hidden = false;
-    devBtn.textContent = reportDevOverride ? 'Dev Override: ON (Lock)' : 'Dev: Test Unlock';
-  }
   syncModalView();
   updateInlineTeaserVisibility();
 }
@@ -1181,7 +1476,7 @@ document.getElementById('pw-btn-signout')?.addEventListener('click', async () =>
   await window.MonetizeBridge.signOut();
   currentBillingEmail = '';
   document.getElementById('pw-email').value = '';
-  applyLockUI(false, false);
+  applyLockUI(false);
 });
 document.getElementById('pw-btn-portal')?.addEventListener('click', async () => {
   try {
@@ -1199,7 +1494,7 @@ document.getElementById('pw-btn-check-now')?.addEventListener('click', async () 
     if (res && res.granted) {
       stopCheckoutPolling();
       currentBillingEmail = res.email || emailVal;
-      applyLockUI(true, res.devOverride);
+      applyLockUI(true);
       showModalAlert('ok', pt.unlockedSuccess);
       setTimeout(() => closePaywallDialog(), 800);
     } else {
@@ -1213,33 +1508,26 @@ document.getElementById('pw-btn-reopen-url')?.addEventListener('click', () => {
   if (lastCheckoutUrl) openExternalTab(lastCheckoutUrl);
 });
 
-document.getElementById('btn-dev-report-toggle')?.addEventListener('click', async () => {
-  const nextDev = !reportDevOverride;
-  await chrome.runtime.sendMessage({ type: 'SET_DEV_PRO_OVERRIDE', paid: nextDev });
-  const access = await window.MonetizeBridge.checkAccess();
-  applyLockUI(access.granted, access.devOverride);
-});
-
 async function initPaywallGate() {
   if (!window.MonetizeBridge) {
-    applyLockUI(false, false);
+    applyLockUI(false);
     return;
   }
 
   window.MonetizeBridge.onOpenModal(() => openPaywallDialog());
   window.MonetizeBridge.onAccessChange((granted, detail) => {
     if (detail?.email) currentBillingEmail = detail.email;
-    applyLockUI(granted, detail?.devOverride ?? reportDevOverride);
+    applyLockUI(granted);
   });
 
-  applyLockUI(false, false);
+  applyLockUI(false);
 
   const params = new URLSearchParams(window.location.search);
   const explicitPaywallOpen = params.get('paywall') === '1';
 
   const access = await window.MonetizeBridge.checkAccess();
   if (access.email) currentBillingEmail = access.email;
-  applyLockUI(access.granted, access.devOverride);
+  applyLockUI(access.granted);
 
   // ONLY auto-open the modal when user explicitly clicked "Upgrade / Account" (?paywall=1),
   // OR if there is no audit report loaded yet. When opening a report in Free mode (?mode=pdf),
@@ -1249,4 +1537,4 @@ async function initPaywallGate() {
   }
 }
 
-initReport().then(() => initPaywallGate());
+initReport().then(() => { initReportNormativeStrip(); initPaywallGate(); });

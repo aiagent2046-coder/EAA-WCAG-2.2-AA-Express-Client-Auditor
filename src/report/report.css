@@ -580,3 +580,217 @@ body.is-paywall-locked .lockable-section {
 .pw-awaiting p { margin: 7px 0 11px; font-size: 12px; color: #cbd5e1; line-height: 1.45; }
 .pw-awaiting code { background: #0f172a; padding: 1px 5px; border-radius: 4px; color: #fde68a; }
 .pw-inline-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Normative Registry Strip & Statutory Law Citation Badges (v1.1.0) */
+.norm-registry-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #14532d;
+}
+.norm-reg-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.norm-reg-badge {
+  background: #059669;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.norm-reg-btn {
+  background: #ffffff;
+  color: #065f46;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.norm-reg-btn:hover { background: #dcfce7; }
+
+.law-citation-box {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border: 1px solid #bfdbfe;
+  border-left: 3.5px solid #2563eb;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.crit-sublaw {
+  display: block;
+  font-size: 10.5px;
+  color: #1d4ed8;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Printable Section 4: Audit Conformity Certificate / Pre-Certification Protocol */
+.cert-section {
+  margin-top: 26px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.cert-card {
+  border-radius: 12px;
+  padding: 24px 28px;
+  position: relative;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.cert-card.is-conformant {
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+  border: 2px solid #059669;
+  box-shadow: inset 0 0 0 4px #ffffff, inset 0 0 0 5px #a7f3d0;
+}
+.cert-card.is-pending {
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
+  border: 2px solid #d97706;
+  box-shadow: inset 0 0 0 4px #ffffff, inset 0 0 0 5px #fde68a;
+}
+.cert-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 1.5px solid var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.cert-kicker {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #047857;
+}
+.cert-card.is-pending .cert-kicker { color: #b45309; }
+.cert-heading {
+  margin: 4px 0 4px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.cert-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.cert-seal {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 11px;
+}
+.cert-seal.seal-ok {
+  background: #059669;
+  color: #ffffff;
+}
+.cert-seal.seal-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+.cert-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.cert-meta-grid span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.cert-meta-grid strong {
+  font-size: 12px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.cert-chapters {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.cert-chap {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 8px;
+  text-align: center;
+}
+.cert-chap b {
+  display: block;
+  font-size: 11px;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.cert-chap span {
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.cert-chap.ch-ok { border-color: #86efac; }
+.cert-chap.ch-ok span { color: #047857; }
+.cert-chap.ch-fail { border-color: #fca5a5; background: #fef2f2; }
+.cert-chap.ch-fail span { color: #b91c1c; }
+
+.cert-blockers {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #881337;
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.cert-sign-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding-top: 12px;
+  border-top: 1px dashed #94a3b8;
+  margin-bottom: 10px;
+}
+.cert-sign-box {
+  font-size: 11.5px;
+  color: var(--ink);
+}
+.cert-sign-line {
+  margin-top: 18px;
+  border-top: 1px solid #334155;
+  padding-top: 4px;
+  min-width: 210px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.cert-legal-foot {
+  font-size: 10.5px;
+  color: #475569;
+  line-height: 1.42;
+}

@@ -1,8 +1,8 @@
 {
   "extName": {
-    "message": "EAA & WCAG 2.2 AA Barrierefreiheit-Auditor (BFSG)"
+    "message": "EAA & WCAG 2.2 AA Express-Auditor (BFSG)"
   },
   "extDescription": {
-    "message": "Lokaler WCAG 2.2 AA & EAA (BFSG) Prüfer: 24px Klickflächen, verdeckten Fokus & Login prüfen und White-Label PDF-Berichte exportieren."
+    "message": "Lokaler WCAG 2.2 AA & EN 301 549 (BFSG) Prüfer: Gesetzesartikel, Vorher/Nachher-Vorschau, PDF-Berichte & Prüfzertifikat."
   }
 }

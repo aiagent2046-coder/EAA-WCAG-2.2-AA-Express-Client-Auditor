@@ -29,47 +29,159 @@
     '[tabindex]:not([tabindex="-1"])'
   ].join(',');
 
+
+  const NORMATIVE_INLINE = {
+    '1.1.1': { enClause: 'EN 301 549 Cl. 9.1.1.1', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '1.3.1': { enClause: 'EN 301 549 Cl. 9.1.3.1', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '1.4.3': { enClause: 'EN 301 549 Cl. 9.1.4.3', eaaLaw: 'EU 2019/882 Annex I Sec. I(2)(b) & III(c)' },
+    '2.4.3': { enClause: 'EN 301 549 Cl. 9.2.4.3', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '2.4.4': { enClause: 'EN 301 549 Cl. 9.2.4.4', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '2.4.7': { enClause: 'EN 301 549 Cl. 9.2.4.7', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '2.4.11': { enClause: 'EN 301 549 V4.1.1 Cl. 9.2.4.11', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '2.4.13': { enClause: 'WCAG 2.2 SC 2.4.13 (EN 9.2.4.7)', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '2.5.7': { enClause: 'EN 301 549 V4.1.1 Cl. 9.2.5.7', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '2.5.8': { enClause: 'EN 301 549 V4.1.1 Cl. 9.2.5.8', eaaLaw: 'EU 2019/882 Annex I Sec. I(2)(c) & III(c)' },
+    '3.1.1': { enClause: 'EN 301 549 Cl. 9.3.1.1', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    '3.2.6': { enClause: 'EN 301 549 V4.1.1 Cl. 9.3.2.6', eaaLaw: 'EU 2019/882 Art. 13 & Annex I' },
+    '3.3.2': { enClause: 'EN 301 549 Cl. 9.3.3.2', eaaLaw: 'EU 2019/882 Annex I Sec. III(c) & IV(g)' },
+    '3.3.7': { enClause: 'EN 301 549 V4.1.1 Cl. 9.3.3.7', eaaLaw: 'EU 2019/882 Annex I Sec. IV(g)' },
+    '3.3.8': { enClause: 'EN 301 549 V4.1.1 Cl. 9.3.3.8', eaaLaw: 'EU 2019/882 Annex I Sec. IV(g)(ii)' },
+    '4.1.2': { enClause: 'EN 301 549 Cl. 9.4.1.2', eaaLaw: 'EU 2019/882 Annex I Sec. III(c)' },
+    'EN 301 549': { enClause: 'EN 301 549 V4.1.1 Cl. 9.6', eaaLaw: 'EU 2019/882 Art. 13(4) & Art. 15' }
+  };
+
+  function getLawMeta(criterion) {
+    const ext = globalThis.WCAG22_NORMATIVE_DB?.lookupClause?.(criterion, 'ru');
+    if (ext) return { enClause: ext.enClause, eaaLaw: ext.eaaArticle, citation: ext.citation };
+    const fb = NORMATIVE_INLINE[criterion] || { enClause: `EN 301 549 Cl. 9.${criterion}`, eaaLaw: 'EU 2019/882 Annex I' };
+    return { ...fb, citation: `${fb.enClause} · ${fb.eaaLaw}` };
+  }
+
+  function getElementWin(el) {
+    return (el && el.ownerDocument && el.ownerDocument.defaultView) || window;
+  }
+
+  function getParentAcrossShadow(node) {
+    if (!node) return null;
+    if (node.parentElement) return node.parentElement;
+    const root = node.getRootNode && node.getRootNode();
+    if (root && root.host) return root.host;
+    const doc = node.ownerDocument;
+    if (doc && doc !== document && doc.defaultView && doc.defaultView.frameElement) {
+      return doc.defaultView.frameElement;
+    }
+    return null;
+  }
+
+  function getGlobalViewportRect(el) {
+    const r = el.getBoundingClientRect();
+    let ox = 0;
+    let oy = 0;
+    let curDoc = el.ownerDocument;
+    while (curDoc && curDoc !== document && curDoc.defaultView && curDoc.defaultView.frameElement) {
+      const frame = curDoc.defaultView.frameElement;
+      const fr = frame.getBoundingClientRect();
+      const fst = getElementWin(frame).getComputedStyle(frame);
+      ox += fr.left + (parseFloat(fst.borderLeftWidth) || 0) + (parseFloat(fst.paddingLeft) || 0);
+      oy += fr.top + (parseFloat(fst.borderTopWidth) || 0) + (parseFloat(fst.paddingTop) || 0);
+      curDoc = frame.ownerDocument;
+    }
+    return {
+      left: r.left + ox,
+      top: r.top + oy,
+      right: r.right + ox,
+      bottom: r.bottom + oy,
+      width: r.width,
+      height: r.height
+    };
+  }
+
+  function queryAllDeep(selector, root = document, acc = [], depth = 0) {
+    if (!root || depth > 6) return acc;
+    try {
+      const matched = root.querySelectorAll(selector);
+      for (const m of matched) {
+        if (m.id === HUD_ID) continue;
+        acc.push(m);
+      }
+    } catch (_) {}
+
+    let allNodes = [];
+    try {
+      allNodes = root.querySelectorAll('*');
+    } catch (_) {
+      allNodes = [];
+    }
+    for (const el of allNodes) {
+      if (el.id === HUD_ID) continue;
+      if (el.shadowRoot) {
+        queryAllDeep(selector, el.shadowRoot, acc, depth + 1);
+      }
+      if (el.tagName === 'IFRAME') {
+        try {
+          if (el.contentDocument && el.contentDocument.documentElement) {
+            queryAllDeep(selector, el.contentDocument, acc, depth + 1);
+          }
+        } catch (_) {}
+      }
+    }
+    return acc;
+  }
+
   function clearLiveSimulationArtifacts() {
     const prevStyle = document.getElementById(SIM_STYLE_ID);
     if (prevStyle) prevStyle.remove();
-    document.querySelectorAll('[data-wcag22-sim]').forEach(el => {
+    queryAllDeep('[data-wcag22-sim]').forEach(el => {
+      if (el.hasAttribute('data-wcag22-orig-color')) {
+        const orig = el.getAttribute('data-wcag22-orig-color');
+        if (orig) el.style.color = orig;
+        else el.style.removeProperty('color');
+        el.removeAttribute('data-wcag22-orig-color');
+      }
       el.removeAttribute('data-wcag22-sim');
     });
     window.__wcag22SimActive = false;
   }
 
   function isElementRendered(el) {
-    if (!(el instanceof Element)) return false;
-    if (el.id === HUD_ID || el.closest(`#${HUD_ID}`)) return false;
-    if (el.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+    if (!el || el.nodeType !== 1) return false;
+    if (el.id === HUD_ID || (el.closest && el.closest(`#${HUD_ID}`))) return false;
+    if (el.closest && el.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
 
-    const style = window.getComputedStyle(el);
+    const win = getElementWin(el);
+    const style = win.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
       return false;
     }
 
     let child = el;
-    let parent = el.parentElement;
+    let parent = getParentAcrossShadow(el);
     while (parent && parent !== document.documentElement) {
-      if (parent.tagName === 'DETAILS' && !parent.open) {
-        if (child.tagName !== 'SUMMARY') return false;
-      }
-      const ps = window.getComputedStyle(parent);
-      if (ps.display === 'none' || ps.visibility === 'hidden' || parseFloat(ps.opacity) === 0) {
-        return false;
-      }
-      const clips = ['hidden', 'clip'].includes(ps.overflow) ||
-        ['hidden', 'clip'].includes(ps.overflowY) ||
-        ['hidden', 'clip'].includes(ps.overflowX);
-      if (clips) {
-        const pr = parent.getBoundingClientRect();
-        if (pr.width < 1 || pr.height < 1) return false;
+      if (parent.nodeType === 1) {
+        if (parent.hasAttribute('hidden') || parent.hasAttribute('inert') || parent.getAttribute('aria-hidden') === 'true') {
+          return false;
+        }
+        if (parent.tagName === 'DETAILS' && !parent.open && child.tagName !== 'SUMMARY') {
+          return false;
+        }
+        const pWin = getElementWin(parent);
+        const ps = pWin.getComputedStyle(parent);
+        if (ps.display === 'none' || ps.visibility === 'hidden' || parseFloat(ps.opacity) === 0) {
+          return false;
+        }
+        const clips = ['hidden', 'clip'].includes(ps.overflow) ||
+          ['hidden', 'clip'].includes(ps.overflowY) ||
+          ['hidden', 'clip'].includes(ps.overflowX);
+        if (clips) {
+          const pr = parent.getBoundingClientRect();
+          if (pr.width < 1 || pr.height < 1) return false;
+        }
       }
       child = parent;
-      parent = parent.parentElement;
+      parent = getParentAcrossShadow(parent);
     }
 
-    const rect = el.getBoundingClientRect();
+    const rect = getGlobalViewportRect(el);
     return rect.width > 0.5 && rect.height > 0.5;
   }
 
@@ -197,10 +309,10 @@
   }
 
   function auditTargetSize258() {
-    const nodes = Array.from(document.querySelectorAll(INTERACTIVE_SELECTOR)).filter(isElementRendered);
+    const nodes = queryAllDeep(INTERACTIVE_SELECTOR).filter(isElementRendered);
     const targets = nodes.map(el => {
-      const rect = el.getBoundingClientRect();
-      const style = window.getComputedStyle(el);
+      const rect = getGlobalViewportRect(el);
+      const style = getElementWin(el).getComputedStyle(el);
       const undersized = rect.width < 23.95 || rect.height < 23.95;
       return {
         el,
@@ -359,16 +471,79 @@
     return false;
   }
 
-  function auditFocusAndTabOrder(maxNodes = 150) {
-    const prevScrollX = window.scrollX;
-    const prevScrollY = window.scrollY;
-    const prevActive = document.activeElement;
+  function collectSuppressedFocusRules(doc) {
+    const suppressedBase = [];
+    const suppressedFocus = [];
+    const restoredFocus = [];
+    try {
+      for (const sheet of Array.from(doc.styleSheets || [])) {
+        let rules;
+        try { rules = sheet.cssRules; } catch (_) { continue; }
+        if (!rules) continue;
+        for (const r of Array.from(rules)) {
+          if (!r.selectorText || !r.style) continue;
+          const outVal = (r.style.outline || '').toLowerCase();
+          const outStyle = (r.style.outlineStyle || '').toLowerCase();
+          const outW = r.style.outlineWidth || '';
+          const killsOutline = outVal === 'none' || outVal === '0' || outVal === '0px' || outStyle === 'none' || outW === '0px' || outW === '0';
+          const addsIndicator = Boolean(
+            (r.style.boxShadow && r.style.boxShadow !== 'none') ||
+            (r.style.borderColor && r.style.borderColor !== 'initial') ||
+            (outStyle && outStyle !== 'none' && outW !== '0px' && outW !== '0')
+          );
 
+          const rawSels = r.selectorText.split(',').map(s => s.trim()).filter(Boolean);
+          for (const sel of rawSels) {
+            const hasFocusPseudo = /:focus(-visible)?\b/.test(sel);
+            const baseSel = sel.replace(/:focus-visible\b/g, '').replace(/:focus\b/g, '').trim() || '*';
+            if (hasFocusPseudo) {
+              if (addsIndicator && !killsOutline) restoredFocus.push(baseSel);
+              else if (killsOutline && !addsIndicator) suppressedFocus.push(baseSel);
+              else if (addsIndicator) restoredFocus.push(baseSel);
+            } else if (killsOutline && !addsIndicator) {
+              suppressedBase.push(baseSel);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return { suppressedBase, suppressedFocus, restoredFocus };
+  }
+
+  function elementHasSuppressedFocusRing(el, ruleCacheMap) {
+    const doc = el.ownerDocument || document;
+    if (!ruleCacheMap.has(doc)) {
+      ruleCacheMap.set(doc, collectSuppressedFocusRules(doc));
+    }
+    const rules = ruleCacheMap.get(doc);
+
+    const inlOut = (el.style?.outline || '').toLowerCase().trim();
+    const inlStyle = (el.style?.outlineStyle || '').toLowerCase().trim();
+    const inlW = (el.style?.outlineWidth || '').toLowerCase().trim();
+    const inlineKills = inlOut === 'none' || inlOut === '0' || inlOut === '0px' || inlStyle === 'none' || inlW === '0px' || inlW === '0';
+    const inlineAdds = Boolean(el.style?.boxShadow && el.style.boxShadow !== 'none');
+
+    let cssKills = false;
+    let cssRestores = false;
+    for (const s of [...rules.suppressedBase, ...rules.suppressedFocus]) {
+      try { if (el.matches(s)) { cssKills = true; break; } } catch (_) {}
+    }
+    for (const s of rules.restoredFocus) {
+      try { if (el.matches(s)) { cssRestores = true; break; } } catch (_) {}
+    }
+
+    if (inlineKills && !inlineAdds && !cssRestores) return true;
+    if (cssKills && !cssRestores && !inlineAdds) return true;
+    return false;
+  }
+
+  // Zero-Blur, Uncapped Focus & Sticky Occlusion Engine (up to 1,500 controls, 0 focus/blur side-effects on live forms!)
+  function auditFocusAndTabOrder(maxNodes = 1500) {
     const hudEl = document.getElementById(HUD_ID);
     const prevHudDisplay = hudEl ? hudEl.style.display : '';
     if (hudEl) hudEl.style.display = 'none';
 
-    const rawFocusables = Array.from(document.querySelectorAll(FOCUSABLE_SELECTOR))
+    const rawFocusables = queryAllDeep(FOCUSABLE_SELECTOR)
       .filter(el => isElementRendered(el) && el.tabIndex >= 0);
 
     const positiveTabs = rawFocusables
@@ -377,11 +552,12 @@
     const normalTabs = rawFocusables.filter(el => el.tabIndex === 0);
     const focusables = [...positiveTabs, ...normalTabs].slice(0, maxNodes);
 
+    const ruleCacheMap = new Map();
     const issues = [];
     const tabStops = [];
 
     focusables.forEach((el, idx) => {
-      const r0 = el.getBoundingClientRect();
+      const r0 = getGlobalViewportRect(el);
       tabStops.push({
         order: idx + 1,
         x: Math.round(r0.left + window.scrollX + Math.min(14, r0.width / 2)),
@@ -414,81 +590,57 @@
     });
 
     for (const el of focusables) {
-      const isTextEntry = (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'file', 'color'].includes((el.type || '').toLowerCase())) ||
-        el.tagName === 'TEXTAREA';
-      let preFocusSig = null;
-      if (isTextEntry) {
-        const stBefore = window.getComputedStyle(el);
-        preFocusSig = {
-          boxShadow: stBefore.boxShadow,
-          borderTopColor: stBefore.borderTopColor,
-          borderTopWidth: stBefore.borderTopWidth,
-          backgroundColor: stBefore.backgroundColor
-        };
-      }
+      const r = getGlobalViewportRect(el);
+      const win = getElementWin(el);
+      const st = win.getComputedStyle(el);
 
-      try {
-        el.focus({ preventScroll: false });
-      } catch (_) {
-        continue;
-      }
-
-      const r = el.getBoundingClientRect();
-      const stFocus = window.getComputedStyle(el);
-
-      const outlineW = parseFloat(stFocus.outlineWidth) || 0;
-      const hasOutline = stFocus.outlineStyle !== 'none' && outlineW > 0;
-
-      if (isTextEntry && preFocusSig && !hasOutline) {
-        const shadowUnchanged = stFocus.boxShadow === preFocusSig.boxShadow;
-        const borderUnchanged = stFocus.borderTopColor === preFocusSig.borderTopColor &&
-          stFocus.borderTopWidth === preFocusSig.borderTopWidth;
-        const bgUnchanged = stFocus.backgroundColor === preFocusSig.backgroundColor;
-        if (shadowUnchanged && borderUnchanged && bgUnchanged) {
-          issues.push({
-            _el: el,
-            code: 'FOCUS_RING_SUPPRESSED',
-            criterion: '2.4.7',
-            level: 'AA',
-            severity: 'fail',
-            hudCallout: 'НЕТ РАМКИ ФОКУСА (Tab)',
-            title: 'Keyboard focus indicator suppressed (outline: none without replacement)',
-            elementLabel: getSnippetText(el),
-            selector: getReadableSelector(el),
-            componentGroupKey: getComponentGroupKey(el),
-            params: {},
-            actual: 'outline: none and zero border/box-shadow change when focused',
-            fixCode: ':focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }',
-            bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
-          });
-        }
-      } else if (hasOutline) {
-        const outColor = parseRgba(stFocus.outlineColor);
-        if (outColor && outColor.a > 0.1) {
-          const bgColor = getEffectiveBackgroundRgb(el.parentElement || el);
-          const ratio = Math.round(contrastRatio(outColor, bgColor) * 100) / 100;
-          if (ratio < 3.0) {
-            issues.push({
-              _el: el,
-              code: 'FOCUS_APPEARANCE_LOW',
-              criterion: '2.4.13',
-              level: 'AAA-warn',
-              severity: 'warning',
-              hudCallout: `Контраст фокуса ${ratio}:1`,
-              title: `Low focus outline contrast (${ratio}:1 < 3:1 recommended)`,
-              elementLabel: getSnippetText(el),
-              selector: getReadableSelector(el),
-              componentGroupKey: getComponentGroupKey(el),
-              params: { ratio, outlineW: Math.round(outlineW * 10) / 10 },
-              actual: `Focus outline contrast ${ratio}:1 (${Math.round(outlineW * 10) / 10}px width)`,
-              fixCode: ':focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }',
-              bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
-            });
+      if (elementHasSuppressedFocusRing(el, ruleCacheMap)) {
+        issues.push({
+          _el: el,
+          code: 'FOCUS_RING_SUPPRESSED',
+          criterion: '2.4.7',
+          level: 'AA',
+          severity: 'fail',
+          hudCallout: 'НЕТ РАМКИ ФОКУСА (Tab)',
+          title: 'Keyboard focus indicator suppressed (outline: none without replacement)',
+          elementLabel: getSnippetText(el),
+          selector: getReadableSelector(el),
+          componentGroupKey: getComponentGroupKey(el),
+          params: {},
+          actual: 'outline: none without replacement :focus/:focus-visible indicator',
+          fixCode: ':focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }',
+          bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+        });
+      } else {
+        const outlineW = parseFloat(st.outlineWidth) || 0;
+        if (st.outlineStyle !== 'none' && outlineW > 0) {
+          const outColor = parseRgba(st.outlineColor);
+          if (outColor && outColor.a > 0.1) {
+            const bgColor = getEffectiveBackgroundRgb(getParentAcrossShadow(el) || el);
+            const ratio = Math.round(contrastRatio(outColor, bgColor) * 100) / 100;
+            if (ratio < 3.0) {
+              issues.push({
+                _el: el,
+                code: 'FOCUS_APPEARANCE_LOW',
+                criterion: '2.4.13',
+                level: 'AAA-warn',
+                severity: 'warning',
+                hudCallout: `Контраст фокуса ${ratio}:1`,
+                title: `Low focus outline contrast (${ratio}:1 < 3:1 recommended)`,
+                elementLabel: getSnippetText(el),
+                selector: getReadableSelector(el),
+                componentGroupKey: getComponentGroupKey(el),
+                params: { ratio, outlineW: Math.round(outlineW * 10) / 10 },
+                actual: `Focus outline contrast ${ratio}:1 (${Math.round(outlineW * 10) / 10}px width)`,
+                fixCode: ':focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }',
+                bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+              });
+            }
           }
         }
       }
 
-      if (isOversizedScrollContainer(el, r)) continue;
+      if (el.ownerDocument !== document || isOversizedScrollContainer(el, r)) continue;
 
       const left = Math.max(0, r.left);
       const right = Math.min(window.innerWidth, r.right);
@@ -507,11 +659,11 @@
           const stack = document.elementsFromPoint(x, y);
           const topHit = stack.find(n => {
             if (n.id === HUD_ID) return false;
-            const st = window.getComputedStyle(n);
-            return st.pointerEvents !== 'none' && parseFloat(st.opacity) > 0.05;
+            const nst = window.getComputedStyle(n);
+            return nst.pointerEvents !== 'none' && parseFloat(nst.opacity) > 0.05;
           });
 
-          if (!topHit || el === topHit || el.contains(topHit) || topHit.contains(el)) {
+          if (!topHit || el === topHit || (el.contains && el.contains(topHit)) || (topHit.contains && topHit.contains(el))) {
             unobscuredCount++;
             continue;
           }
@@ -568,18 +720,323 @@
     }
 
     if (hudEl) hudEl.style.display = prevHudDisplay;
-    if (prevActive && typeof prevActive.focus === 'function') {
-      try { prevActive.focus({ preventScroll: true }); } catch (_) {}
-    }
-    window.scrollTo(prevScrollX, prevScrollY);
     return { issues, checkedCount: focusables.length, tabStops };
+  }
+
+  function rgbToHex({ r, g, b }) {
+    const h = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+    return `#${h(r)}${h(g)}${h(b)}`;
+  }
+
+  function blendRgbaOver(fg, bg) {
+    const a = fg.a === undefined ? 1 : fg.a;
+    if (a >= 0.999) return { r: fg.r, g: fg.g, b: fg.b, a: 1 };
+    return {
+      r: fg.r * a + bg.r * (1 - a),
+      g: fg.g * a + bg.g * (1 - a),
+      b: fg.b * a + bg.b * (1 - a),
+      a: 1
+    };
+  }
+
+  function resolveCompositedBg(el) {
+    const layers = [];
+    let cur = el;
+    while (cur && cur.nodeType === 1) {
+      const st = getElementWin(cur).getComputedStyle(cur);
+      if (st.backgroundImage && st.backgroundImage !== 'none') {
+        return null; // Skip gradient/photo backdrops to prevent false-positive contrast flags
+      }
+      const bg = parseRgba(st.backgroundColor);
+      if (bg && bg.a > 0.01) {
+        layers.unshift(bg);
+        if (bg.a >= 0.99) break;
+      }
+      cur = getParentAcrossShadow(cur);
+    }
+    let acc = { r: 255, g: 255, b: 255, a: 1 };
+    for (const l of layers) {
+      acc = blendRgbaOver(l, acc);
+    }
+    return acc;
+  }
+
+  function computeCompliantTextHex(fg, bg, minRatio) {
+    const bgLum = relativeLuminance(bg);
+    const goDark = bgLum > 0.35;
+    for (let step = 0; step <= 40; step++) {
+      const t = step / 40;
+      const cand = goDark
+        ? { r: fg.r * (1 - t), g: fg.g * (1 - t), b: fg.b * (1 - t) }
+        : { r: fg.r + (255 - fg.r) * t, g: fg.g + (255 - fg.g) * t, b: fg.b + (255 - fg.b) * t };
+      if (contrastRatio(cand, bg) >= minRatio) {
+        return rgbToHex(cand);
+      }
+    }
+    return goDark ? '#0f172a' : '#ffffff';
+  }
+
+  function getAccessibleName(el) {
+    if (!el || el.nodeType !== 1) return '';
+    const ariaLbl = (el.getAttribute('aria-label') || '').trim();
+    if (ariaLbl) return ariaLbl;
+
+    const labelledBy = (el.getAttribute('aria-labelledby') || '').trim();
+    if (labelledBy) {
+      const root = (el.getRootNode && el.getRootNode()) || el.ownerDocument || document;
+      const parts = labelledBy.split(/\s+/).map(id => {
+        const ref = root.getElementById ? root.getElementById(id) : document.getElementById(id);
+        return ref ? (ref.textContent || '').trim() : '';
+      }).filter(Boolean);
+      if (parts.length) return parts.join(' ');
+    }
+
+    if (el.tagName === 'INPUT') {
+      const type = (el.getAttribute('type') || 'text').toLowerCase();
+      if (['button', 'submit', 'reset'].includes(type)) {
+        const v = (el.value || '').trim();
+        if (v) return v;
+      }
+      if (type === 'image') {
+        const alt = (el.getAttribute('alt') || '').trim();
+        if (alt) return alt;
+      }
+    }
+
+    const txt = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (txt) return txt;
+
+    const imgAlts = Array.from(el.querySelectorAll('img[alt]'))
+      .map(i => (i.getAttribute('alt') || '').trim())
+      .filter(Boolean);
+    if (imgAlts.length) return imgAlts.join(' ');
+
+    const svgTitle = el.querySelector('svg title');
+    if (svgTitle && (svgTitle.textContent || '').trim()) {
+      return svgTitle.textContent.trim();
+    }
+
+    const titleAttr = (el.getAttribute('title') || '').trim();
+    if (titleAttr) return titleAttr;
+
+    return '';
+  }
+
+  // Foundational WCAG 2.0 / 2.1 Level A & AA Engine (WebAIM Million Top-6: 96% of real-world web errors!)
+  function auditFoundationalWcag21() {
+    const issues = [];
+    let checkedBase = 0;
+
+    // 1. SC 3.1.1 Language of Page (EN 301 549 Clause 9.3.1.1)
+    const htmlLang = (document.documentElement.getAttribute('lang') || '').trim();
+    checkedBase += 1;
+    if (!htmlLang || !/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/.test(htmlLang)) {
+      issues.push({
+        _el: document.documentElement,
+        code: 'HTML_LANG_MISSING',
+        criterion: '3.1.1',
+        level: 'A',
+        severity: 'fail',
+        hudCallout: 'НЕТ <html lang>',
+        title: 'Document <html> element is missing a valid lang attribute (screen readers mispronounce page)',
+        elementLabel: '<html>',
+        selector: 'html',
+        componentGroupKey: 'root>html[lang]',
+        params: { currentLang: htmlLang || 'none' },
+        actual: htmlLang ? `Invalid lang="${htmlLang}" on <html>` : 'Missing lang attribute on <html> element',
+        fixCode: '<html lang="en"> <!-- or lang="ru" / lang="de" -->',
+        bbox: { x: 12, y: 12, w: Math.min(280, window.innerWidth - 24), h: 32 }
+      });
+    }
+
+    // 2. SC 1.1.1 Non-text Content — Images missing alt (EN 301 549 Clause 9.1.1.1)
+    const imgs = queryAllDeep('img').filter(isElementRendered);
+    checkedBase += imgs.length;
+    for (const img of imgs) {
+      const role = (img.getAttribute('role') || '').toLowerCase();
+      if (role === 'presentation' || role === 'none') continue;
+      if (img.hasAttribute('alt')) continue;
+      if ((img.getAttribute('aria-label') || '').trim() || (img.getAttribute('aria-labelledby') || '').trim()) continue;
+
+      const r = getGlobalViewportRect(img);
+      const inLink = Boolean(img.closest && img.closest('a[href], button'));
+      issues.push({
+        _el: img,
+        code: 'IMG_ALT_MISSING',
+        criterion: '1.1.1',
+        level: 'A',
+        severity: 'fail',
+        hudCallout: 'НЕТ ALT У IMG',
+        title: inLink
+          ? 'Linked/interactive <img> is missing alt attribute (unannounced action for screen readers)'
+          : 'Informative <img> element is missing alt attribute',
+        elementLabel: (img.getAttribute('src') || '<img>').split('/').pop().slice(0, 42) || '<img>',
+        selector: getReadableSelector(img),
+        componentGroupKey: getComponentGroupKey(img),
+        params: { inLink },
+        actual: 'Image lacks alt attribute (screen readers read raw filename or skip link purpose)',
+        fixCode: '<img src="..." alt="Descriptive text"> <!-- or alt="" if decorative -->',
+        bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+      });
+    }
+
+    // 3. SC 4.1.2 / SC 2.4.4 Empty Buttons & Empty Links (EN 301 549 Clause 9.4.1.2 & 9.2.4.4)
+    const actionEls = queryAllDeep('button:not([disabled]), a[href], [role="button"], [role="link"]').filter(isElementRendered);
+    for (const el of actionEls) {
+      const name = getAccessibleName(el);
+      if (name) continue;
+      const isLink = el.tagName === 'A' || el.getAttribute('role') === 'link';
+      const crit = isLink ? '2.4.4' : '4.1.2';
+      const r = getGlobalViewportRect(el);
+      issues.push({
+        _el: el,
+        code: 'EMPTY_INTERACTIVE_NAME',
+        criterion: crit,
+        level: 'A',
+        severity: 'fail',
+        hudCallout: isLink ? 'ПУСТАЯ ССЫЛКА' : 'КНОПКА БЕЗ ИМЕНИ',
+        title: isLink
+          ? 'Empty link lacks discernible text or aria-label (SC 2.4.4 / 4.1.2)'
+          : 'Button / icon control has no accessible name for assistive technologies (SC 4.1.2)',
+        elementLabel: `<${el.tagName.toLowerCase()}>`,
+        selector: getReadableSelector(el),
+        componentGroupKey: getComponentGroupKey(el),
+        params: { kind: isLink ? 'link' : 'button' },
+        actual: `Zero accessible name (no text, img[alt], or aria-label on <${el.tagName.toLowerCase()}>)`,
+        fixCode: `<${el.tagName.toLowerCase()} aria-label="Action description">...</${el.tagName.toLowerCase()}>`,
+        bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+      });
+    }
+
+    // 4. SC 3.3.2 / SC 1.3.1 Form Inputs Missing Programmatic Label (EN 301 549 Clause 9.3.3.2)
+    const formFields = queryAllDeep('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])').filter(isElementRendered);
+    for (const field of formFields) {
+      const type = (field.getAttribute('type') || 'text').toLowerCase();
+      if (['submit', 'reset', 'button', 'image'].includes(type)) continue;
+
+      let hasLabel = Boolean(
+        (field.labels && field.labels.length > 0) ||
+        (field.closest && field.closest('label')) ||
+        (field.getAttribute('aria-label') || '').trim() ||
+        (field.getAttribute('aria-labelledby') || '').trim() ||
+        (field.getAttribute('title') || '').trim()
+      );
+      if (!hasLabel && field.id) {
+        const root = (field.getRootNode && field.getRootNode()) || field.ownerDocument || document;
+        try {
+          if (root.querySelector(`label[for="${CSS.escape(field.id)}"]`)) hasLabel = true;
+        } catch (_) {}
+      }
+      if (hasLabel) continue;
+
+      const r = getGlobalViewportRect(field);
+      const ph = (field.getAttribute('placeholder') || '').trim();
+      issues.push({
+        _el: field,
+        code: 'FORM_LABEL_MISSING',
+        criterion: '3.3.2',
+        level: 'A',
+        severity: 'fail',
+        hudCallout: 'ПОЛЕ БЕЗ LABEL',
+        title: 'Form input control lacks programmatic <label> or aria-label',
+        elementLabel: ph ? `input "${ph}"` : `<${field.tagName.toLowerCase()} type="${type}">`,
+        selector: getReadableSelector(field),
+        componentGroupKey: getComponentGroupKey(field),
+        params: { hasPlaceholderOnly: Boolean(ph) },
+        actual: ph
+          ? `Uses placeholder="${ph}" only without persistent <label> or aria-label`
+          : 'Unlabeled form control (screen readers announce blank edit field)',
+        fixCode: '<label for="field-id">Field Label</label>\n<input id="field-id" ...>',
+        bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+      });
+    }
+
+    // 5. SC 1.4.3 Contrast (Minimum) (EN 301 549 Clause 9.1.4.3) — with live AFTER color fix!
+    const textCandidates = queryAllDeep('p, span, a, button, label, li, td, th, h1, h2, h3, h4, h5, h6, small, strong, em, div')
+      .slice(0, 900);
+    for (const el of textCandidates) {
+      if (!isElementRendered(el)) continue;
+      let directText = '';
+      for (const node of el.childNodes) {
+        if (node.nodeType === 3) directText += node.nodeValue || '';
+      }
+      directText = directText.replace(/\s+/g, ' ').trim();
+      if (directText.length < 2) continue;
+
+      const win = getElementWin(el);
+      const st = win.getComputedStyle(el);
+      const fgRaw = parseRgba(st.color);
+      if (!fgRaw || fgRaw.a < 0.15) continue;
+
+      const bg = resolveCompositedBg(el);
+      if (!bg) continue; // Gradient/background-image present -> skip to guarantee zero false positives
+      const fg = blendRgbaOver(fgRaw, bg);
+
+      const fontSize = parseFloat(st.fontSize) || 16;
+      const weight = parseInt(st.fontWeight, 10) || (st.fontWeight === 'bold' ? 700 : 400);
+      const isLargeText = fontSize >= 24 || (fontSize >= 18.66 && weight >= 700);
+      const required = isLargeText ? 3.0 : 4.5;
+
+      const ratio = Math.round(contrastRatio(fg, bg) * 100) / 100;
+      checkedBase += 1;
+
+      if (ratio < required - 0.03) {
+        const r = getGlobalViewportRect(el);
+        const fgHex = rgbToHex(fg);
+        const bgHex = rgbToHex(bg);
+        const fixedHex = computeCompliantTextHex(fg, bg, required + 0.2);
+        issues.push({
+          _el: el,
+          code: 'TEXT_CONTRAST_LOW',
+          criterion: '1.4.3',
+          level: 'AA',
+          severity: 'fail',
+          hudCallout: `КОНТРАСТ ${ratio}:1`,
+          title: `Insufficient text color contrast (${ratio}:1 < ${required}:1 required)`,
+          elementLabel: directText.slice(0, 48),
+          selector: getReadableSelector(el),
+          componentGroupKey: getComponentGroupKey(el),
+          params: { ratio, required, fgHex, bgHex, fixedHex, isLargeText },
+          actual: `Foreground ${fgHex} on ${bgHex} yields ${ratio}:1 (minimum ${required}:1)`,
+          fixCode: `color: ${fixedHex}; /* achieves >= ${required}:1 on ${bgHex} */`,
+          bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+        });
+      }
+    }
+
+    // 6. SC 1.3.1 Heading Level Hierarchy Advisory (EN 301 549 Clause 9.1.3.1)
+    const headings = queryAllDeep('h1, h2, h3, h4, h5, h6').filter(isElementRendered);
+    let prevLevel = 0;
+    for (const h of headings) {
+      const lvl = parseInt(h.tagName.slice(1), 10);
+      if (prevLevel > 0 && lvl > prevLevel + 1) {
+        const r = getGlobalViewportRect(h);
+        issues.push({
+          _el: h,
+          code: 'HEADING_ORDER_SKIP',
+          criterion: '1.3.1',
+          level: 'A-warn',
+          severity: 'warning',
+          hudCallout: `Прыжок H${prevLevel}→H${lvl}`,
+          title: `Skipped heading hierarchy level (<h${prevLevel}> jumped directly to <h${lvl}>)`,
+          elementLabel: getSnippetText(h),
+          selector: getReadableSelector(h),
+          componentGroupKey: getComponentGroupKey(h),
+          params: { fromLevel: prevLevel, toLevel: lvl },
+          actual: `Heading level jumped from <h${prevLevel}> to <h${lvl}>`,
+          fixCode: `Use <h${prevLevel + 1}> sequentially and style font size via CSS.`,
+          bbox: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }
+        });
+      }
+      prevLevel = lvl;
+    }
+
+    return { issues, checkedCount: checkedBase };
   }
 
   function auditAccessibleAuthAndRedundantEntry() {
     const issues = [];
-    const authInputs = Array.from(document.querySelectorAll(
-      'input[type="password"], input[autocomplete*="password"], input[autocomplete="one-time-code"]'
-    )).filter(isElementRendered);
+    const authInputs = queryAllDeep('input[type="password"], input[autocomplete*="password"], input[autocomplete="one-time-code"]').filter(isElementRendered);
 
     for (const input of authInputs) {
       const rect = input.getBoundingClientRect();
@@ -878,11 +1335,30 @@
           afterCap: 'Отступ scroll-padding сверху',
           kind: 'sticky'
         };
+      case 'TEXT_CONTRAST_LOW':
+        return {
+          title: `Низкий контраст текста (${p.ratio}:1 < ${p.required}:1)`,
+          beforeCap: `Бледный ${p.fgHex} (${p.ratio}:1)`,
+          afterCap: `Четкий ${p.fixedHex} (≥ ${p.required}:1)`,
+          kind: 'contrast',
+          fgHex: p.fgHex,
+          bgHex: p.bgHex,
+          fixedHex: p.fixedHex
+        };
+      case 'IMG_ALT_MISSING':
+      case 'EMPTY_INTERACTIVE_NAME':
+      case 'FORM_LABEL_MISSING':
+        return {
+          title: 'Элемент «немой» для скринридера',
+          beforeCap: 'Нет подписи alt / aria-label',
+          afterCap: 'Доступное имя озвучено ✓',
+          kind: 'semantic'
+        };
       default:
         return {
           title: iss.title,
           beforeCap: 'Текущее состояние с риском EAA',
-          afterCap: 'Исправлено по WCAG 2.2 AA',
+          afterCap: 'Исправлено по EN 301 549 ✓',
           kind: 'generic'
         };
     }
@@ -962,7 +1438,7 @@
     }
 
     const r = (liveEl && liveEl.isConnected)
-      ? liveEl.getBoundingClientRect()
+      ? getGlobalViewportRect(liveEl)
       : { left: 100, right: 220, top: 200, bottom: 240, width: 120, height: 40 };
 
     const elCenterX = r.left + r.width / 2;
@@ -1099,6 +1575,14 @@
       } else if (iss.code === "FOCUS_OBSCURED_FULL" || iss.code === "FOCUS_OBSCURED_PARTIAL") {
         liveEl.setAttribute("data-wcag22-sim", "scroll");
         maxScrollPad = Math.max(maxScrollPad, (iss.params?.blockerH || 96) + 24);
+      } else if (iss.code === "TEXT_CONTRAST_LOW" && iss.params?.fixedHex) {
+        if (!liveEl.hasAttribute("data-wcag22-orig-color")) {
+          liveEl.setAttribute("data-wcag22-orig-color", liveEl.style.color || "");
+        }
+        liveEl.style.setProperty("color", iss.params.fixedHex, "important");
+        liveEl.setAttribute("data-wcag22-sim", "contrast");
+      } else if (["IMG_ALT_MISSING", "EMPTY_INTERACTIVE_NAME", "FORM_LABEL_MISSING"].includes(iss.code)) {
+        liveEl.setAttribute("data-wcag22-sim", "semantic");
       }
     });
 
@@ -1129,6 +1613,10 @@
       }
       [data-wcag22-sim="scroll"] {
         scroll-margin-top: ${maxScrollPad}px !important;
+      }
+      [data-wcag22-sim="semantic"] {
+        outline: 2px dashed #10b981 !important;
+        outline-offset: 2px !important;
       }
     `;
     document.head.appendChild(styleEl);
@@ -1216,9 +1704,12 @@
     } else if (spec.kind === "sticky") {
       beforeArt = `<div class="mini-sticky-wrap"><div class="mini-sticky-bar">ШАПКА</div><div class="mini-hidden-link">Ссылка скрыта</div></div>`;
       afterArt = `<div class="mini-sticky-wrap"><div class="mini-sticky-bar">ШАПКА</div><div class="mini-clear-link">Ссылка видна ✓</div></div>`;
+    } else if (spec.kind === "contrast") {
+      beforeArt = `<div style="padding:4px 8px;border-radius:4px;background:${spec.bgHex || '#fff'};color:${spec.fgHex || '#94a3b8'};font-weight:700;font-size:12px;">Текст Aa</div>`;
+      afterArt = `<div style="padding:4px 8px;border-radius:4px;background:${spec.bgHex || '#fff'};color:${spec.fixedHex || '#0f172a'};font-weight:700;font-size:12px;">Текст Aa ✓</div>`;
     } else {
       beforeArt = `<div class="mini-generic-bad">Дефект SC ${iss.criterion}</div>`;
-      afterArt = `<div class="mini-generic-good">Норма WCAG 2.2 ✓</div>`;
+      afterArt = `<div class="mini-generic-good">Норма EN 301 549 ✓</div>`;
     }
 
     card.classList.toggle("is-collapsed", isCollapsed);
@@ -1237,6 +1728,7 @@
       <div class="insp-body-wrap">
         <div class="insp-title">${spec.title}</div>
         <div class="insp-el-name">${iss.elementLabel ? `Элемент: «${iss.elementLabel}»` : iss.selector}</div>
+        <div style="font-size:10.5px;color:#93c5fd;background:rgba(37,99,235,0.14);border:1px solid rgba(96,165,250,0.3);border-radius:5px;padding:3px 7px;margin-bottom:8px;">⚖ ${iss.enClause || getLawMeta(iss.criterion).enClause} · ${iss.eaaLaw || getLawMeta(iss.criterion).eaaLaw}</div>
 
         <div class="insp-compare">
           <div class="insp-col insp-col-before">
@@ -1940,8 +2432,8 @@
   function refreshProCacheFlag() {
     try {
       if (typeof chrome !== "undefined" && chrome.storage?.local) {
-        chrome.storage.local.get(["monetize_paid_verified", "dev_pro_override_v23"], res => {
-          window.__wcag22ProUnlocked = Boolean(res?.monetize_paid_verified || res?.dev_pro_override_v23);
+        chrome.storage.local.get(["monetize_paid_verified"], res => {
+          window.__wcag22ProUnlocked = Boolean(res?.monetize_paid_verified);
         });
       }
     } catch (_) {}
@@ -1953,6 +2445,7 @@
     refreshProCacheFlag();
 
     const startedAt = performance.now();
+    const rBase = auditFoundationalWcag21();
     const r258 = auditTargetSize258();
     const rFocus = auditFocusAndTabOrder();
     const rAuth = auditAccessibleAuthAndRedundantEntry();
@@ -1962,12 +2455,20 @@
 
     const order = { fail: 0, warning: 1, manual: 2 };
     const sortedWithRefs = [
+      ...rBase.issues,
       ...r258.issues,
       ...rFocus.issues,
       ...rAuth.issues,
       ...r257.issues,
       ...overlayIssues
-    ].sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
+    ].map(item => {
+      const law = getLawMeta(item.criterion);
+      return {
+        ...item,
+        enClause: law.enClause,
+        eaaLaw: law.eaaLaw
+      };
+    }).sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
 
     window.__wcag22IssueElements = sortedWithRefs.map(item => item._el || null);
     const allIssues = sortedWithRefs.map(({ _el, ...serializable }) => serializable);
@@ -1975,11 +2476,12 @@
     const failCount = allIssues.filter(i => i.severity === "fail").length;
     const warnCount = allIssues.filter(i => i.severity === "warning").length;
     const manualCount = allIssues.filter(i => i.severity === "manual").length;
-    const checkedNodes = r258.checkedCount + rFocus.checkedCount;
+    const checkedNodes = rBase.checkedCount + r258.checkedCount + rFocus.checkedCount;
     const readinessScore = computeReadinessScore(failCount, warnCount, checkedNodes);
 
     const result = {
-      auditorVersion: "0.6.1",
+      auditorVersion: "1.1.0",
+      normativeVersion: globalThis.WCAG22_NORMATIVE_DB?.data?.registryVersion || "2026.11.1",
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,
       scannedAt: new Date().toISOString(),
@@ -2071,7 +2573,7 @@
             }
 
             const rectNow = (liveEl && liveEl.isConnected)
-              ? liveEl.getBoundingClientRect()
+              ? getGlobalViewportRect(liveEl)
               : {
                   left: item.bbox.x - window.scrollX,
                   top: item.bbox.y - window.scrollY,

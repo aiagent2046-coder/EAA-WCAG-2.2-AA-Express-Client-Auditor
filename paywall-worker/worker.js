@@ -139,6 +139,24 @@ export default {
       });
     }
 
+    if (request.method === 'GET' && path === '/normative-registry') {
+      let upstreamLastModified = null;
+      try {
+        const w3Res = await fetch('https://www.w3.org/TR/WCAG22/', { method: 'HEAD' });
+        upstreamLastModified = w3Res.headers.get('last-modified') || null;
+      } catch (_) {}
+      return jsonResp({
+        ok: true,
+        registryVersion: '2026.11.1',
+        enStandard: 'ETSI EN 301 549 V4.1.1 (2026-09)',
+        eaaDirective: 'Directive (EU) 2019/882 (CELEX:32019L0882)',
+        wcagStandard: 'W3C WCAG 2.2 (ISO/IEC 40500:2025)',
+        upstreamLastModified,
+        checkedAt: new Date().toISOString(),
+        overrides: {}
+      });
+    }
+
     if (!checkRateLimit(clientIp)) {
       return jsonResp({ ok: false, error: 'Too many requests, please wait a minute.' }, 429);
     }

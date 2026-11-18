@@ -21,7 +21,6 @@
       </div>
       <button id="btn-unlock-pro" type="button" class="btn-upgrade" hidden>Разблокировать Pro ($10/мес)</button>
       <button id="btn-account-pro" type="button" class="btn-outline" hidden>Pro Account</button>
-      <button id="btn-dev-report-toggle" type="button" class="btn-outline" hidden>Dev: Test Unlock</button>
       <button id="btn-dl-md" type="button" class="btn-outline">.MD</button>
       <button id="btn-dl-csv" type="button" class="btn-outline">Jira .CSV</button>
       <button id="btn-print" type="button" class="btn-solid">Сохранить PDF для клиента</button>
@@ -54,7 +53,7 @@
     <div class="pw-dialog" role="dialog" aria-modal="true" aria-labelledby="pw-title">
       <div class="pw-head">
         <div>
-          <span class="pw-badge">Paywall #926 · Direct Stripe Checkout</span>
+          <span class="pw-badge">Direct Stripe Checkout · Pro License</span>
           <h3 id="pw-title">Express Client Auditor Pro</h3>
         </div>
         <button id="pw-close" type="button" class="pw-close" aria-label="Close">&times;</button>
@@ -89,7 +88,7 @@
           <span class="pw-dot-pulse"></span>
           <strong id="pw-await-title">Страница оплаты Stripe открыта в соседней вкладке</strong>
         </div>
-        <p id="pw-await-hint">В тестовом режиме введите карту <code>4242 4242 4242 4242</code> (любой будущий MM/YY и любой CVC). Как только вы вернетесь на эту вкладку после оплаты, отчет разблокируется автоматически.</p>
+        <p id="pw-await-hint">Завершите безопасную оплату в открывшейся вкладке Stripe. Как только вы вернетесь на эту вкладку, полный отчет и экспорт A4 PDF разблокируются автоматически.</p>
         <div class="pw-inline-actions">
           <button id="pw-btn-check-now" type="button" class="pw-btn pw-btn-primary">Я оплатил — проверить сейчас</button>
           <button id="pw-btn-reopen-url" type="button" class="pw-btn pw-btn-secondary">Открыть оплату снова</button>
@@ -122,6 +121,14 @@
               <div><span class="meta-lbl" id="ui-lbl-url">Audited URL</span><strong id="rep-url" class="wrap-url">—</strong></div>
               <div><span class="meta-lbl" id="ui-lbl-date">Audit Timestamp</span><strong id="rep-date">—</strong></div>
               <div><span class="meta-lbl" id="ui-lbl-vp">Viewport</span><strong id="rep-vp">—</strong></div>
+            </section>
+
+            <section class="norm-registry-strip" id="norm-registry-strip">
+              <div class="norm-reg-left">
+                <span class="norm-reg-badge" id="ui-norm-badge">⚖ НОРМАТИВНАЯ БАЗА АКТУАЛЬНА</span>
+                <span id="ui-norm-text">ETSI EN 301 549 V4.1.1 (2026-09) · Directive (EU) 2019/882 (EAA) · W3C WCAG 2.2 AA</span>
+              </div>
+              <button type="button" id="btn-check-norms-report" class="norm-reg-btn no-print">↻ Проверить изменения норм</button>
             </section>
 
             <section class="summary-cards">
@@ -189,6 +196,11 @@
                 <tbody id="manual-tbody"></tbody>
               </table>
             </section>
+
+            <section id="certificate-section" class="lockable-section cert-section">
+              <h2 id="ui-sec-cert">4. Свидетельство о прохождении технического аудита / Протокол соответствия EAA</h2>
+              <div id="cert-container"></div>
+            </section>
           </article>
         </td>
       </tr>
@@ -196,6 +208,7 @@
     <tfoot><tr><td><div class="print-page-space"></div></td></tr></tfoot>
   </table>
 
+  <script src="../rules/normative-db.js"></script>
   <script src="../../dist-sdk/paywall-bridge.js"></script>
   <script src="report.js"></script>
 </body>

@@ -8,7 +8,10 @@ export function attachGlobalPaywallBridge() {
     if (!err) return 'Unknown error';
     if (typeof err === 'string') return err;
     if (err.message === 'Failed to fetch' || /NetworkError/i.test(String(err.message))) {
-      return `Нет связи с платежным прокси (${PAYWALL_CONFIG.workerOrigin}). Запустите в терминале: npm run start:proxy (предварительно указав MONETIZE_API_KEY в paywall-worker/.env) либо задеплойте Cloudflare Worker.`;
+      const isLocal = /127\.0\.0\.1|localhost/.test(PAYWALL_CONFIG.workerOrigin);
+      return isLocal
+        ? 'Платежный прокси пока настроен на локальный адрес (127.0.0.1:8787). Для продакшн-работы выполните ./deploy_cloud_worker.sh либо запустите локальный прокси (npm run start:proxy).'
+        : 'Не удалось связаться с сервером оплаты. Проверьте подключение к интернету и повторите попытку через несколько секунд.';
     }
     return err.message || err.error || String(err);
   }
@@ -20,7 +23,7 @@ export function attachGlobalPaywallBridge() {
   }
 
   async function getStoredBillingState() {
-    const local = await chrome.storage.local.get(['dev_pro_override_v23', 'billing_email', 'monetize_paid_verified']);
+    const local = await chrome.storage.local.get(['billing_email', 'monetize_paid_verified']);
     let syncEmail = null;
     try {
       if (chrome.storage.sync) {
@@ -29,7 +32,6 @@ export function attachGlobalPaywallBridge() {
       }
     } catch (_) {}
     return {
-      devOverride: Boolean(local.dev_pro_override_v23),
       email: local.billing_email || syncEmail || '',
       cachedPaid: Boolean(local.monetize_paid_verified)
     };
@@ -63,7 +65,6 @@ export function attachGlobalPaywallBridge() {
     return data;
   }
 
-  // Loads live prices from Worker (/prices), falling back directly to public appbox.space bootstrap so $10/month card renders even before proxy starts!
   async function loadPrices() {
     try {
       const data = await fetchWorkerJson('/prices', { method: 'GET' });
@@ -89,16 +90,10 @@ export function attachGlobalPaywallBridge() {
   }
 
   async function checkAccess(opts = {}) {
-    const manifest = chrome.runtime.getManifest();
     const state = await getStoredBillingState();
-
-    if (!manifest.update_url && state.devOverride) {
-      return { granted: true, devOverride: true, source: 'dev_override', email: state.email };
-    }
-
     const emailToCheck = String(opts.email || state.email || '').trim().toLowerCase();
     if (!emailToCheck) {
-      return { granted: false, devOverride: false, source: 'no_email', email: '' };
+      return { granted: false, source: 'no_email', email: '' };
     }
 
     try {
@@ -106,19 +101,18 @@ export function attachGlobalPaywallBridge() {
       const isPaid = Boolean(status?.paid === true);
       await saveBillingState(emailToCheck, isPaid);
       if (isPaid) {
-        notifyAccess(true, { source: 'worker_status', email: emailToCheck, devOverride: false });
+        notifyAccess(true, { source: 'worker_status', email: emailToCheck });
       }
-      return { granted: isPaid, devOverride: false, source: 'worker_status', email: emailToCheck };
+      return { granted: isPaid, source: 'worker_status', email: emailToCheck };
     } catch (err) {
       if (opts.throwOnError) throw err;
       if (!opts.skipCacheFallback && state.cachedPaid) {
-        return { granted: true, devOverride: false, source: 'verified_cache', email: emailToCheck };
+        return { granted: true, source: 'verified_cache', email: emailToCheck };
       }
-      return { granted: false, devOverride: false, source: 'offline_unpaid', email: emailToCheck };
+      return { granted: false, source: 'offline_unpaid', email: emailToCheck };
     }
   }
 
-  // 1-Click Direct Stripe Checkout — ZERO confirmation emails!
   async function startStripeCheckout(email, priceId) {
     const cleanEmail = String(email || '').trim().toLowerCase();
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
@@ -128,7 +122,6 @@ export function attachGlobalPaywallBridge() {
       throw new Error('Тариф не выбран.');
     }
 
-    // Save email right away so auto-polling knows which email is checking out
     await saveBillingState(cleanEmail, false);
 
     const data = await fetchWorkerJson('/checkout', {
@@ -139,7 +132,7 @@ export function attachGlobalPaywallBridge() {
 
     if (data?.alreadyPurchased || data?.paid) {
       await saveBillingState(cleanEmail, true);
-      notifyAccess(true, { event: 'already_purchased', email: cleanEmail, devOverride: false });
+      notifyAccess(true, { event: 'already_purchased', email: cleanEmail });
       return { alreadyPurchased: true, email: cleanEmail };
     }
 
@@ -156,7 +149,7 @@ export function attachGlobalPaywallBridge() {
       throw new Error('Введите Email, на который оформлялась подписка.');
     }
     const res = await checkAccess({ email: cleanEmail, skipCacheFallback: true, throwOnError: true });
-    notifyAccess(res.granted, { event: 'restore_check', email: cleanEmail, devOverride: res.devOverride });
+    notifyAccess(res.granted, { event: 'restore_check', email: cleanEmail });
     return res;
   }
 
@@ -172,11 +165,11 @@ export function attachGlobalPaywallBridge() {
   }
 
   async function signOut() {
-    await chrome.storage.local.remove(['billing_email', 'monetize_paid_verified']);
+    await chrome.storage.local.remove(['billing_email', 'monetize_paid_verified', 'dev_pro_override_v23']);
     try {
       if (chrome.storage.sync) await chrome.storage.sync.remove(['billing_email']);
     } catch (_) {}
-    notifyAccess(false, { event: 'signout', devOverride: false });
+    notifyAccess(false, { event: 'signout' });
   }
 
   function openPaywall(opts = {}) {
@@ -197,8 +190,8 @@ export function attachGlobalPaywallBridge() {
 
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && (changes.monetize_paid_verified || changes.dev_pro_override_v23)) {
-        checkAccess().then(res => notifyAccess(res.granted, { event: 'storage', devOverride: res.devOverride }));
+      if (area === 'local' && changes.monetize_paid_verified) {
+        checkAccess().then(res => notifyAccess(res.granted, { event: 'storage' }));
       }
     });
   }

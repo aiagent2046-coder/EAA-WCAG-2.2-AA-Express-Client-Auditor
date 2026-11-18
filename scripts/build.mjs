@@ -48,17 +48,18 @@ if (esbuildMod) {
 
   console.log('[OK] Bundled paywall bridge & service workers via esbuild into dist-sdk/');
 } else {
-  // Zero-dependency deterministic bundler fallback when node_modules is absent
-  const swSrc = readFileSync(resolve(root, 'src/sw.entry.js'), 'utf8');
-  const swFfSrc = readFileSync(resolve(root, 'src/sw-firefox.entry.js'), 'utf8');
   const cfgSrc = readFileSync(resolve(root, 'src/paywall/config.js'), 'utf8')
     .replace(/^\s*export\s+/gm, '');
-  const bridgeSrc = readFileSync(resolve(root, 'src/paywall/create-bridge.js'), 'utf8')
+  const stripImports = s => s
     .replace(/^\s*import\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
     .replace(/^\s*export\s+/gm, '');
 
-  writeFileSync(resolve(outDir, 'sw.js'), swSrc, 'utf8');
-  writeFileSync(resolve(outDir, 'sw-firefox.js'), `(() => {\n${swFfSrc}\n})();\n`, 'utf8');
+  const swSrc = stripImports(readFileSync(resolve(root, 'src/sw.entry.js'), 'utf8'));
+  const swFfSrc = stripImports(readFileSync(resolve(root, 'src/sw-firefox.entry.js'), 'utf8'));
+  const bridgeSrc = stripImports(readFileSync(resolve(root, 'src/paywall/create-bridge.js'), 'utf8'));
+
+  writeFileSync(resolve(outDir, 'sw.js'), `${cfgSrc}\n${swSrc}\n`, 'utf8');
+  writeFileSync(resolve(outDir, 'sw-firefox.js'), `(() => {\n${cfgSrc}\n${swFfSrc}\n})();\n`, 'utf8');
   writeFileSync(
     resolve(outDir, 'paywall-bridge.js'),
     `(() => {\n${cfgSrc}\n${bridgeSrc}\nattachGlobalPaywallBridge();\n})();\n`,

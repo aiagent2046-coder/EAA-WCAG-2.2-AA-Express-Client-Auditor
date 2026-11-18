@@ -13,7 +13,7 @@
       <div class="brand-wrap">
         <img src="../../assets/icon-48.png" class="brand-logo" width="20" height="20" alt="">
         <span class="brand">WCAG 2.2 AA Auditor</span>
-        <span class="ver">v0.6.1</span>
+        <span class="ver">v1.1.0</span>
       </div>
       <button id="btn-plan-pill" type="button" class="plan-pill">FREE</button>
     </div>
@@ -38,6 +38,11 @@
 
   <main class="container">
     <button id="btn-scan" class="btn-primary" type="button">Run Visual WCAG 2.2 &amp; EAA Audit</button>
+
+    <div id="normative-bar" class="norm-bar">
+      <span id="norm-bar-text">⚖ База: EN 301 549 V4.1.1 · EU 2019/882</span>
+      <button id="btn-sync-norms" type="button" class="norm-sync-btn" title="Проверить обновления нормативной базы стандартов">↻ Нормы</button>
+    </div>
 
     <div id="promo-banner" class="promo-banner">
       <div class="promo-copy">
@@ -90,11 +95,12 @@
 
       <div class="filter-bar" role="tablist">
         <button type="button" class="chip is-active" data-filter="all">All</button>
-        <button type="button" class="chip" data-filter="fail">Fails Only</button>
+        <button type="button" class="chip" data-filter="fail">Fails</button>
+        <button type="button" class="chip" data-filter="1.4">1.4 Contrast</button>
+        <button type="button" class="chip" data-filter="a11y-name">Alt / Labels</button>
         <button type="button" class="chip" data-filter="2.5.8">2.5.8 Target</button>
         <button type="button" class="chip" data-filter="2.4">2.4 Focus</button>
-        <button type="button" class="chip" data-filter="3.3">3.3 Auth/Forms</button>
-        <button type="button" class="chip" data-filter="3.2.6">3.2.6 Help</button>
+        <button type="button" class="chip" data-filter="3.3">3.3 Auth</button>
       </div>
 
       <div id="issues-list" class="issues-list"></div>
@@ -122,10 +128,10 @@
     <div class="footer-links">
       <button id="btn-open-paywall" type="button" class="link-btn">Upgrade / Account</button>
       <button id="btn-signout-pro" type="button" class="link-btn link-muted" hidden>Sign Out Pro</button>
-      <button id="btn-dev-unlock" type="button" class="link-btn link-muted" hidden>Dev Toggle Pro</button>
     </div>
   </main>
 
+  <script src="../rules/normative-db.js"></script>
   <script src="../../dist-sdk/paywall-bridge.js"></script>
   <script src="popup.js"></script>
 </body>
