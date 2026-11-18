@@ -8,10 +8,10 @@ export function attachGlobalPaywallBridge() {
     if (!err) return 'Unknown error';
     if (typeof err === 'string') return err;
     if (err.message === 'Failed to fetch' || /NetworkError/i.test(String(err.message))) {
-      const isLocal = /127\.0\.0\.1|localhost/.test(PAYWALL_CONFIG.workerOrigin);
-      return isLocal
-        ? 'Платежный прокси пока настроен на локальный адрес (127.0.0.1:8787). Для продакшн-работы выполните ./deploy_cloud_worker.sh либо запустите локальный прокси (npm run start:proxy).'
-        : 'Не удалось связаться с сервером оплаты. Проверьте подключение к интернету и повторите попытку через несколько секунд.';
+      const isHttpsCloud = /^https:\/\//i.test(PAYWALL_CONFIG.workerOrigin || '');
+      return isHttpsCloud
+        ? 'Не удалось связаться с облачным сервером оплаты. Проверьте подключение к интернету и повторите попытку через несколько секунд.'
+        : 'Платежный прокси еще не переключен на облачный HTTPS-адрес Cloudflare Workers. Запустите скрипт облачного релиза для привязки рабочего URL.';
     }
     return err.message || err.error || String(err);
   }

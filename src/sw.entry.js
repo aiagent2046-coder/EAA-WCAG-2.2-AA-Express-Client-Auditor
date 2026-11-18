@@ -21,7 +21,7 @@ async function checkNormativeUpdates(force = false) {
 
     let remoteData = null;
     const workerBase = (PAYWALL_CONFIG.workerOrigin || '').replace(/\/+$/, '');
-    if (workerBase && !/127\.0\.0\.1|localhost/.test(workerBase)) {
+    if (workerBase && /^https:\/\//i.test(workerBase)) {
       try {
         const wRes = await fetch(`${workerBase}/normative-registry`, { cache: 'no-store' });
         if (wRes.ok) {

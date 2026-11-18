@@ -414,7 +414,7 @@ async function captureTopIssueCrops(audit, maxCrops = 10) {
     try {
       const pos = await chrome.tabs.sendMessage(currentTabId, { type: 'SCROLL_FOR_CROP', index: idx });
       if (!pos || !pos.ok) continue;
-      await new Promise(r => setTimeout(r, 180));
+      await new Promise(r => setTimeout(r, (pos.settledMs && pos.settledMs >= 350) ? 40 : 350));
       const shot = await chrome.runtime.sendMessage({ type: 'CAPTURE_VISIBLE_TAB', windowId: currentWindowId });
       if (!shot || !shot.dataUrl) continue;
 

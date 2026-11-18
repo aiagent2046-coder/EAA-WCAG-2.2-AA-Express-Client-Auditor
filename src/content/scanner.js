@@ -2520,6 +2520,18 @@
       });
     }
 
+    function waitForScrollAndStickyHeaderSettle(ms = 350) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          if (typeof requestAnimationFrame === "function") {
+            requestAnimationFrame(() => requestAnimationFrame(resolve));
+          } else {
+            resolve();
+          }
+        }, ms);
+      });
+    }
+
     async function captureAuditCropsFromDock(rawAudit) {
       if (!rawAudit || !Array.isArray(rawAudit.issues)) return rawAudit;
       const enriched = JSON.parse(JSON.stringify(rawAudit));
@@ -2552,7 +2564,7 @@
               liveEl.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
             }
           }
-          await new Promise(r => setTimeout(r, 150));
+          await waitForScrollAndStickyHeaderSettle(350);
           const rNow = (liveEl && liveEl.isConnected)
             ? getGlobalViewportRect(liveEl)
             : { left: iss.bbox.x - window.scrollX, top: iss.bbox.y - window.scrollY, width: iss.bbox.w, height: iss.bbox.h };
@@ -2656,7 +2668,7 @@
     const readinessScore = computeReadinessScore(failCount, warnCount, checkedNodes);
 
     const result = {
-      auditorVersion: "1.1.1",
+      auditorVersion: "1.1.2",
       normativeVersion: globalThis.WCAG22_NORMATIVE_DB?.data?.registryVersion || "2026.11.1",
       url: window.location.href,
       pageTitle: document.title || window.location.hostname,
@@ -2748,27 +2760,31 @@
               window.scrollTo(0, targetScrollY);
             }
 
-            const rectNow = (liveEl && liveEl.isConnected)
-              ? getGlobalViewportRect(liveEl)
-              : {
-                  left: item.bbox.x - window.scrollX,
-                  top: item.bbox.y - window.scrollY,
-                  width: item.bbox.w,
-                  height: item.bbox.h
-                };
+            waitForScrollAndStickyHeaderSettle(350).then(() => {
+              const rectNow = (liveEl && liveEl.isConnected)
+                ? getGlobalViewportRect(liveEl)
+                : {
+                    left: item.bbox.x - window.scrollX,
+                    top: item.bbox.y - window.scrollY,
+                    width: item.bbox.w,
+                    height: item.bbox.h
+                  };
 
-            sendResponse({
-              ok: true,
-              viewportRect: {
-                x: rectNow.left,
-                y: rectNow.top,
-                w: rectNow.width,
-                h: rectNow.height,
-                vw: window.innerWidth,
-                vh: window.innerHeight,
-                dpr: window.devicePixelRatio || 1
-              }
+              sendResponse({
+                ok: true,
+                settledMs: 350,
+                viewportRect: {
+                  x: rectNow.left,
+                  y: rectNow.top,
+                  w: rectNow.width,
+                  h: rectNow.height,
+                  vw: window.innerWidth,
+                  vh: window.innerHeight,
+                  dpr: window.devicePixelRatio || 1
+                }
+              });
             });
+            return true;
           } else {
             sendResponse({ ok: false });
           }

@@ -27,13 +27,13 @@ npm run package
 ```
 
 Generated artifacts in `dist/`:
-- `wcag22-express-auditor-chrome-v1.0.0.zip` — Chrome Web Store package
-- `wcag22-express-auditor-edge-v1.0.0.zip` — Microsoft Edge Add-ons package
-- `wcag22-express-auditor-firefox-v1.0.0.zip` — Mozilla Firefox AMO package
-- `wcag22-express-auditor-firefox-sources-v1.0.0.zip` — Clean source archive for AMO review
+- `wcag22-express-auditor-chrome-v1.1.2.zip` — Chrome Web Store package
+- `wcag22-express-auditor-edge-v1.1.2.zip` — Microsoft Edge Add-ons package
+- `wcag22-express-auditor-firefox-v1.1.2.zip` — Mozilla Firefox AMO package
+- `wcag22-express-auditor-firefox-sources-v1.1.2.zip` — Clean source archive for AMO review
 
 ## Deploying the Cloudflare Payment Proxy Worker
-To switch from local development (`http://127.0.0.1:8787`) to production Cloudflare Workers (`https://wcag22-paywall-proxy.<subdomain>.workers.dev`):
+To deploy `paywall-worker` to Cloudflare Workers (`https://wcag22-paywall-proxy.<subdomain>.workers.dev`) and build clean production store bundles:
 ```bash
 ./deploy_cloud_worker.sh
 ```

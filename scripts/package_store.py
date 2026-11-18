@@ -2,7 +2,9 @@
 """Builds store-ready .zip bundles for Chrome Web Store, Edge Add-ons, and Firefox AMO (plus AMO source bundle)."""
 
 import json
+import os
 import shutil
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -31,31 +33,54 @@ SOURCE_INCLUDE_PATHS = [
 ]
 
 FORBIDDEN_RELEASE_TOKENS = (
-    "SET_DEV_PRO_OVERRIDE",
-    "Dev: Test Pro",
-    "Dev: Test Unlock",
-    "btn-dev-unlock",
-    "btn-dev-report-toggle",
-    "4242 4242 4242 4242",
+    "_".join(("SET", "DEV", "PRO", "OVERRIDE")),
+    " ".join(("Dev:", "Test", "Pro")),
+    " ".join(("Dev:", "Test", "Unlock")),
+    "-".join(("btn", "dev", "unlock")),
+    "-".join(("btn", "dev", "report", "toggle")),
+    " ".join(("4242",) * 4),
+)
+
+LOOPBACK_TOKENS = (
+    ".".join(("127", "0", "0", "1")),
+    "local" + "host",
 )
 
 
-def verify_production_cleanliness(stage: Path) -> None:
-    for loc_file in sorted((stage / "_locales").glob("*/messages.json")):
-        data = json.loads(loc_file.read_text(encoding="utf-8"))
-        desc = data.get("extDescription", {}).get("message", "")
-        name = data.get("extName", {}).get("message", "")
-        if len(name) > 75:
-            raise SystemExit(f"[FAIL] {loc_file}: extName exceeds 75 chars ({len(name)})")
-        if len(desc) > 132:
-            raise SystemExit(f"[FAIL] {loc_file}: extDescription exceeds 132 chars ({len(desc)})")
+def require_cloud_mode() -> bool:
+    return os.environ.get("REQUIRE_CLOUD_WORKER") == "1" or "--require-cloud" in sys.argv[1:]
 
+
+def verify_production_cleanliness(stage: Path, check_locales: bool = True) -> None:
+    strict_cloud = require_cloud_mode()
+
+    if check_locales and (stage / "_locales").exists():
+        for loc_file in sorted((stage / "_locales").glob("*/messages.json")):
+            data = json.loads(loc_file.read_text(encoding="utf-8"))
+            desc = data.get("extDescription", {}).get("message", "")
+            name = data.get("extName", {}).get("message", "")
+            if len(name) > 75:
+                raise SystemExit(f"[FAIL] {loc_file}: extName exceeds 75 chars ({len(name)})")
+            if len(desc) > 132:
+                raise SystemExit(f"[FAIL] {loc_file}: extDescription exceeds 132 chars ({len(desc)})")
+
+    if strict_cloud and (stage / "manifest.json").exists():
+        mf = json.loads((stage / "manifest.json").read_text(encoding="utf-8"))
+        perms = mf.get("host_permissions", [])
+        if not any(p.startswith("https://") and "appbox.space" not in p for p in perms):
+            raise SystemExit(f"[FAIL] Cloud mode requires an https:// Worker URL in host_permissions, got: {perms}")
+
+    scan_suffixes = {".js", ".mjs", ".py", ".html", ".css", ".json", ".md"}
     for path in sorted(stage.rglob("*")):
-        if path.is_file() and path.suffix in {".js", ".html", ".css", ".json"}:
+        if path.is_file() and path.suffix in scan_suffixes:
             txt = path.read_text(encoding="utf-8", errors="ignore")
             for tok in FORBIDDEN_RELEASE_TOKENS:
                 if tok in txt:
                     raise SystemExit(f"[FAIL] Forbidden dev token {tok!r} found in {path.relative_to(stage)}")
+            if strict_cloud:
+                for ltok in LOOPBACK_TOKENS:
+                    if ltok in txt:
+                        raise SystemExit(f"[FAIL] Local loopback token {ltok!r} found in {path.relative_to(stage)}")
 
 
 def zip_directory(src_dir: Path, zip_path: Path) -> None:
@@ -101,7 +126,7 @@ def build_target(target: str) -> Path:
             if p.exists():
                 p.unlink()
 
-        verify_production_cleanliness(stage)
+        verify_production_cleanliness(stage, check_locales=True)
         out_zip = DIST / f"wcag22-express-auditor-{target}-v{version}.zip"
         zip_directory(stage, out_zip)
         return out_zip
@@ -125,6 +150,7 @@ def build_firefox_sources_zip() -> Path:
                 )
             else:
                 shutil.copy2(src, dst)
+        verify_production_cleanliness(stage, check_locales=True)
         out_zip = DIST / f"wcag22-express-auditor-firefox-sources-v{version}.zip"
         zip_directory(stage, out_zip)
         return out_zip

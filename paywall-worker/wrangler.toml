@@ -1,8 +1,9 @@
 name = "wcag22-paywall-proxy"
 main = "worker.js"
-compatibility_date = "2026-01-01"
+compatibility_date = "2025-01-01"
+workers_dev = true
 
 [vars]
 PAYWALL_ID = "926"
 MONETIZE_API_ORIGIN = "https://appbox.space"
-# Секретный ключ добавляется командой: npx wrangler secret put MONETIZE_API_KEY --config paywall-worker/wrangler.toml
+# Secret key uploaded via: npx wrangler secret put MONETIZE_API_KEY --config paywall-worker/wrangler.toml
