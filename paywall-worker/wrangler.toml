@@ -1,0 +1,8 @@
+name = "wcag22-paywall-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "SUBS_KV"
+id = "f2b51747c92d460fbdd4db9712075d7e"
