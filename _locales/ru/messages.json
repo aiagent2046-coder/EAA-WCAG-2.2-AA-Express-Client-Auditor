@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "WCAG 2.2 AA & EAA Express Client Auditor"
+  },
+  "extDescription": {
+    "message": "Аудитор WCAG 2.2 AA и EAA с базой статей EN 301 549: живой режим «До/После», PDF-отчеты и свидетельство о проверке."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDescription__",
+  "version": "1.1.6",
+  "default_locale": "en",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "action": {
+    "default_title": "Audit Page for WCAG 2.2 AA & EAA",
+    "default_popup": "src/popup/popup.html"
+  },
+  "background": {
+    "service_worker": "dist-sdk/sw.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "homepage_url": "https://eaa-wcag-auditor-site.eaa-auditor-pro.workers.dev"
+}

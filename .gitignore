@@ -5,3 +5,10 @@ node_modules/
 .wrangler/
 *.pem
 *.key
+*.pfx
+*.p12
+*.zip
+*.crx
+.DS_Store
+playwright-report/
+test-results/

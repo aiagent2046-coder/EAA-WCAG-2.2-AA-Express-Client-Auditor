@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+  <meta charset="utf-8">
+  <meta name="google" content="notranslate">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EAA &amp; WCAG 2.2 AA Auditor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top-bar">
+    <div class="top-row-main">
+      <div class="brand-wrap">
+        <img src="../../assets/icon-48.png" class="brand-logo" width="20" height="20" alt="">
+        <span class="brand">WCAG 2.2 AA Auditor</span>
+        <span class="ver">v1.1.6</span>
+      </div>
+      <button id="btn-plan-pill" type="button" class="plan-pill">FREE</button>
+    </div>
+    <div class="top-row-sub">
+      <span class="sub-badge">EN 301 549 · Visual X-Ray</span>
+      <div class="hud-controls">
+        <label class="hud-switch" title="Show/Hide visual overlay on page">
+          <input type="checkbox" id="chk-hud" checked>
+          <span>HUD</span>
+        </label>
+        <label class="hud-switch" title="Show orange Advisory Warnings on page HUD">
+          <input type="checkbox" id="chk-warn-hud">
+          <span>+Warn</span>
+        </label>
+        <label class="hud-switch" title="Visualize numbered keyboard Tab-Stop Focus Order path (SC 2.4.3)">
+          <input type="checkbox" id="chk-tabmap-hud">
+          <span>Tab#</span>
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <button id="btn-scan" class="btn-primary" type="button">Run Visual WCAG 2.2 &amp; EAA Audit</button>
+
+    <div id="normative-bar" class="norm-bar">
+      <span id="norm-bar-text">⚖ База: EN 301 549 V4.1.1 · EU 2019/882</span>
+      <button id="btn-sync-norms" type="button" class="norm-sync-btn" title="Проверить обновления нормативной базы стандартов">↻ Нормы</button>
+    </div>
+
+    <div id="promo-banner" class="promo-banner">
+      <div class="promo-copy">
+        <strong>Pro Visual Client Report · $10/mo</strong>
+        <span>Annotated screenshots, agency White-Label A4 PDF &amp; Jira CSV</span>
+      </div>
+      <button id="btn-promo-upgrade" type="button" class="btn-promo">Upgrade</button>
+    </div>
+
+    <div id="status-msg" class="status-msg" hidden></div>
+
+    <section id="results-panel" hidden>
+      <!-- Visual Readiness Meter -->
+      <div class="score-meter-card">
+        <div class="score-meter-top">
+          <span class="score-meter-lbl">EAA Compliance Readiness</span>
+          <strong id="score-meter-val" class="score-meter-val">100%</strong>
+        </div>
+        <div class="score-track">
+          <div id="score-fill" class="score-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi kpi-fail">
+          <span class="kpi-num" id="cnt-fail">0</span>
+          <span class="kpi-lbl">AA Fails</span>
+        </div>
+        <div class="kpi kpi-warn">
+          <span class="kpi-num" id="cnt-warn">0</span>
+          <span class="kpi-lbl">Warnings</span>
+        </div>
+        <div class="kpi kpi-manual">
+          <span class="kpi-num" id="cnt-manual">0</span>
+          <span class="kpi-lbl">Manual QA</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-num" id="cnt-nodes">0</span>
+          <span class="kpi-lbl">Controls</span>
+        </div>
+      </div>
+
+      <!-- 1-Click Live "Before / After" CSS Fix Simulator on the Page! -->
+      <button id="btn-sim-fix" type="button" class="btn-sim" hidden>
+        <span id="sim-icon">✨</span>
+        <span id="sim-text">Preview Fixes Live on Page (Before → After)</span>
+      </button>
+
+      <div id="help-consistency-bar" class="help-bar" hidden></div>
+
+      <div class="filter-bar" role="tablist">
+        <button type="button" class="chip is-active" data-filter="all">All</button>
+        <button type="button" class="chip" data-filter="fail">Fails</button>
+        <button type="button" class="chip" data-filter="1.4">1.4 Contrast</button>
+        <button type="button" class="chip" data-filter="a11y-name">Alt / Labels</button>
+        <button type="button" class="chip" data-filter="2.5.8">2.5.8 Target</button>
+        <button type="button" class="chip" data-filter="2.4">2.4 Focus</button>
+        <button type="button" class="chip" data-filter="3.3">3.3 Auth</button>
+      </div>
+
+      <div id="issues-list" class="issues-list"></div>
+
+      <details class="branding-drawer">
+        <summary>Agency White-Label Settings (Pro)</summary>
+        <div class="form-grid">
+          <input id="in-agency" type="text" placeholder="Agency / Studio Name">
+          <input id="in-auditor" type="text" placeholder="Auditor Contact / URL">
+          <input id="in-client" type="text" placeholder="Client / Project Name">
+          <label class="file-lbl">
+            <span>Agency Logo (PNG/SVG):</span>
+            <input id="in-logo" type="file" accept="image/*">
+          </label>
+          <button id="btn-save-brand" type="button" class="btn-secondary">Save Branding Profile</button>
+        </div>
+      </details>
+
+      <div class="export-bar">
+        <button id="btn-export-pdf" type="button" class="btn-accent">Open Visual Report &amp; PDF</button>
+        <button id="btn-export-md" type="button" class="btn-secondary">MD / CSV</button>
+      </div>
+    </section>
+
+    <div class="footer-links">
+      <button id="btn-open-paywall" type="button" class="link-btn">Upgrade / Account</button>
+      <button id="btn-signout-pro" type="button" class="link-btn link-muted" hidden>Sign Out Pro</button>
+    </div>
+  </main>
+
+  <script src="../rules/normative-db.js"></script>
+  <script src="../../dist-sdk/paywall-bridge.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
