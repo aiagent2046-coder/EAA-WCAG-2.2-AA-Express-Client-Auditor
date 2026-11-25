@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EAA &amp; WCAG 2.2 AA Express Client Auditor — Official Product, Pricing &amp; Legal Terms</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #0b1120;
+      color: #f1f5f9;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.84);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      backdrop-filter: blur(12px);
+    }
+    .hero-glow {
+      background: radial-gradient(circle at 20% 15%, rgba(1, 111, 238, 0.24), transparent 48%),
+                  radial-gradient(circle at 82% 20%, rgba(16, 185, 129, 0.15), transparent 44%);
+    }
+    .target-ring-broken {
+      outline: 2px dashed #ef4444;
+      outline-offset: 2px;
+    }
+    .target-ring-fixed {
+      outline: 3px solid #2563eb;
+      outline-offset: 3px;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-blue-600 selection:text-white overflow-x-hidden">
+
+  <!-- Toast Notification -->
+  <div id="toast-box" role="status" aria-live="polite" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 rounded-xl border border-emerald-500/40 bg-slate-900/95 px-4 py-3 text-sm font-medium text-emerald-300 shadow-2xl transition-all">
+    <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+    <span id="toast-text">Copied to clipboard</span>
+  </div>
+
+  <!-- Top Sticky Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+      <a href="#top-hero" class="flex items-center gap-3 text-left">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 font-bold text-white shadow-lg shadow-blue-600/30">
+          AA
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold tracking-tight text-white sm:text-base">EAA &amp; WCAG 2.2 AA Auditor</span>
+            <span class="rounded-md border border-blue-500/30 bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 mono">v1.1.2</span>
+          </div>
+          <p id="nav-subtitle" class="text-[11px] text-slate-400">Browser Extension for Chrome, Edge &amp; Firefox</p>
+        </div>
+      </a>
+
+      <nav class="flex flex-wrap items-center gap-2 sm:gap-5 text-xs sm:text-sm font-medium text-slate-300">
+        <a href="#live-demo" id="nav-link-demo" class="hover:text-white transition-colors">Live Demo</a>
+        <a href="#normative-db" id="nav-link-norms" class="hover:text-white transition-colors">EN 301 549 Engine</a>
+        <a href="#pricing" id="nav-link-pricing" class="hover:text-white transition-colors">Pricing ($10/mo)</a>
+        <a href="#refunds" data-legal-jump="refunds" id="nav-link-refunds" class="hover:text-white transition-colors">Refund Policy</a>
+        <a href="#privacy" data-legal-jump="privacy" id="nav-link-privacy" class="hover:text-white transition-colors">Privacy</a>
+        <div class="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+          <button type="button" id="btn-lang-en" data-lang="en" class="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors">EN</button>
+          <button type="button" id="btn-lang-ru" data-lang="ru" class="rounded-md px-2.5 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors">RU</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top-hero" class="hero-glow">
+    <!-- Hero Section -->
+    <section class="mx-auto max-w-6xl px-4 pt-12 pb-10 sm:px-6 sm:pt-16">
+      <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
+        <div class="lg:col-span-7 space-y-6">
+          <div class="inline-flex flex-wrap items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3.5 py-1.5 text-xs font-medium text-blue-300">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            <span id="hero-badge">100% Local-First Client Execution • Zero Data Leaves Your Browser</span>
+          </div>
+
+          <h1 id="hero-title" class="text-3xl font-extrabold tracking-tight text-white sm:text-5xl sm:leading-[1.12]">
+            Instant WCAG 2.2 Level AA &amp; European Accessibility Act Audits with Live Before/After Proof
+          </h1>
+
+          <p id="hero-desc" class="max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+            Deterministic browser extension for web agencies, QA engineers, and e-commerce teams. Measure 24×24 px touch targets, uncover sticky-header focus traps, preview CSS fixes live on the page, and export White-Label A4 PDF Conformity Certificates cited to <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300">W3C WCAG 2.2</a>, <a href="https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300">ETSI EN 301 549 V4.1.1</a>, and <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32019L0882" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300">Directive (EU) 2019/882</a>.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3.5 pt-1">
+            <a href="#pricing" id="cta-view-pricing" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition-colors">
+              <span>View Free &amp; Pro Plans ($10/mo)</span>
+              <span aria-hidden="true">→</span>
+            </a>
+            <a href="https://github.com/aiagent2046-coder/EAA-WCAG-2.2-AA-Express-Client-Auditor" target="_blank" rel="noopener noreferrer" id="cta-github" class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 px-5 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500 hover:text-white transition-colors">
+              <span>GitHub Repository &amp; Releases</span>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 pt-2 text-left">
+            <div class="glass-card rounded-xl p-3.5">
+              <div class="text-lg font-bold text-white sm:text-xl mono">EN 301 549</div>
+              <div id="stat-1-label" class="text-xs text-slate-400">V4.1.1 (2026-09) Clause Mapping</div>
+            </div>
+            <div class="glass-card rounded-xl p-3.5">
+              <div class="text-lg font-bold text-emerald-400 sm:text-xl mono">100% Local</div>
+              <div id="stat-2-label" class="text-xs text-slate-400">Works on Staging &amp; Intranets</div>
+            </div>
+            <div class="glass-card rounded-xl p-3.5">
+              <div class="text-lg font-bold text-blue-400 sm:text-xl mono">EN / RU / DE</div>
+              <div id="stat-3-label" class="text-xs text-slate-400">Printable A4 Audit Certificates</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Live Before / After Demo Studio -->
+        <div id="live-demo" class="lg:col-span-5">
+          <div class="glass-card rounded-2xl p-5 shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3.5">
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-blue-400" id="demo-kicker">Interactive On-Page Studio</span>
+                <h2 id="demo-heading" class="text-base font-bold text-white">Live Before ↔ After CSS Remediation</h2>
+              </div>
+              <div class="inline-flex rounded-lg border border-slate-700 bg-slate-950 p-1">
+                <button type="button" id="btn-sim-before" data-sim="before" class="rounded-md bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition-colors">BEFORE (Broken)</button>
+                <button type="button" id="btn-sim-after" data-sim="after" class="rounded-md px-3 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors">AFTER (Fixed)</button>
+              </div>
+            </div>
+
+            <!-- Simulated Audited Client Checkout Card -->
+            <div class="mt-4 rounded-xl border border-slate-800 bg-white p-4 text-slate-900">
+              <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span class="text-xs font-bold tracking-tight text-slate-800">CLIENT STORE HEADER</span>
+                <button type="button" id="demo-target-btn" class="target-ring-broken flex items-center justify-center rounded bg-slate-100 text-slate-400 transition-all" style="width: 16px; height: 16px; font-size: 10px;" aria-label="Search store">
+                  ⌕
+                </button>
+              </div>
+              <div class="mt-3 space-y-2">
+                <label for="demo-promo-input" id="demo-input-label" class="block text-xs font-medium" style="color: #94a3b8;">
+                  Promo code (low contrast 2.1:1 &amp; suppressed focus ring)
+                </label>
+                <div class="flex items-center gap-2">
+                  <input id="demo-promo-input" type="text" readonly value="EAA-READY-2026" class="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs mono transition-all" style="color: #94a3b8; outline: none;" />
+                  <span id="demo-badge-pill" class="shrink-0 rounded bg-rose-100 px-2 py-1 text-[11px] font-bold text-rose-700 mono">3 AA FAILS</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Inspector Readout -->
+            <div class="mt-4 space-y-2.5 rounded-xl border border-slate-800 bg-slate-950/90 p-3.5 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400" id="metric-target-lbl">SC 2.5.8 Target Geometry (Cl. 9.2.5.8):</span>
+                <span id="metric-target-val" class="font-semibold text-rose-400 mono">16×16 px (FAIL &lt; 24×24 px)</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400" id="metric-contrast-lbl">SC 1.4.3 Text Contrast (Cl. 9.1.4.3):</span>
+                <span id="metric-contrast-val" class="font-semibold text-rose-400 mono">2.10:1 (FAIL &lt; 4.5:1)</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400" id="metric-cert-lbl">Section 4 Audit Document Status:</span>
+                <span id="metric-cert-val" class="rounded bg-rose-500/20 px-2 py-0.5 font-semibold text-rose-300">Non-Conformity Protocol (52%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Normative Legal Engine Explorer -->
+    <section id="normative-db" class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div class="glass-card rounded-2xl p-6 sm:p-8">
+        <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Built-In Statutory Registry (Auto-Synced Weekly)</span>
+            <h2 id="norms-title" class="mt-1 text-2xl font-bold text-white">Every Finding Cited to Exact European &amp; W3C Law Clauses</h2>
+            <p id="norms-sub" class="mt-1 text-sm text-slate-400">
+              Includes recursive Open Shadow DOM &amp; same-origin iframe inspection plus Section 4 Printable Conformity Certificates.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter normative rules">
+            <button type="button" data-norm-filter="all" class="norm-filter-btn rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white">All Rules</button>
+            <button type="button" data-norm-filter="target" class="norm-filter-btn rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white">Touch Targets</button>
+            <button type="button" data-norm-filter="focus" class="norm-filter-btn rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white">Focus &amp; Headers</button>
+            <button type="button" data-norm-filter="forms" class="norm-filter-btn rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white">Auth &amp; Forms</button>
+            <button type="button" data-norm-filter="base" class="norm-filter-btn rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white">WebAIM Core</button>
+          </div>
+        </div>
+
+        <div class="mt-5 overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-2.5 pr-4 font-semibold">WCAG 2.2 Criterion</th>
+                <th class="py-2.5 pr-4 font-semibold">ETSI EN 301 549 V4.1.1</th>
+                <th class="py-2.5 pr-4 font-semibold">EU EAA 2019/882 &amp; BFSG</th>
+                <th class="py-2.5 font-semibold">Deterministic Engine Check</th>
+              </tr>
+            </thead>
+            <tbody id="normative-tbody" class="divide-y divide-slate-800/70 text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transparent Pricing Section ($0 Free vs $10/mo Pro) -->
+    <section id="pricing" class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div class="text-center max-w-2xl mx-auto mb-8">
+        <span class="text-xs font-semibold uppercase tracking-wider text-blue-400">Simple, Transparent SaaS Licensing</span>
+        <h2 id="pricing-title" class="mt-1 text-2xl font-extrabold text-white sm:text-3xl">Free Forever for Quick Checks. $10/mo for Agency Client Deliverables.</h2>
+        <p id="pricing-sub" class="mt-2 text-sm text-slate-400">
+          Instant license activation inside the extension by work email. Cancel anytime in one click, covered by our 14-day money-back guarantee.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <!-- Free Plan -->
+        <div class="glass-card rounded-2xl p-6 sm:p-8 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-bold text-white">Express Auditor Free</h3>
+              <span class="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">No Account Needed</span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-1">
+              <span class="text-4xl font-extrabold text-white">$0</span>
+              <span class="text-sm text-slate-400">/ forever</span>
+            </div>
+            <p class="mt-3 text-xs text-slate-400">Full on-page diagnostic workflow for individual developers testing live pages.</p>
+
+            <ul class="mt-6 space-y-2.5 text-sm text-slate-300">
+              <li class="flex items-start gap-2.5"><span class="text-emerald-400 font-bold">✓</span><span>Unlimited local WCAG 2.2 AA &amp; EN 301 549 scans on any HTTP/HTTPS page</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-emerald-400 font-bold">✓</span><span>Live Before ↔ After CSS visual remediation &amp; draggable on-page inspector</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-emerald-400 font-bold">✓</span><span>Numbered Tab# keyboard focus path &amp; sticky-header occlusion detection</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-emerald-400 font-bold">✓</span><span>4-Pillar EAA Readiness score &amp; full unblurred Spotlight Evidence Card #1</span></li>
+            </ul>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-800">
+            <a href="https://github.com/aiagent2046-coder/EAA-WCAG-2.2-AA-Express-Client-Auditor/releases" target="_blank" rel="noopener noreferrer" class="block w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 text-center text-sm font-semibold text-slate-200 hover:border-slate-500 hover:text-white transition-colors">
+              Included in Extension Download
+            </a>
+          </div>
+        </div>
+
+        <!-- Pro Plan ($10.00 / month) -->
+        <div class="rounded-2xl border-2 border-blue-500 bg-slate-900/95 p-6 sm:p-8 shadow-2xl shadow-blue-600/15 flex flex-col justify-between relative">
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-bold text-white">Express Client Auditor Pro</h3>
+              <span class="rounded-full bg-blue-600/20 border border-blue-500/40 px-3 py-1 text-xs font-semibold text-blue-300">Agency &amp; Freelance</span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-1.5">
+              <span class="text-4xl font-extrabold text-white">$10.00</span>
+              <span class="text-sm text-slate-300">USD / month</span>
+            </div>
+            <p class="mt-3 text-xs text-slate-300">
+              Recurring monthly subscription (applicable local VAT/Sales Tax handled automatically at checkout by our authorized Merchant of Record).
+            </p>
+
+            <ul class="mt-6 space-y-2.5 text-sm text-slate-200">
+              <li class="flex items-start gap-2.5"><span class="text-blue-400 font-bold">✓</span><span><strong>Unlock All Spotlight Evidence Cards:</strong> High-resolution 640px annotated screenshots for every AA failure &amp; grouped warning</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-blue-400 font-bold">✓</span><span><strong>Printable Conformity Certificate &amp; Protocol:</strong> Official Section 4 A4 sign-off sheet with EN 301 549 Chapter 9 &amp; EU 2019/882 Annex I citations</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-blue-400 font-bold">✓</span><span><strong>White-Label Agency Branding:</strong> Custom studio logo, agency name, client project title, and multilingual PDF output (EN, RU, DE)</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-blue-400 font-bold">✓</span><span><strong>Developer Ticket Exports:</strong> One-click Markdown remediation specs &amp; Jira CSV issue import</span></li>
+              <li class="flex items-start gap-2.5"><span class="text-blue-400 font-bold">✓</span><span><strong>14-Day Money-Back Guarantee &amp; 1-Click Cancel:</strong> Manage or cancel anytime from the built-in Customer Portal</span></li>
+            </ul>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-800 space-y-2">
+            <a href="#refunds" data-legal-jump="refunds" class="block w-full rounded-xl bg-blue-600 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-500 transition-colors">
+              Activate Inside Extension Report • Read 14-Day Refund Guarantee
+            </a>
+            <p class="text-center text-[11px] text-slate-400">
+              Instant activation across Chrome, Edge &amp; Firefox via the work email entered at checkout.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Legal, Refund Policy & Privacy Center (Direct Anchor Targets for Polar / Freemius / Paddle Review) -->
+    <section id="legal-center" class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div id="terms" class="scroll-mt-24"></div>
+      <div id="refunds" class="scroll-mt-24"></div>
+      <div id="privacy" class="scroll-mt-24"></div>
+
+      <div class="glass-card rounded-2xl p-6 sm:p-8">
+        <div class="flex flex-col justify-between gap-4 border-b border-slate-800 pb-5 sm:flex-row sm:items-center">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-blue-400">Legal &amp; Buyer Protection</span>
+            <h2 class="mt-1 text-2xl font-bold text-white">Terms of Service, Refund Policy &amp; Privacy Policy</h2>
+          </div>
+          <div class="flex flex-wrap gap-2" role="tablist" aria-label="Legal policies">
+            <button type="button" data-legal-tab="refunds" class="legal-tab-btn rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white">Refund &amp; Cancellation Policy</button>
+            <button type="button" data-legal-tab="terms" class="legal-tab-btn rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white">Terms of Service</button>
+            <button type="button" data-legal-tab="privacy" class="legal-tab-btn rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white">Privacy Policy</button>
+          </div>
+        </div>
+
+        <!-- Tab 1: Refund & Cancellation Policy -->
+        <article id="panel-refunds" class="mt-6 space-y-4 text-sm leading-relaxed text-slate-300">
+          <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
+            <strong>14-Day 100% Money-Back Guarantee:</strong> If you are not satisfied with <em>EAA &amp; WCAG 2.2 AA Express Client Auditor Pro</em> ($10.00 USD/month) for any reason, you may request a full refund within <strong>14 calendar days</strong> of your initial subscription purchase — no questions asked.
+          </div>
+          <h3 class="text-base font-bold text-white">1. Subscription Cancellation (Self-Serve, Anytime)</h3>
+          <p>
+            You can cancel your monthly Pro subscription at any time in one click via the <strong>Manage Subscription (Customer Portal)</strong> button inside the extension or through the billing management link in your email receipt. Upon cancellation, no further recurring charges will be made, and your Pro access remains active until the end of the current paid monthly billing period.
+          </p>
+          <h3 class="text-base font-bold text-white">2. How to Request a Refund</h3>
+          <p>
+            To receive a full refund within 14 days of your initial charge (or in the event of an accidental duplicate charge), submit a request with the email address used at checkout via our <a href="https://github.com/aiagent2046-coder/EAA-WCAG-2.2-AA-Express-Client-Auditor/issues" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300">Official Support &amp; Billing Desk on GitHub</a> or directly through the Merchant of Record receipt link. Refunds are issued back to the original payment method within 5–10 business days depending on your card issuer.
+          </p>
+        </article>
+
+        <!-- Tab 2: Terms of Service -->
+        <article id="panel-terms" class="mt-6 hidden space-y-4 text-sm leading-relaxed text-slate-300">
+          <h3 class="text-base font-bold text-white">1. Product Scope &amp; License Grant</h3>
+          <p>
+            <em>EAA &amp; WCAG 2.2 AA Express Client Auditor</em> provides automated local DOM geometry, contrast, focus-indicator, and statutory mapping inspections against W3C WCAG 2.2 Level AA and ETSI EN 301 549 V4.1.1. An active Pro subscription ($10.00 USD/month) grants the subscriber a non-exclusive, revocable license to generate unlimited client PDF reports, Technical Audit Conformity Certificates / Non-Conformity Protocols, and developer ticket exports.
+          </p>
+          <h3 class="text-base font-bold text-white">2. Technical Disclaimer (Automated Audit Scope)</h3>
+          <p>
+            Automated browser inspection verifies deterministic technical criteria (touch target dimensions, computed contrast, focus visibility, form attributes, and document structure). Full legal certification for complex user journeys may additionally require manual assistive-technology testing; generated Conformity Certificates explicitly state the automated technical audit scope, timestamp, and inspected URL.
+          </p>
+          <h3 class="text-base font-bold text-white">3. Merchant of Record &amp; Billing</h3>
+          <p>
+            Order processing, tax calculation (EU VAT / US Sales Tax), invoicing, and card settlement are handled securely by our authorized payment processor / Merchant of Record via Monetize.software. We never store or access your payment card details.
+          </p>
+        </article>
+
+        <!-- Tab 3: Privacy Policy -->
+        <article id="panel-privacy" class="mt-6 hidden space-y-4 text-sm leading-relaxed text-slate-300">
+          <h3 class="text-base font-bold text-white">1. 100% Local Webpage Inspection (Zero Page Data Uploaded)</h3>
+          <p>
+            All accessibility scans, DOM bounding-box measurements, live Before/After CSS simulations, and viewport Spotlight crops (<code>tabs.captureVisibleTab</code>) execute strictly locally inside your browser. <strong>No audited HTML, text, form inputs, passwords, cookies, browsing history, or screenshots ever leave your device.</strong>
+          </p>
+          <h3 class="text-base font-bold text-white">2. Minimal Billing Data</h3>
+          <p>
+            When you unlock or restore a Pro subscription, only the work email address you explicitly type into the upgrade modal and the selected plan ID are transmitted over HTTPS to create your checkout session and verify active subscription status. White-Label agency branding (logo, studio name, client title) stays exclusively in local browser storage (<code>chrome.storage.local</code>).
+          </p>
+          <h3 class="text-base font-bold text-white">3. Data Deletion &amp; Full Policy</h3>
+          <p>
+            Clicking <strong>Sign Out</strong> inside the extension or uninstalling the extension immediately clears stored local state. Read the standalone repository copy anytime at <a href="https://github.com/aiagent2046-coder/EAA-WCAG-2.2-AA-Express-Client-Auditor/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300">PRIVACY.md on GitHub</a>.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- One-Click Verification Links Box for Polar / Freemius / Browser Store Forms -->
+    <section id="verify-urls" class="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
+        <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Quick-Copy URLs for Polar, Freemius &amp; Store Verification</h2>
+            <p class="text-xs text-slate-400">Once deployed to GitHub Pages, paste these direct links into your payment hub &amp; extension store forms:</p>
+          </div>
+          <span class="text-xs text-emerald-400 mono">GitHub Pages Ready</span>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5">
+            <div class="min-w-0">
+              <div class="text-[11px] font-semibold text-slate-400">Product &amp; Pricing URL</div>
+              <div class="truncate text-xs text-slate-200 mono">https://aiagent2046-coder.github.io/EAA-WCAG-2.2-AA-Express-Client-Auditor/</div>
+            </div>
+            <button type="button" data-copy-url="https://aiagent2046-coder.github.io/EAA-WCAG-2.2-AA-Express-Client-Auditor/" class="copy-url-btn shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-blue-300 hover:bg-slate-700">Copy</button>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5">
+            <div class="min-w-0">
+              <div class="text-[11px] font-semibold text-slate-400">Terms &amp; 14-Day Refund URL</div>
+              <div class="truncate text-xs text-slate-200 mono">https://aiagent2046-coder.github.io/EAA-WCAG-2.2-AA-Express-Client-Auditor/#refunds</div>
+            </div>
+            <button type="button" data-copy-url="https://aiagent2046-coder.github.io/EAA-WCAG-2.2-AA-Express-Client-Auditor/#refunds" class="copy-url-btn shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-blue-300 hover:bg-slate-700">Copy</button>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5">
+            <div class="min-w-0">
+              <div class="text-[11px] font-semibold text-slate-400">Privacy Policy URL</div>
+              <div class="truncate text-xs text-slate-200 mono">https://aiagent2046-coder.github.io/EAA-WCAG-2.2-AA-Express-Client-Auditor/#privacy</div>
+            </div>
+            <button type="button" data-copy-url="https://aiagent2046-coder.github.io/EAA-WCAG-2.2-AA-Express-Client-Auditor/#privacy" class="copy-url-btn shrink-0 rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-blue-300 hover:bg-slate-700">Copy</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-800/80 bg-slate-950 py-8 text-xs text-slate-400">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
+      <div>
+        © 2026 EAA &amp; WCAG 2.2 AA Express Client Auditor (v1.1.2). Open-source documentation &amp; issue tracker on <a href="https://github.com/aiagent2046-coder/EAA-WCAG-2.2-AA-Express-Client-Auditor" target="_blank" rel="noopener noreferrer" class="text-slate-200 underline hover:text-white">GitHub</a>.
+      </div>
+      <div class="flex flex-wrap gap-4">
+        <a href="#pricing" class="hover:text-white">Pricing ($10/mo)</a>
+        <a href="#refunds" data-legal-jump="refunds" class="hover:text-white">14-Day Refund Policy</a>
+        <a href="#terms" data-legal-jump="terms" class="hover:text-white">Terms of Service</a>
+        <a href="#privacy" data-legal-jump="privacy" class="hover:text-white">Privacy Policy</a>
+        <a href="https://github.com/aiagent2046-coder/EAA-WCAG-2.2-AA-Express-Client-Auditor/issues" target="_blank" rel="noopener noreferrer" class="hover:text-white">Support</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const NORMATIVE_ROWS = [
+        {
+          cat: 'target',
+          wcag: 'SC 2.5.8 Target Size (Min)',
+          wcagUrl: 'https://www.w3.org/TR/WCAG22/#target-size-minimum',
+          en: 'EN 301 549 Cl. 9.2.5.8',
+          eaa: 'EU 2019/882 Annex I Sec. I(2)(b) • BFSG § 3',
+          check: '24×24 CSS px hit-box + 24px spacing circle & inline exemptions'
+        },
+        {
+          cat: 'focus',
+          wcag: 'SC 2.4.11 Focus Not Obscured',
+          wcagUrl: 'https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum',
+          en: 'EN 301 549 Cl. 9.2.4.11',
+          eaa: 'EU 2019/882 Annex I Sec. I(2)(b) • BFSG § 3',
+          check: 'Detects sticky headers, floating docks & cookie banners covering Tab focus'
+        },
+        {
+          cat: 'focus',
+          wcag: 'SC 2.4.7 / 2.4.13 Focus Visible',
+          wcagUrl: 'https://www.w3.org/TR/WCAG22/#focus-appearance',
+          en: 'EN 301 549 Cl. 9.2.4.7',
+          eaa: 'EU 2019/882 Annex I Sec. I(2)(c)',
+          check: 'Zero-blur focus probe including cross-origin CDN outline:none rules'
+        },
+        {
+          cat: 'forms',
+          wcag: 'SC 3.3.8 Accessible Auth',
+          wcagUrl: 'https://www.w3.org/TR/WCAG22/#accessible-authentication-minimum',
+          en: 'EN 301 549 Cl. 9.3.3.8',
+          eaa: 'EU 2019/882 Annex I Sec. I(2)(d)',
+          check: 'Flags blocked password paste, missing autocomplete & unpasteable split OTPs'
+        },
+        {
+          cat: 'forms',
+          wcag: 'SC 3.2.6 Consistent Help',
+          wcagUrl: 'https://www.w3.org/TR/WCAG22/#consistent-help',
+          en: 'EN 301 549 Cl. 9.3.2.6',
+          eaa: 'EU 2019/882 Annex I Sec. III(d)',
+          check: 'Cross-page help channel order & presence verification per domain'
+        },
+        {
+          cat: 'base',
+          wcag: 'SC 1.4.3 / 1.1.1 / 3.3.2 / 4.1.2',
+          wcagUrl: 'https://www.w3.org/TR/WCAG22/#contrast-minimum',
+          en: 'EN 301 549 Cl. 9.1.4.3 – 9.4.1.2',
+          eaa: 'EU 2019/882 Annex I Sec. I(2)(a)–(c)',
+          check: 'Text contrast 4.5:1, alt text, form labels, ARIA names & Shadow DOM scan'
+        }
+      ];
+
+      const I18N = {
+        en: {
+          navSub: 'Browser Extension for Chrome, Edge & Firefox',
+          heroBadge: '100% Local-First Client Execution • Zero Data Leaves Your Browser',
+          heroTitle: 'Instant WCAG 2.2 Level AA & European Accessibility Act Audits with Live Before/After Proof',
+          ctaPricing: 'View Free & Pro Plans ($10/mo)',
+          ctaGithub: 'GitHub Repository & Releases',
+          demoHeading: 'Live Before ↔ After CSS Remediation',
+          pricingTitle: 'Free Forever for Quick Checks. $10/mo for Agency Client Deliverables.',
+          pricingSub: 'Instant license activation inside the extension by work email. Cancel anytime in one click, covered by our 14-day money-back guarantee.'
+        },
+        ru: {
+          navSub: 'Браузерное расширение для Chrome, Edge и Firefox',
+          heroBadge: '100% локальная работа в браузере • Данные страниц никуда не отправляются',
+          heroTitle: 'Экспресс-аудит WCAG 2.2 AA и European Accessibility Act с живым режимом «ДО / ПОСЛЕ»',
+          ctaPricing: 'Тарифы Free и Pro ($10/мес)',
+          ctaGithub: 'GitHub-репозиторий и релизы',
+          demoHeading: 'Живая демонстрация исправлений «ДО ↔ ПОСЛЕ»',
+          pricingTitle: 'Бесплатно для быстрых проверок. $10/мес для клиентских PDF-отчетов и Сертификатов.',
+          pricingSub: 'Мгновенная активация по рабочему Email внутри расширения. Отмена в 1 клик и безусловный возврат средств в течение 14 дней.'
+        }
+      };
+
+      const state = {
+        lang: 'en',
+        simMode: 'before',
+        normFilter: 'all',
+        legalTab: 'refunds'
+      };
+
+      function renderLanguage() {
+        const t = I18N[state.lang] || I18N.en;
+        document.documentElement.lang = state.lang;
+        document.getElementById('nav-subtitle').textContent = t.navSub;
+        document.getElementById('hero-badge').textContent = t.heroBadge;
+        document.getElementById('hero-title').textContent = t.heroTitle;
+        document.getElementById('cta-view-pricing').firstElementChild.textContent = t.ctaPricing;
+        document.getElementById('cta-github').firstElementChild.textContent = t.ctaGithub;
+        document.getElementById('demo-heading').textContent = t.demoHeading;
+        document.getElementById('pricing-title').textContent = t.pricingTitle;
+        document.getElementById('pricing-sub').textContent = t.pricingSub;
+
+        const btnEn = document.getElementById('btn-lang-en');
+        const btnRu = document.getElementById('btn-lang-ru');
+        if (state.lang === 'en') {
+          btnEn.className = 'rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors';
+          btnRu.className = 'rounded-md px-2.5 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors';
+        } else {
+          btnRu.className = 'rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors';
+          btnEn.className = 'rounded-md px-2.5 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors';
+        }
+      }
+
+      function renderSimStudio() {
+        const isAfter = state.simMode === 'after';
+        const btnBefore = document.getElementById('btn-sim-before');
+        const btnAfter = document.getElementById('btn-sim-after');
+        const targetBtn = document.getElementById('demo-target-btn');
+        const inputLbl = document.getElementById('demo-input-label');
+        const promoInput = document.getElementById('demo-promo-input');
+        const badgePill = document.getElementById('demo-badge-pill');
+
+        const mTarget = document.getElementById('metric-target-val');
+        const mContrast = document.getElementById('metric-contrast-val');
+        const mCert = document.getElementById('metric-cert-val');
+
+        if (isAfter) {
+          btnAfter.className = 'rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition-colors';
+          btnBefore.className = 'rounded-md px-3 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors';
+
+          targetBtn.style.width = '28px';
+          targetBtn.style.height = '28px';
+          targetBtn.style.fontSize = '13px';
+          targetBtn.className = 'target-ring-fixed flex items-center justify-center rounded bg-blue-50 text-slate-900 font-bold transition-all';
+
+          inputLbl.style.color = '#0f172a';
+          inputLbl.textContent = 'Promo code (remediated 7.45:1 contrast & 3px focus ring)';
+          promoInput.style.color = '#0f172a';
+          promoInput.style.outline = '3px solid #2563eb';
+          promoInput.style.outlineOffset = '1px';
+
+          badgePill.className = 'shrink-0 rounded bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-800 mono';
+          badgePill.textContent = '0 AA FAILS';
+
+          mTarget.className = 'font-semibold text-emerald-400 mono';
+          mTarget.textContent = '28×28 px (PASS ≥ 24×24 px)';
+          mContrast.className = 'font-semibold text-emerald-400 mono';
+          mContrast.textContent = '7.45:1 (PASS ≥ 4.5:1)';
+          mCert.className = 'rounded bg-emerald-500/20 px-2 py-0.5 font-semibold text-emerald-300';
+          mCert.textContent = 'Conformity Certificate (100%)';
+        } else {
+          btnBefore.className = 'rounded-md bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition-colors';
+          btnAfter.className = 'rounded-md px-3 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors';
+
+          targetBtn.style.width = '16px';
+          targetBtn.style.height = '16px';
+          targetBtn.style.fontSize = '10px';
+          targetBtn.className = 'target-ring-broken flex items-center justify-center rounded bg-slate-100 text-slate-400 transition-all';
+
+          inputLbl.style.color = '#94a3b8';
+          inputLbl.textContent = 'Promo code (low contrast 2.1:1 & suppressed focus ring)';
+          promoInput.style.color = '#94a3b8';
+          promoInput.style.outline = 'none';
+
+          badgePill.className = 'shrink-0 rounded bg-rose-100 px-2 py-1 text-[11px] font-bold text-rose-700 mono';
+          badgePill.textContent = '3 AA FAILS';
+
+          mTarget.className = 'font-semibold text-rose-400 mono';
+          mTarget.textContent = '16×16 px (FAIL < 24×24 px)';
+          mContrast.className = 'font-semibold text-rose-400 mono';
+          mContrast.textContent = '2.10:1 (FAIL < 4.5:1)';
+          mCert.className = 'rounded bg-rose-500/20 px-2 py-0.5 font-semibold text-rose-300';
+          mCert.textContent = 'Non-Conformity Protocol (52%)';
+        }
+      }
+
+      function renderNormativeTable() {
+        const tbody = document.getElementById('normative-tbody');
+        const rows = NORMATIVE_ROWS.filter(function (r) {
+          return state.normFilter === 'all' || r.cat === state.normFilter;
+        });
+        tbody.innerHTML = rows.map(function (r) {
+          return '<tr class="hover:bg-slate-900/60 transition-colors">' +
+            '<td class="py-3 pr-4 font-semibold"><a href="' + r.wcagUrl + '" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300 mono">' + r.wcag + '</a></td>' +
+            '<td class="py-3 pr-4 text-emerald-300 mono">' + r.en + '</td>' +
+            '<td class="py-3 pr-4 text-slate-300">' + r.eaa + '</td>' +
+            '<td class="py-3 text-slate-400">' + r.check + '</td>' +
+          '</tr>';
+        }).join('');
+
+        document.querySelectorAll('.norm-filter-btn').forEach(function (btn) {
+          const active = btn.getAttribute('data-norm-filter') === state.normFilter;
+          btn.className = active
+            ? 'norm-filter-btn rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white'
+            : 'norm-filter-btn rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white';
+        });
+      }
+
+      function renderLegalTabs() {
+        ['refunds', 'terms', 'privacy'].forEach(function (tab) {
+          const panel = document.getElementById('panel-' + tab);
+          if (panel) {
+            panel.classList.toggle('hidden', state.legalTab !== tab);
+          }
+        });
+        document.querySelectorAll('.legal-tab-btn').forEach(function (btn) {
+          const active = btn.getAttribute('data-legal-tab') === state.legalTab;
+          btn.className = active
+            ? 'legal-tab-btn rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white'
+            : 'legal-tab-btn rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white';
+        });
+      }
+
+      let toastTimer = null;
+      function showToast(msg) {
+        const box = document.getElementById('toast-box');
+        const txt = document.getElementById('toast-text');
+        txt.textContent = msg;
+        box.classList.remove('hidden');
+        box.classList.add('flex');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+          box.classList.add('hidden');
+          box.classList.remove('flex');
+        }, 2600);
+      }
+
+      function copyTextSafe(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            showToast('Copied URL: ' + text);
+          }).catch(function () {
+            fallbackCopy(text);
+          });
+        } else {
+          fallbackCopy(text);
+        }
+      }
+
+      function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast('Copied URL: ' + text);
+        } catch (_) {
+          showToast('Select & copy URL manually');
+        }
+        document.body.removeChild(ta);
+      }
+
+      // Wire Language Buttons
+      document.getElementById('btn-lang-en').addEventListener('click', function () {
+        state.lang = 'en';
+        renderLanguage();
+      });
+      document.getElementById('btn-lang-ru').addEventListener('click', function () {
+        state.lang = 'ru';
+        renderLanguage();
+      });
+
+      // Wire Live Demo Toggle + clicking target button itself
+      document.getElementById('btn-sim-before').addEventListener('click', function () {
+        state.simMode = 'before';
+        renderSimStudio();
+      });
+      document.getElementById('btn-sim-after').addEventListener('click', function () {
+        state.simMode = 'after';
+        renderSimStudio();
+      });
+      document.getElementById('demo-target-btn').addEventListener('click', function () {
+        state.simMode = state.simMode === 'before' ? 'after' : 'before';
+        renderSimStudio();
+      });
+
+      // Wire Normative Filter Buttons
+      document.querySelectorAll('.norm-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          state.normFilter = btn.getAttribute('data-norm-filter') || 'all';
+          renderNormativeTable();
+        });
+      });
+
+      // Wire Legal Tabs & Jump Links
+      document.querySelectorAll('.legal-tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          state.legalTab = btn.getAttribute('data-legal-tab') || 'refunds';
+          renderLegalTabs();
+        });
+      });
+      document.querySelectorAll('[data-legal-jump]').forEach(function (link) {
+        link.addEventListener('click', function () {
+          state.legalTab = link.getAttribute('data-legal-jump') || 'refunds';
+          renderLegalTabs();
+        });
+      });
+
+      // Sync hash (#terms, #refunds, #privacy) on load and hashchange for reviewer deep links
+      function syncFromHash() {
+        const h = (window.location.hash || '').replace(/^#/, '').toLowerCase();
+        if (h === 'terms' || h === 'refunds' || h === 'privacy') {
+          state.legalTab = h;
+          renderLegalTabs();
+        }
+      }
+      window.addEventListener('hashchange', syncFromHash);
+
+      // Wire Copy URL Buttons
+      document.querySelectorAll('.copy-url-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const url = btn.getAttribute('data-copy-url') || '';
+          if (url) copyTextSafe(url);
+        });
+      });
+
+      // Initial render
+      syncFromHash();
+      renderLanguage();
+      renderSimStudio();
+      renderNormativeTable();
+      renderLegalTabs();
+    })();
+  </script>
+</body>
+</html>

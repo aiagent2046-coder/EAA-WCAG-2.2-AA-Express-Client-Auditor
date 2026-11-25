@@ -1,0 +1,27 @@
+{
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://wcag22-paywall-proxy.eaa-auditor-pro.workers.dev/*",
+    "https://appbox.space/*"
+  ],
+  "background": {
+    "scripts": [
+      "dist-sdk/sw-firefox.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "wcag22-auditor@aiagent2046.dev",
+      "strict_min_version": "115.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}
