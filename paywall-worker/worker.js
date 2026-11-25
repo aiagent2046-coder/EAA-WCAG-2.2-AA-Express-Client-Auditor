@@ -6,7 +6,7 @@
  */
 
 const LAVA_API_ORIGIN = 'https://gate.lava.top';
-const DEFAULT_OFFERS = [{"offerId": "b67dc1e1-0a63-4fc0-86be-dd9e53d6c2bf", "name": "Agency Pro Suite", "currency": "USD", "amount": 10, "periodicity": "ONE_TIME"}, {"offerId": "b67dc1e1-0a63-4fc0-86be-dd9e53d6c2bf", "name": "Agency Pro Suite", "currency": "EUR", "amount": 10, "periodicity": "ONE_TIME"}, {"offerId": "b67dc1e1-0a63-4fc0-86be-dd9e53d6c2bf", "name": "Agency Pro Suite", "currency": "RUB", "amount": 950, "periodicity": "ONE_TIME"}];
+const DEFAULT_OFFERS = [{"offerId": "10bf0e6d-bf78-47ec-9867-700aab517aee", "name": "Agency Pro Subscription", "currency": "USD", "amount": 10.0, "periodicity": "MONTHLY", "productType": "SUBSCRIPTION"}, {"offerId": "10bf0e6d-bf78-47ec-9867-700aab517aee", "name": "Agency Pro Subscription", "currency": "EUR", "amount": 10.0, "periodicity": "MONTHLY", "productType": "SUBSCRIPTION"}, {"offerId": "10bf0e6d-bf78-47ec-9867-700aab517aee", "name": "Agency Pro Subscription", "currency": "RUB", "amount": 950.0, "periodicity": "MONTHLY", "productType": "SUBSCRIPTION"}];
 const SERVICE_NAME = 'wcag22-paywall-proxy';
 const SUPPORT_EMAIL = 'aiagent2046@gmail.com';
 
@@ -157,8 +157,9 @@ function buildSortedPrices(countryCode) {
   });
 
   mapped.sort((a, b) => {
-    const score = x => (x.currency === preferred ? 0 : (x.currency === 'USD' ? 1 : (x.currency === 'EUR' ? 2 : 3)));
-    return score(a) - score(b);
+    const curScore = x => (x.currency === preferred ? 0 : (x.currency === 'USD' ? 1 : (x.currency === 'EUR' ? 2 : 3)));
+    const perScore = x => (x.interval === 'month' ? 0 : (x.interval === 'year' ? 1 : 2));
+    return (curScore(a) - curScore(b)) || (perScore(a) - perScore(b)) || (a.amount - b.amount);
   });
   return mapped;
 }
@@ -184,12 +185,16 @@ export default {
         const verified = await verifyInvoiceAtLava(apiKey, invoiceId);
         const targetEmail = verified?.email || invMeta?.email || '';
         if (verified?.paid && isValidEmail(targetEmail)) {
+          const per = String(invMeta?.periodicity || '').toUpperCase();
+          const days = per.includes('YEAR') ? 367 : (per.includes('180') ? 185 : (per.includes('90') ? 93 : (per && per !== 'ONE_TIME' ? 32 : 0)));
+          const fallbackExp = days > 0 ? new Date(Date.now() + days * 86400_000).toISOString() : null;
           await env.SUBS_KV.put(`sub:${targetEmail}`, JSON.stringify({
             email: targetEmail,
             paid: true,
             status: 'active',
             contractId: verified.contractId || invoiceId,
             invoiceId,
+            willExpireAt: verified.willExpireAt || fallbackExp,
             updatedAt: new Date().toISOString(),
             source: 'return_verified_api'
           }));
@@ -520,6 +525,7 @@ export default {
           email: cleanEmail,
           offerId,
           currency,
+          periodicity,
           createdAt: new Date().toISOString()
         }), { expirationTtl: 2592000 });
         await env.SUBS_KV.put(`last_inv:${cleanEmail}`, String(invoiceId), { expirationTtl: 7200 });
